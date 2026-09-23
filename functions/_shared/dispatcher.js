@@ -1,4 +1,5 @@
 import { hmacSha256Hex } from "./webhook.js";
+import { deriveEndpointSigningSecret } from "./provisioning.js";
 import { supabaseRpc, SupabaseHttpError } from "./supabase.js";
 
 export class DispatcherError extends Error {
@@ -61,8 +62,24 @@ export function validateWebhookDestination(urlValue, verifiedHost, allowedHosts)
   return url;
 }
 
-export function resolveWebhookSecret(env, secretRef) {
-  const ref = String(secretRef || "").trim().toUpperCase().replace(/-/g, "_");
+export function validateProvisioningDestination(urlValue, allowedHosts) {
+  let parsed;
+  try { parsed = new URL(String(urlValue || "")); }
+  catch { throw new DispatcherError("invalid_webhook_url", { code:"invalid_webhook_url" }); }
+  return validateWebhookDestination(urlValue, parsed.hostname, allowedHosts);
+}
+
+export async function resolveWebhookSecret(env, secretRef) {
+  const rawRef = String(secretRef || "").trim().toUpperCase();
+  if (/^DERIVED_V1_[A-F0-9]{32}$/.test(rawRef)) {
+    try {
+      return await deriveEndpointSigningSecret(env?.OUTBOUND_SIGNING_MASTER_SECRET, rawRef);
+    } catch {
+      throw new DispatcherError("webhook_secret_missing", { code:"webhook_secret_missing" });
+    }
+  }
+
+  const ref = rawRef.replace(/-/g, "_");
   if (!/^[A-Z0-9_]{3,64}$/.test(ref)) {
     throw new DispatcherError("invalid_secret_ref", { code:"invalid_secret_ref" });
   }
@@ -160,7 +177,7 @@ export async function dispatchClaimedDelivery(config, env, delivery, {
       delivery.endpoint_verified_host,
       allowedHosts,
     );
-    const secret = resolveWebhookSecret(env, delivery.secret_ref);
+    const secret = await resolveWebhookSecret(env, delivery.secret_ref);
     const envelope = buildWebhookEnvelope(delivery);
     const body = JSON.stringify(envelope);
     const timestamp = String(Math.floor(nowMs / 1000));
