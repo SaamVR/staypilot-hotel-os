@@ -5,7 +5,8 @@ import {
   Users, DollarSign, ArrowUpRight, MoreHorizontal, CheckCircle2,
   Clock3, Wrench, Send, Plus, CreditCard, Wifi, RotateCcw, X,
   SlidersHorizontal, Building2, Moon, UserRound, ExternalLink,
-  MessageSquare, Sparkles, BarChart3, Home
+  MessageSquare, Sparkles, BarChart3, Home, Settings2, KeyRound,
+  Eye, EyeOff, ShieldCheck, PlugZap, Copy, Check, Database, Zap
 } from "lucide-react";
 import {
   ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip,
@@ -80,7 +81,8 @@ const nav = [
   ["marketing", "Marketing", Megaphone],
   ["operations", "Operations", ClipboardCheck],
   ["booking", "Booking engine", Globe2],
-  ["assistant", "AI assistant", Bot]
+  ["assistant", "AI assistant", Bot],
+  ["connections", "Connections & API", Settings2]
 ];
 
 const fmt = n => "$" + Number(n).toLocaleString("en-US", { maximumFractionDigits: 0 });
@@ -251,6 +253,7 @@ function App() {
         {active === "operations" && <Operations {...pageProps} />}
         {active === "booking" && <BookingEngine {...pageProps} />}
         {active === "assistant" && <Assistant {...pageProps} />}
+        {active === "connections" && <Connections {...pageProps} />}
       </div>
     </main>
 
@@ -352,6 +355,18 @@ function Overview({ stats, activities, setActive }) {
         </div>
         <div className="goal"><div><span>Direct booking goal</span><b>76%</b></div><div className="progress"><i style={{ width: "76%" }} /></div><p>19 bookings away from this month’s target.</p></div>
       </article>
+    </section>
+
+    <section className="automation-section">
+      <div className="section-title-row">
+        <div><span className="panel-kicker">Automation control</span><h2>Active workflows</h2><p>Rules that keep reservations, pricing and guest communication moving without manual handoffs.</p></div>
+        <button className="ghost-btn" onClick={() => setActive("connections")}><Settings2 size={16} /> Manage connections</button>
+      </div>
+      <div className="automation-rule-grid">
+        <article className="panel automation-rule"><div className="rule-top"><span className="rule-icon blue"><CalendarDays size={18} /></span><StatusDot status="Live" /></div><h3>Reservation ingest</h3><p>Any confirmed channel booking reserves the room, updates global inventory and alerts the front desk.</p><div className="rule-flow"><span>Booking event</span><ArrowUpRight size={13} /><span>Reserve room</span><ArrowUpRight size={13} /><span>Sync channels</span></div></article>
+        <article className="panel automation-rule"><div className="rule-top"><span className="rule-icon violet"><TrendingUp size={18} /></span><StatusDot status="Live" /></div><h3>Occupancy rate guard</h3><p>When occupancy passes 80%, the BAR plan adjusts and approved rates publish across connected channels.</p><div className="rule-flow"><span>80% occupancy</span><ArrowUpRight size={13} /><span>Rate +8%</span><ArrowUpRight size={13} /><span>Publish</span></div></article>
+        <article className="panel automation-rule"><div className="rule-top"><span className="rule-icon green"><MessageSquare size={18} /></span><StatusDot status="Live" /></div><h3>Guest pre-arrival</h3><p>Twenty-four hours before check-in, guests receive confirmation, arrival guidance and an upsell opportunity.</p><div className="rule-flow"><span>T−24 hours</span><ArrowUpRight size={13} /><span>Message</span><ArrowUpRight size={13} /><span>Track reply</span></div></article>
+      </div>
     </section>
   </>;
 }
@@ -625,6 +640,176 @@ function Assistant({ rooms, setRooms, bookings, stats, rateMultiplier, setRateMu
       </aside>
     </div>
   </div>;
+}
+
+function Connections({ pushActivity, flash }) {
+  const providers = {
+    booking: {
+      name: "Booking.com", icon: "B", tone: "blue", type: "Channel", note: "Connectivity Partner API",
+      fields: [
+        ["clientId", "Client ID", "bkg_live_xxxxxxxxx", "text"],
+        ["clientSecret", "Client Secret", "Enter machine account secret", "secret"],
+        ["propertyId", "Property ID(s)", "12345678, 87654321", "text"]
+      ],
+      scopes: ["Reservations", "Rates & availability", "Messaging"]
+    },
+    airbnb: {
+      name: "Airbnb", icon: "A", tone: "coral", type: "Channel", note: "Partner access required",
+      fields: [
+        ["clientId", "Client ID", "Airbnb partner client ID", "text"],
+        ["clientSecret", "Client Secret", "Enter partner secret", "secret"],
+        ["accountId", "Account / listing group", "Account identifier", "text"]
+      ],
+      scopes: ["Listings", "Availability", "Reservations"]
+    },
+    meta: {
+      name: "Meta Ads", icon: "M", tone: "violet", type: "Marketing", note: "Marketing API",
+      fields: [
+        ["businessId", "Business Manager ID", "123456789012345", "text"],
+        ["adAccountId", "Ad Account ID", "act_1234567890", "text"],
+        ["appId", "App ID", "Meta app ID", "text"],
+        ["accessToken", "Access Token", "Enter system user access token", "secret"]
+      ],
+      scopes: ["ads_read", "ads_management", "business_management"]
+    },
+    stripe: {
+      name: "Stripe", icon: "S", tone: "violet", type: "Payments", note: "Payments + webhooks",
+      fields: [
+        ["secretKey", "Restricted / Secret Key", "rk_live_... or sk_live_...", "secret"],
+        ["webhookSecret", "Webhook Signing Secret", "whsec_...", "secret"],
+        ["accountId", "Connected Account ID", "acct_... (optional)", "text"]
+      ],
+      scopes: ["Payments", "Refunds", "Webhook events"]
+    },
+    google: {
+      name: "Google Ads", icon: "G", tone: "yellow", type: "Marketing", note: "Google Ads API",
+      fields: [
+        ["customerId", "Customer ID", "123-456-7890", "text"],
+        ["developerToken", "Developer Token", "Enter developer token", "secret"],
+        ["clientId", "OAuth Client ID", "OAuth client ID", "text"],
+        ["clientSecret", "OAuth Client Secret", "Enter OAuth secret", "secret"]
+      ],
+      scopes: ["Campaign reporting", "Conversions", "Budget status"]
+    },
+    mail: {
+      name: "Guest Messaging", icon: "@", tone: "green", type: "Communications", note: "Email / messaging provider",
+      fields: [
+        ["sender", "Sender Address", "stay@northstar.example", "text"],
+        ["apiKey", "Provider API Key", "Enter messaging API key", "secret"],
+        ["replyTo", "Reply-to Address", "frontdesk@northstar.example", "text"]
+      ],
+      scopes: ["Booking confirmations", "Pre-arrival", "Post-stay"]
+    }
+  };
+  const [selected, setSelected] = useState("booking");
+  const [environment, setEnvironment] = useState("Sandbox");
+  const [values, setValues] = useState({});
+  const [revealed, setRevealed] = useState({});
+  const [connected, setConnected] = useState({ stripe: true });
+  const [testing, setTesting] = useState(false);
+  const provider = providers[selected];
+  const webhook = "https://api.staypilot.demo/webhooks/" + selected;
+
+  const updateValue = (key, value) => setValues(prev => ({ ...prev, [selected + "." + key]: value }));
+  const getValue = key => values[selected + "." + key] || "";
+
+  const testConnection = () => {
+    setTesting(true);
+    setTimeout(() => {
+      setTesting(false);
+      setConnected(prev => ({ ...prev, [selected]: true }));
+      pushActivity("green", provider.name + " connection verified", environment + " credentials · health check passed");
+      flash(provider.name + " connection test passed");
+    }, 750);
+  };
+
+  const save = () => {
+    pushActivity("blue", provider.name + " configuration staged", "Demo only · production secrets belong in server vault");
+    flash("Configuration staged for secure server-side storage");
+  };
+
+  const copyWebhook = async () => {
+    try { await navigator.clipboard.writeText(webhook); flash("Webhook URL copied"); }
+    catch { flash("Webhook URL ready to copy"); }
+  };
+
+  return <>
+    <PageHeader
+      eyebrow="System administration"
+      title="Connections & API credentials"
+      text="Configure the external systems that power inventory sync, reservations, payments, marketing attribution and guest communications."
+      action={<div className="connection-security"><ShieldCheck size={17} /><div><b>Secrets vault</b><span>Server-side in production</span></div></div>}
+    />
+
+    <section className="connections-summary">
+      <div><span className="summary-icon"><PlugZap size={19} /></span><div><b>{Object.values(connected).filter(Boolean).length} connected</b><span>of {Object.keys(providers).length} integrations</span></div></div>
+      <div><span className="summary-icon safe"><ShieldCheck size={19} /></span><div><b>Encrypted secrets</b><span>KMS / environment vault</span></div></div>
+      <div><span className="summary-icon"><Database size={19} /></span><div><b>Webhook intake</b><span>Signed + idempotent events</span></div></div>
+      <div className="environment-switch"><span>Environment</span><div>{["Sandbox", "Production"].map(x => <button key={x} className={environment === x ? "active" : ""} onClick={() => setEnvironment(x)}>{x}</button>)}</div></div>
+    </section>
+
+    <div className="connections-layout">
+      <aside className="panel provider-list">
+        <div className="provider-head"><span className="panel-kicker">Integrations</span><h3>Connected services</h3><p>Select a provider to configure credentials and event delivery.</p></div>
+        {Object.entries(providers).map(([id, p]) => <button key={id} className={selected === id ? "active" : ""} onClick={() => setSelected(id)}>
+          <span className={"provider-logo " + p.tone}>{p.icon}</span>
+          <div><b>{p.name}</b><small>{p.type}</small></div>
+          <span className={"provider-state " + (connected[id] ? "connected" : "")}><i />{connected[id] ? "Connected" : "Setup"}</span>
+        </button>)}
+      </aside>
+
+      <section className="panel credential-panel">
+        <div className="credential-head">
+          <div className={"provider-logo large " + provider.tone}>{provider.icon}</div>
+          <div><span className="panel-kicker">{provider.type}</span><h2>{provider.name}</h2><p>{provider.note}</p></div>
+          <StatusDot status={connected[selected] ? "Live" : "Setup"} />
+        </div>
+
+        <div className="security-notice"><ShieldCheck size={18} /><div><b>Credential safety</b><p>This portfolio demo never persists what you type here. A production build should submit secrets over HTTPS to a backend vault/KMS and return only masked metadata to this page.</p></div></div>
+
+        <div className="credential-grid">
+          {provider.fields.map(([key, label, placeholder, kind]) => <label className="credential-field" key={key}>
+            <span>{label}{kind === "secret" && <em>Secret</em>}</span>
+            <div className="credential-input">
+              <KeyRound size={16} />
+              <input
+                type={kind === "secret" && !revealed[selected + "." + key] ? "password" : "text"}
+                value={getValue(key)}
+                onChange={e => updateValue(key, e.target.value)}
+                placeholder={placeholder}
+                autoComplete="off"
+              />
+              {kind === "secret" && <button type="button" onClick={() => setRevealed(prev => ({ ...prev, [selected + "." + key]: !prev[selected + "." + key] }))}>
+                {revealed[selected + "." + key] ? <EyeOff size={16} /> : <Eye size={16} />}
+              </button>}
+            </div>
+          </label>)}
+        </div>
+
+        <div className="webhook-box">
+          <div><span className="panel-kicker">Inbound event endpoint</span><b>{webhook}</b><small>Use this endpoint for reservation, payment or campaign events from {provider.name}.</small></div>
+          <button className="ghost-btn" onClick={copyWebhook}><Copy size={15} /> Copy URL</button>
+        </div>
+
+        <div className="scope-block"><span>Enabled capabilities</span><div>{provider.scopes.map(s => <em key={s}><Check size={13} />{s}</em>)}</div></div>
+
+        <div className="credential-actions">
+          <button className="ghost-btn test-btn" onClick={testConnection} disabled={testing}><RefreshCw size={16} className={testing ? "spin" : ""} />{testing ? "Testing connection..." : "Test connection"}</button>
+          <button className="primary-btn" onClick={save}><ShieldCheck size={16} /> Save securely</button>
+        </div>
+      </section>
+    </div>
+
+    <section className="automation-foundation">
+      <div className="section-title-row"><div><span className="panel-kicker">Automation foundation</span><h2>What happens after a provider connects</h2></div><span className="architecture-badge"><Zap size={14} /> Event-driven</span></div>
+      <div className="flow-grid">
+        <article className="panel flow-card"><span>01</span><div className="flow-icon"><Globe2 size={20} /></div><h3>Provider event</h3><p>Reservation, rate, payment or campaign update enters through the provider adapter.</p></article>
+        <article className="panel flow-card"><span>02</span><div className="flow-icon"><ShieldCheck size={20} /></div><h3>Verify & normalize</h3><p>Authenticate signatures, deduplicate events, then map data into the hotel’s canonical model.</p></article>
+        <article className="panel flow-card"><span>03</span><div className="flow-icon"><RefreshCw size={20} /></div><h3>Update operations</h3><p>Inventory, reservations, payments and channel availability update as one transaction.</p></article>
+        <article className="panel flow-card"><span>04</span><div className="flow-icon"><Bot size={20} /></div><h3>Assistant action layer</h3><p>The operator assistant reads approved state and triggers audited actions through the same service layer.</p></article>
+      </div>
+    </section>
+  </>;
 }
 
 export default App;
