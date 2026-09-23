@@ -4,11 +4,11 @@ import { claimWebhookDeliveries, dispatchClaimedDelivery, parseAllowedHosts } fr
 export async function onRequestPost({ request, env }) {
   const config = getBackendConfig(env);
   const allowedHosts = parseAllowedHosts(config.webhookAllowedHosts);
-  if (!config.supabaseUrl || !config.supabaseKey || !config.dispatcherSecret || allowedHosts.length === 0) {
+  if (!config.supabaseUrl || !config.supabaseKey || !config.dispatcherSecret || !config.outboundSigningMasterSecret || allowedHosts.length === 0) {
     return jsonResponse({
       ok:false,
       error:"dispatcher_not_configured",
-      message:"Dedicated Supabase, DISPATCHER_SECRET and WEBHOOK_ALLOWED_HOSTS are required before outbound delivery is enabled.",
+      message:"Dedicated Supabase, DISPATCHER_SECRET, WEBHOOK_ALLOWED_HOSTS and OUTBOUND_SIGNING_MASTER_SECRET are required before outbound delivery is enabled.",
     }, 503);
   }
 
