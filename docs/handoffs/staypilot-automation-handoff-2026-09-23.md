@@ -270,11 +270,13 @@ This verifies duplicate delivery protection for both immediate execution and pau
 Repository: SaamVR/Portfolio
 
 - backup branch: `backup/pre-staypilot-work2-20260923`
-- current Work #2 merge: `8db4c466cf8061b7f1a54e0b9e43e3e4b4dd3da3`
+- current Portfolio main commit: `c9aa0847c746094ecf7211013d026199221c85cb`
 - LeadFlow remains the immersive Work #1 page
 - StayPilot Work #2 handoff is responsive and light-mode aware
 - source CTA points to StayPilot repo
 - Cloudflare CTA points to canonical demo
+- live Portfolio preview: https://ecfbdf1d.leadflow-ai-bhy.pages.dev
+- primary Portfolio alias: https://leadflow-ai-bhy.pages.dev/
 
 Portfolio Work #2 displays `Verified main · 12cb4d22` and is synchronized with the deployed application release.
 
@@ -356,3 +358,15 @@ Verified on canonical production for release `4f289274`.
 - browser reported zero console/page errors.
 
 This closes the accidental duplicate-inspector JSX issue and verifies the run-trace trust layer end-to-end.
+
+
+## Public repository metadata
+
+StayPilot GitHub description was updated to:
+
+> Policy-aware hotel automation OS prototype with event-driven workflows, human approvals, idempotent integrations, exceptions and audit traces.
+
+Repository homepage points to:
+https://staypilot-hotel-os.pages.dev/
+
+This replaces the obsolete “AI concierge dashboard” positioning.
