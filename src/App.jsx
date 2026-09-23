@@ -59,10 +59,21 @@ const initialActivities = [
   { id: 4, tone: "amber", title: "Room 103 moved to cleaning", meta: "Housekeeping · priority normal", time: "18 min ago" }
 ];
 
-const campaigns = [
-  { name: "Weekend Escape", network: "Meta", spend: 842, bookings: 19, revenue: 5220, roas: 6.2, status: "Active" },
-  { name: "Direct Booking Advantage", network: "Google", spend: 610, bookings: 14, revenue: 3740, roas: 6.1, status: "Active" },
-  { name: "Autumn City Break", network: "Meta", spend: 488, bookings: 9, revenue: 2160, roas: 4.4, status: "Active" }
+const seedCampaigns = [
+  { id: "cmp-1", name: "Weekend Escape", network: "Meta", type: "Prospecting", spend: 842, budget: 95, bookings: 19, revenue: 5220, roas: 6.2, status: "Active" },
+  { id: "cmp-2", name: "Direct Booking Advantage", network: "Google Search", type: "Direct demand", spend: 610, budget: 80, bookings: 14, revenue: 3740, roas: 6.1, status: "Active" },
+  { id: "cmp-3", name: "Hotel Rate Capture", network: "Google Hotel Ads", type: "Metasearch", spend: 730, budget: 110, bookings: 17, revenue: 4680, roas: 6.4, status: "Active" },
+  { id: "cmp-4", name: "City Weekend Video", network: "TikTok", type: "Video prospecting", spend: 376, budget: 55, bookings: 6, revenue: 1310, roas: 3.5, status: "Active" },
+  { id: "cmp-5", name: "Brand + Location Search", network: "Microsoft Ads", type: "Search", spend: 244, budget: 35, bookings: 5, revenue: 1090, roas: 4.5, status: "Active" },
+  { id: "cmp-6", name: "Abandoned Booking Return", network: "Meta", type: "Retargeting", spend: 292, budget: 45, bookings: 11, revenue: 2480, roas: 8.5, status: "Active" }
+];
+
+const seedAdChannels = [
+  { id: "hotel", name: "Google Hotel Ads", short: "GH", tone: "blue", detail: "Search + Maps hotel module", budget: 110, roasTarget: 6, spend: 730, revenue: 4680, bookings: 17, enabled: true },
+  { id: "google", name: "Google Search / PMax", short: "G", tone: "blue", detail: "Search, Display, YouTube", budget: 145, roasTarget: 5.5, spend: 610, revenue: 3740, bookings: 14, enabled: true },
+  { id: "meta", name: "Meta Ads", short: "M", tone: "violet", detail: "Facebook + Instagram", budget: 140, roasTarget: 5, spend: 1134, revenue: 7700, bookings: 30, enabled: true },
+  { id: "tiktok", name: "TikTok Ads", short: "TT", tone: "coral", detail: "Video + retargeting", budget: 55, roasTarget: 4, spend: 376, revenue: 1310, bookings: 6, enabled: true },
+  { id: "microsoft", name: "Microsoft Ads", short: "MS", tone: "green", detail: "Bing search + lodging", budget: 35, roasTarget: 4.2, spend: 244, revenue: 1090, bookings: 5, enabled: true }
 ];
 
 const channels = [
@@ -188,6 +199,9 @@ function App() {
     localStorage.removeItem("sp-activities");
     localStorage.removeItem("sp-rate");
     localStorage.removeItem("sp-meta-paused");
+    localStorage.removeItem("sp-ad-channels");
+    localStorage.removeItem("sp-campaigns");
+    setActive("overview");
     flash("Demo data reset");
   };
 
@@ -217,7 +231,7 @@ function App() {
       <div className="sidebar-foot">
         <div className="system-health"><span className="live-dot" /><div><b>All systems operational</b><span>5 channels synced</span></div></div>
         <button className="reset-btn" onClick={resetDemo}><RotateCcw size={15} /> Reset demo</button>
-        <div className="prototype-tag">Interactive portfolio prototype</div>
+        <div className="prototype-tag">Demo workspace · reset anytime</div>
       </div>
     </aside>
 
@@ -226,23 +240,13 @@ function App() {
         <button className="mobile-menu" onClick={() => setMobileNav(v => !v)}><SlidersHorizontal size={18} /></button>
         <button className="search search-button" onClick={() => { setCommandQuery(""); setCommandOpen(true); }}><Search size={17} /><span>Jump to a workspace or action...</span><kbd>⌘ K</kbd></button>
         <div className="top-actions">
-          <div className="live-pill"><span /> Live demo</div>
+          <div className="live-pill"><span /> Demo environment</div>
           <button className="icon-btn"><Bell size={18} /><i /></button>
           <div className="avatar">SR</div>
           <div className="profile"><b>Sam Rahman</b><span>General Manager</span></div>
           <ChevronDown size={16} />
         </div>
       </header>
-
-      <div className="demo-rail">
-        <div className="demo-rail-copy"><Sparkles size={15} /><span><b>Connected demo path</b> — create a booking, watch inventory update, then operate the hotel with AI.</span></div>
-        <div className="demo-rail-steps">
-          <button onClick={() => setActive("booking")}><i>01</i> Create booking</button>
-          <button onClick={() => setActive("reservations")}><i>02</i> Verify reservation</button>
-          <button onClick={() => setActive("rooms")}><i>03</i> Check inventory</button>
-          <button onClick={() => setActive("assistant")}><i>04</i> Run with AI</button>
-        </div>
-      </div>
 
       <div className="content">
         {active === "overview" && <Overview {...pageProps} />}
@@ -443,31 +447,165 @@ function Channels({ pushActivity, flash }) {
       <div className="integration-metrics"><div><span>Sellable tonight</span><b>{c.inventory} rooms</b></div><div><span>Published rate</span><b>{c.rate}</b></div></div>
       <div className="integration-foot"><span><CheckCircle2 size={14} /> Inventory + rates connected</span><button><ExternalLink size={14} /></button></div>
     </article>)}</section>
-    <div className="mini-note"><MessageSquare size={15} /> Portfolio demo: connectors model how Booking.com, Airbnb, Expedia, Agoda and the direct engine reconcile with one inventory. Production access requires each provider’s approved API credentials.</div>
+    <div className="mini-note"><MessageSquare size={15} /> Provider access is configured under Connections & API. Inventory remains centralized here after credentials are approved.</div>
   </>;
 }
 
-function Marketing({ metaPaused, setMetaPaused, pushActivity, flash }) {
-  const toggleMeta = () => {
-    const next = !metaPaused;
-    setMetaPaused(next);
-    pushActivity("violet", "Meta Ads campaign state updated", next ? "Meta campaigns paused from StayPilot" : "Meta campaigns resumed from StayPilot");
-    flash(next ? "Meta campaigns paused" : "Meta campaigns resumed");
+function Marketing({ metaPaused, setMetaPaused, pushActivity, flash, setActive }) {
+  const [adChannels, setAdChannels] = useState(() => {
+    const saved = load("sp-ad-channels", seedAdChannels);
+    return saved.map(c => c.id === "meta" ? { ...c, enabled: !metaPaused } : c);
+  });
+  const [campaignRows, setCampaignRows] = useState(() => load("sp-campaigns", seedCampaigns));
+  const [networkFilter, setNetworkFilter] = useState("All");
+  const [newCampaignOpen, setNewCampaignOpen] = useState(false);
+  const [newCampaign, setNewCampaign] = useState({ name: "", network: "Google Hotel Ads", type: "Direct bookings", budget: 75 });
+  useEffect(() => localStorage.setItem("sp-ad-channels", JSON.stringify(adChannels)), [adChannels]);
+  useEffect(() => localStorage.setItem("sp-campaigns", JSON.stringify(campaignRows)), [campaignRows]);
+
+  const totals = useMemo(() => {
+    const spend = campaignRows.reduce((a, c) => a + c.spend, 0);
+    const revenue = campaignRows.reduce((a, c) => a + c.revenue, 0);
+    const bookings = campaignRows.reduce((a, c) => a + c.bookings, 0);
+    return { spend, revenue, bookings, roas: spend ? revenue / spend : 0, cpa: bookings ? spend / bookings : 0 };
+  }, [campaignRows]);
+
+  const updateChannel = (id, patch) => {
+    setAdChannels(prev => prev.map(c => c.id === id ? { ...c, ...patch } : c));
   };
+
+  const toggleChannel = channel => {
+    const enabled = !channel.enabled;
+    updateChannel(channel.id, { enabled });
+    if (channel.id === "meta") setMetaPaused(!enabled);
+    pushActivity(channel.tone === "violet" ? "violet" : "blue", channel.name + " delivery " + (enabled ? "enabled" : "paused"), "Changed from Marketing control center");
+    flash(channel.name + (enabled ? " enabled" : " paused"));
+  };
+
+  const changeBudget = (channel, value) => {
+    const budget = Math.max(0, Math.min(2000, Number(value) || 0));
+    updateChannel(channel.id, { budget });
+  };
+
+  const saveChannel = channel => {
+    pushActivity("blue", channel.name + " controls updated", "$" + channel.budget + "/day · target " + channel.roasTarget + "x ROAS");
+    flash(channel.name + " controls saved");
+  };
+
+  const toggleCampaign = campaign => {
+    const next = campaign.status === "Active" ? "Paused" : "Active";
+    setCampaignRows(prev => prev.map(c => c.id === campaign.id ? { ...c, status: next } : c));
+    pushActivity("violet", campaign.name + " " + next.toLowerCase(), campaign.network + " · campaign control");
+    flash(campaign.name + " " + next.toLowerCase());
+  };
+
+  const updateCampaignBudget = (id, value) => {
+    const budget = Math.max(0, Math.min(2000, Number(value) || 0));
+    setCampaignRows(prev => prev.map(c => c.id === id ? { ...c, budget } : c));
+  };
+
+  const createCampaign = e => {
+    e.preventDefault();
+    if (!newCampaign.name.trim()) return flash("Add a campaign name");
+    const row = {
+      id: "cmp-" + Date.now(),
+      name: newCampaign.name.trim(),
+      network: newCampaign.network,
+      type: newCampaign.type,
+      spend: 0,
+      budget: Math.max(1, Number(newCampaign.budget) || 1),
+      bookings: 0,
+      revenue: 0,
+      roas: 0,
+      status: "Active"
+    };
+    setCampaignRows(prev => [row, ...prev]);
+    pushActivity("green", "Campaign created", row.network + " · $" + row.budget + "/day · " + row.name);
+    setNewCampaign({ name: "", network: "Google Hotel Ads", type: "Direct bookings", budget: 75 });
+    setNewCampaignOpen(false);
+    flash("Campaign created");
+  };
+
+  const networks = ["All", ...Array.from(new Set(campaignRows.map(c => c.network)))];
+  const visibleCampaigns = networkFilter === "All" ? campaignRows : campaignRows.filter(c => c.network === networkFilter);
+
   return <>
-    <PageHeader eyebrow="Growth" title="Marketing & attribution" text="Connect ad spend to bookings and room revenue, not vanity metrics." action={<button className={metaPaused ? "primary-btn" : "danger-btn"} onClick={toggleMeta}>{metaPaused ? "Resume Meta Ads" : "Pause Meta Ads"}</button>} />
+    <PageHeader
+      eyebrow="Growth"
+      title="Marketing control center"
+      text="Control acquisition channels, budgets and campaign delivery against real booking revenue."
+      action={<div className="page-actions"><button className="ghost-btn" onClick={() => setActive("connections")}><PlugZap size={16} /> Connections</button><button className="primary-btn" onClick={() => setNewCampaignOpen(true)}><Plus size={16} /> New campaign</button></div>}
+    />
+
     <section className="kpi-grid marketing-kpis">
-      <article className="kpi-card"><div className="kpi-top"><span>Ad-attributed revenue</span><BarChart3 size={18} /></div><div className="kpi-value">$11,120</div><div className="kpi-meta"><b>+21.4%</b><span>this month</span></div></article>
-      <article className="kpi-card"><div className="kpi-top"><span>Total ad spend</span><DollarSign size={18} /></div><div className="kpi-value">$1,940</div><div className="kpi-meta"><b>5.73x</b><span>blended ROAS</span></div></article>
-      <article className="kpi-card"><div className="kpi-top"><span>Direct booking CPA</span><TrendingUp size={18} /></div><div className="kpi-value">$46</div><div className="kpi-meta"><b>-12.8%</b><span>cost per booking</span></div></article>
-      <article className="kpi-card"><div className="kpi-top"><span>Website conversion</span><Globe2 size={18} /></div><div className="kpi-value">4.9%</div><div className="kpi-meta"><b>+0.8 pt</b><span>vs. last month</span></div></article>
+      <article className="kpi-card"><div className="kpi-top"><span>Attributed revenue</span><BarChart3 size={18} /></div><div className="kpi-value">{fmt(totals.revenue)}</div><div className="kpi-meta"><b>+18.7%</b><span>vs. previous 30 days</span></div></article>
+      <article className="kpi-card"><div className="kpi-top"><span>Ad spend</span><DollarSign size={18} /></div><div className="kpi-value">{fmt(totals.spend)}</div><div className="kpi-meta"><b>{totals.roas.toFixed(2)}x</b><span>blended ROAS</span></div></article>
+      <article className="kpi-card"><div className="kpi-top"><span>Cost per booking</span><TrendingUp size={18} /></div><div className="kpi-value">{fmt(Math.round(totals.cpa))}</div><div className="kpi-meta"><b>{totals.bookings}</b><span>attributed bookings</span></div></article>
+      <article className="kpi-card"><div className="kpi-top"><span>Attribution health</span><ShieldCheck size={18} /></div><div className="kpi-value">97.8%</div><div className="kpi-meta"><b>Healthy</b><span>booking events matched</span></div></article>
     </section>
-    <article className="panel campaign-panel">
-      <div className="panel-head"><div><span className="panel-kicker">Campaigns</span><h3>Revenue-connected advertising</h3></div><span className={"ads-state " + (metaPaused ? "paused" : "")}><i /> Meta {metaPaused ? "paused" : "live"}</span></div>
-      <div className="table-scroll"><table><thead><tr><th>Campaign</th><th>Network</th><th>Spend</th><th>Bookings</th><th>Revenue</th><th>ROAS</th><th>Status</th></tr></thead><tbody>
-        {campaigns.map(c => <tr key={c.name}><td><b>{c.name}</b></td><td><span className={"source " + (c.network === "Meta" ? "source-meta" : "source-google")}>{c.network}</span></td><td>{fmt(c.spend)}</td><td>{c.bookings}</td><td><b>{fmt(c.revenue)}</b></td><td><b>{c.roas}x</b></td><td><StatusDot status={c.network === "Meta" && metaPaused ? "Paused" : c.status} /></td></tr>)}
-      </tbody></table></div>
-    </article>
+
+    <section className="marketing-control-section">
+      <div className="section-title-row"><div><span className="panel-kicker">Channel control</span><h2>Media delivery & budget</h2><p>Pause channels, change daily caps and set the ROAS guardrail used by automation.</p></div><span className="architecture-badge"><Wifi size={14} /> 5 networks reporting</span></div>
+      <div className="ad-channel-grid">
+        {adChannels.map(channel => <article className={"panel ad-channel-card " + (!channel.enabled ? "disabled" : "")} key={channel.id}>
+          <div className="ad-channel-head">
+            <span className={"provider-logo " + channel.tone}>{channel.short}</span>
+            <div><b>{channel.name}</b><span>{channel.detail}</span></div>
+            <button className={"toggle-switch " + (channel.enabled ? "on" : "")} onClick={() => toggleChannel(channel)} aria-label={(channel.enabled ? "Pause " : "Enable ") + channel.name}><i /></button>
+          </div>
+          <div className="ad-channel-performance">
+            <div><span>Spend</span><b>{fmt(channel.spend)}</b></div>
+            <div><span>Revenue</span><b>{fmt(channel.revenue)}</b></div>
+            <div><span>Bookings</span><b>{channel.bookings}</b></div>
+            <div><span>ROAS</span><b>{(channel.revenue / channel.spend).toFixed(1)}x</b></div>
+          </div>
+          <div className="ad-controls">
+            <label><span>Daily budget</span><div className="money-input"><span>$</span><input type="number" min="0" max="2000" value={channel.budget} onChange={e => changeBudget(channel, e.target.value)} /></div></label>
+            <label><span>Target ROAS</span><div className="money-input"><input type="number" min="1" max="20" step="0.1" value={channel.roasTarget} onChange={e => updateChannel(channel.id, { roasTarget: Math.max(1, Math.min(20, Number(e.target.value) || 1)) })} /><span>x</span></div></label>
+          </div>
+          <div className="ad-channel-foot"><span><i className={channel.enabled ? "green-dot" : "gray-dot"} />{channel.enabled ? "Delivering" : "Paused"}</span><button onClick={() => saveChannel(channel)}>Save controls</button></div>
+        </article>)}
+      </div>
+    </section>
+
+    <section className="marketing-ops-grid">
+      <article className="panel campaign-panel">
+        <div className="panel-head campaign-head"><div><span className="panel-kicker">Campaigns</span><h3>Revenue-connected campaigns</h3></div><div className="campaign-filter"><select value={networkFilter} onChange={e => setNetworkFilter(e.target.value)}>{networks.map(n => <option key={n}>{n}</option>)}</select></div></div>
+        <div className="table-scroll"><table className="campaign-table"><thead><tr><th>Campaign</th><th>Network</th><th>Daily budget</th><th>Spend</th><th>Bookings</th><th>Revenue</th><th>ROAS</th><th>Status</th><th /></tr></thead><tbody>
+          {visibleCampaigns.map(c => <tr key={c.id}>
+            <td><b>{c.name}</b><small>{c.type}</small></td>
+            <td><span className={"source source-" + c.network.toLowerCase().replaceAll(" ","-").replace("/","-")}>{c.network}</span></td>
+            <td><div className="table-budget"><span>$</span><input type="number" min="0" max="2000" value={c.budget} onChange={e => updateCampaignBudget(c.id, e.target.value)} /></div></td>
+            <td>{fmt(c.spend)}</td><td>{c.bookings}</td><td><b>{fmt(c.revenue)}</b></td><td><b>{c.roas}x</b></td><td><StatusDot status={c.status} /></td>
+            <td><button className="row-action" onClick={() => toggleCampaign(c)}>{c.status === "Active" ? "Pause" : "Resume"}</button></td>
+          </tr>)}
+        </tbody></table></div>
+      </article>
+
+      <aside className="panel attribution-panel">
+        <div className="panel-head"><div><span className="panel-kicker">Attribution</span><h3>Conversion pipeline</h3></div><StatusDot status="Live" /></div>
+        <div className="attribution-list">
+          <div><span className="attr-icon"><Globe2 size={17} /></span><div><b>Website booking events</b><span>Browser + server events</span></div><strong>Healthy</strong></div>
+          <div><span className="attr-icon"><RefreshCw size={17} /></span><div><b>Offline conversion sync</b><span>Booking revenue → ad networks</span></div><strong>4 min</strong></div>
+          <div><span className="attr-icon"><CheckCircle2 size={17} /></span><div><b>UTM / click ID capture</b><span>gclid · fbclid · ttclid · msclkid</span></div><strong>97.8%</strong></div>
+          <div><span className="attr-icon"><ShieldCheck size={17} /></span><div><b>Consent gate</b><span>Only approved marketing events forwarded</span></div><strong>On</strong></div>
+        </div>
+        <button className="secondary-btn full-control" onClick={() => { pushActivity("blue", "Marketing attribution resynced", "Booking events reconciled across ad networks"); flash("Attribution sync completed"); }}><RefreshCw size={15} /> Reconcile conversions</button>
+      </aside>
+    </section>
+
+    {newCampaignOpen && <div className="marketing-modal-backdrop" onMouseDown={() => setNewCampaignOpen(false)}>
+      <form className="marketing-modal panel" onSubmit={createCampaign} onMouseDown={e => e.stopPropagation()}>
+        <div className="marketing-modal-head"><div><span className="panel-kicker">Campaign control</span><h2>Create campaign</h2><p>Add a campaign to the unified control surface. Delivery remains a demo until provider credentials are connected.</p></div><button type="button" className="icon-btn" onClick={() => setNewCampaignOpen(false)}><X size={17} /></button></div>
+        <div className="campaign-form-grid">
+          <label>Campaign name<input value={newCampaign.name} onChange={e => setNewCampaign({ ...newCampaign, name: e.target.value })} placeholder="e.g. Winter direct booking" /></label>
+          <label>Ad network<select value={newCampaign.network} onChange={e => setNewCampaign({ ...newCampaign, network: e.target.value })}><option>Google Hotel Ads</option><option>Google Search</option><option>Meta</option><option>TikTok</option><option>Microsoft Ads</option></select></label>
+          <label>Objective<select value={newCampaign.type} onChange={e => setNewCampaign({ ...newCampaign, type: e.target.value })}><option>Direct bookings</option><option>Retargeting</option><option>Brand search</option><option>Prospecting</option><option>Metasearch</option></select></label>
+          <label>Daily budget<div className="modal-money"><span>$</span><input type="number" min="1" max="2000" value={newCampaign.budget} onChange={e => setNewCampaign({ ...newCampaign, budget: e.target.value })} /></div></label>
+        </div>
+        <div className="marketing-modal-actions"><button type="button" className="ghost-btn" onClick={() => setNewCampaignOpen(false)}>Cancel</button><button className="primary-btn" type="submit"><Plus size={15} /> Create campaign</button></div>
+      </form>
+    </div>}
   </>;
 }
 
@@ -636,7 +774,7 @@ function Assistant({ rooms, setRooms, bookings, stats, rateMultiplier, setRateMu
             <div><DollarSign size={16} /><span>BAR multiplier</span><b>{rateMultiplier.toFixed(2)}x</b></div>
           </div>
         </article>
-        <article className="panel assistant-tip"><span><Bot size={19} /></span><h3>Action, not just answers.</h3><p>Commands update the dashboard immediately so a portfolio visitor can see the assistant functioning as an operational control layer.</p><button className="secondary-btn" onClick={() => setActive("rooms")}>Open room board <ArrowUpRight size={14} /></button></article>
+        <article className="panel assistant-tip"><span><Bot size={19} /></span><h3>Action, not just answers.</h3><p>Approved commands update operational state through the same control layer used by reservations, inventory, rates and marketing.</p><button className="secondary-btn" onClick={() => setActive("rooms")}>Open room board <ArrowUpRight size={14} /></button></article>
       </aside>
     </div>
   </div>;
@@ -682,14 +820,44 @@ function Connections({ pushActivity, flash }) {
       scopes: ["Payments", "Refunds", "Webhook events"]
     },
     google: {
-      name: "Google Ads", icon: "G", tone: "yellow", type: "Marketing", note: "Google Ads API",
+      name: "Google Ads", icon: "G", tone: "yellow", type: "Marketing", note: "Search, Performance Max & conversion reporting",
       fields: [
         ["customerId", "Customer ID", "123-456-7890", "text"],
         ["developerToken", "Developer Token", "Enter developer token", "secret"],
         ["clientId", "OAuth Client ID", "OAuth client ID", "text"],
         ["clientSecret", "OAuth Client Secret", "Enter OAuth secret", "secret"]
       ],
-      scopes: ["Campaign reporting", "Conversions", "Budget status"]
+      scopes: ["Campaign reporting", "Conversions", "Budget control"]
+    },
+    hotelCenter: {
+      name: "Google Hotel Center", icon: "H", tone: "blue", type: "Hotel advertising", note: "Hotel list, rates, availability & Hotel Ads",
+      fields: [
+        ["hotelCenterId", "Hotel Center Account ID", "123456789", "text"],
+        ["propertyFeedId", "Property / feed ID", "Northstar property feed", "text"],
+        ["googleAdsCustomerId", "Linked Google Ads Customer ID", "123-456-7890", "text"],
+        ["feedToken", "Feed / integration credential", "Enter integration credential", "secret"]
+      ],
+      scopes: ["Hotel prices", "Availability feed", "Hotel campaign reporting"]
+    },
+    tiktok: {
+      name: "TikTok Ads", icon: "TT", tone: "coral", type: "Marketing", note: "TikTok API for Business",
+      fields: [
+        ["advertiserId", "Advertiser ID", "7123456789012345678", "text"],
+        ["appId", "App ID", "TikTok developer app ID", "text"],
+        ["appSecret", "App Secret", "Enter app secret", "secret"],
+        ["accessToken", "Access Token", "Enter authorized access token", "secret"]
+      ],
+      scopes: ["Campaign management", "Reporting", "Conversion events"]
+    },
+    microsoft: {
+      name: "Microsoft Ads", icon: "MS", tone: "green", type: "Marketing", note: "Search, audience & lodging campaigns",
+      fields: [
+        ["accountId", "Account ID", "123456789", "text"],
+        ["customerId", "Customer ID", "987654321", "text"],
+        ["developerToken", "Developer Token", "Enter developer token", "secret"],
+        ["refreshToken", "OAuth Refresh Token", "Enter OAuth refresh token", "secret"]
+      ],
+      scopes: ["Campaign management", "Reporting", "Lodging campaigns"]
     },
     mail: {
       name: "Guest Messaging", icon: "@", tone: "green", type: "Communications", note: "Email / messaging provider",
@@ -800,13 +968,13 @@ function Connections({ pushActivity, flash }) {
       </section>
     </div>
 
-    <section className="automation-foundation">
-      <div className="section-title-row"><div><span className="panel-kicker">Automation foundation</span><h2>What happens after a provider connects</h2></div><span className="architecture-badge"><Zap size={14} /> Event-driven</span></div>
-      <div className="flow-grid">
-        <article className="panel flow-card"><span>01</span><div className="flow-icon"><Globe2 size={20} /></div><h3>Provider event</h3><p>Reservation, rate, payment or campaign update enters through the provider adapter.</p></article>
-        <article className="panel flow-card"><span>02</span><div className="flow-icon"><ShieldCheck size={20} /></div><h3>Verify & normalize</h3><p>Authenticate signatures, deduplicate events, then map data into the hotel’s canonical model.</p></article>
-        <article className="panel flow-card"><span>03</span><div className="flow-icon"><RefreshCw size={20} /></div><h3>Update operations</h3><p>Inventory, reservations, payments and channel availability update as one transaction.</p></article>
-        <article className="panel flow-card"><span>04</span><div className="flow-icon"><Bot size={20} /></div><h3>Assistant action layer</h3><p>The operator assistant reads approved state and triggers audited actions through the same service layer.</p></article>
+    <section className="connection-health panel">
+      <div className="panel-head"><div><span className="panel-kicker">Runtime health</span><h3>Credential & event delivery</h3></div><button className="ghost-btn" onClick={() => flash("All connection health checks queued")}><RefreshCw size={15} /> Test all</button></div>
+      <div className="connection-health-grid">
+        <div><span className="health-icon green"><CheckCircle2 size={17} /></span><div><b>Webhook receiver</b><small>Signed events · no failures</small></div><strong>Healthy</strong></div>
+        <div><span className="health-icon blue"><KeyRound size={17} /></span><div><b>Token renewal</b><small>Next scheduled check in 41 min</small></div><strong>Automatic</strong></div>
+        <div><span className="health-icon violet"><RefreshCw size={17} /></span><div><b>Conversion export</b><small>Last batch reconciled 4 min ago</small></div><strong>Current</strong></div>
+        <div><span className="health-icon amber"><Bell size={17} /></span><div><b>Failure policy</b><small>3 retries → operator alert</small></div><strong>Enabled</strong></div>
       </div>
     </section>
   </>;
