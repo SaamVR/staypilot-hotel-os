@@ -731,7 +731,7 @@ function ActivityPanel({ activities, setActive }) {
   </article>;
 }
 
-function FrontDesk({ bookings, setBookings, rooms, setRooms, role, approvals, setApprovals, policy, pushActivity, flash, setActive }) {
+function FrontDesk({ bookings, setBookings, rooms, setRooms, role, approvals, setApprovals, policy, pushActivity, flash, setActive, emitHotelEvent }) {
   const [selected, setSelected] = useState(null);
   const activeBookings = bookings.filter(b => !["Cancelled", "Checked out"].includes(b.status));
   const unassigned = activeBookings.filter(b => !b.room || b.room === "Unassigned");
@@ -791,11 +791,11 @@ function FrontDesk({ bookings, setBookings, rooms, setRooms, role, approvals, se
       </div>
     </article>
 
-    {selected && <ReservationDrawer booking={bookings.find(b => b.id === selected.id) || selected} bookings={bookings} setBookings={setBookings} rooms={rooms} setRooms={setRooms} role={role} approvals={approvals} setApprovals={setApprovals} policy={policy} pushActivity={pushActivity} flash={flash} onClose={() => setSelected(null)} />}
+    {selected && <ReservationDrawer booking={bookings.find(b => b.id === selected.id) || selected} bookings={bookings} setBookings={setBookings} rooms={rooms} setRooms={setRooms} role={role} approvals={approvals} setApprovals={setApprovals} policy={policy} pushActivity={pushActivity} flash={flash} emitHotelEvent={emitHotelEvent} onClose={() => setSelected(null)} />}
   </>;
 }
 
-function ReservationDrawer({ booking, setBookings, rooms, setRooms, role, approvals, setApprovals, policy, pushActivity, flash, onClose }) {
+function ReservationDrawer({ booking, setBookings, rooms, setRooms, role, approvals, setApprovals, policy, pushActivity, flash, emitHotelEvent, onClose }) {
   const [roomNumber, setRoomNumber] = useState(booking.room && booking.room !== "Unassigned" ? booking.room : "");
   const candidateRooms = rooms.filter(r => r.type === booking.type && r.maintenance === "Clear" && (r.occupancy === "Vacant" || r.number === booking.room));
   const currentRoom = rooms.find(r => r.number === booking.room);
@@ -834,12 +834,13 @@ function ReservationDrawer({ booking, setBookings, rooms, setRooms, role, approv
 
   const checkOut = () => {
     if (balance > 0) return flash("Collect the remaining balance before checkout");
-    if (booking.room && booking.room !== "Unassigned") {
-      setRooms(prev => prev.map(r => r.number === booking.room ? { ...r, occupancy: "Vacant", housekeeping: "Dirty" } : r));
-    }
     updateBooking({ status: "Checked out" });
-    pushActivity("blue", booking.guest + " checked out", booking.id + " · housekeeping task created");
-    flash("Checkout complete · room marked dirty");
+    const result = emitHotelEvent("guest.checked_out", { booking: { ...booking, status: "Checked out" }, roomNumber: booking.room });
+    if (!result?.ok) {
+      if (booking.room && booking.room !== "Unassigned") setRooms(prev => prev.map(r => r.number === booking.room ? { ...r, occupancy: "Vacant", housekeeping: "Dirty" } : r));
+      pushActivity("blue", booking.guest + " checked out", booking.id + " · room marked dirty; automation unavailable");
+    }
+    flash(result?.ok ? "Checkout complete · turnover automation executed" : "Checkout complete · room marked dirty");
   };
 
   const captureBalance = () => {
@@ -905,7 +906,7 @@ function ReservationDrawer({ booking, setBookings, rooms, setRooms, role, approv
   </div>;
 }
 
-function NewReservation({ rooms, setRooms, bookings, setBookings, rateMultiplier, pushActivity, flash, setActive }) {
+function NewReservation({ rooms, setRooms, bookings, setBookings, rateMultiplier, pushActivity, flash, setActive, emitHotelEvent }) {
   const [form, setForm] = useState({ guest: "", type: "Deluxe King", source: "Walk-in", checkIn: "Sep 23", checkOut: "Sep 25", guests: 2, room: "" });
   const rates = { "City Queen": 149, "Deluxe King": 189, "Sky Suite": 279 };
   const start = Math.max(0, dateIndex(form.checkIn));
@@ -938,6 +939,7 @@ function NewReservation({ rooms, setRooms, bookings, setBookings, rateMultiplier
       status: "Confirmed"
     };
     setBookings(prev => [booking, ...prev]);
+    emitHotelEvent("reservation.created", { booking });
     if (form.room) setRooms(prev => prev.map(r => r.number === form.room ? { ...r, occupancy: "Reserved" } : r));
     pushActivity("green", "Front desk reservation created", id + " · " + form.guest.trim() + " · " + (form.room ? "Room " + form.room : "room unassigned"));
     flash("Reservation " + id + " created");
@@ -973,7 +975,7 @@ function NewReservation({ rooms, setRooms, bookings, setBookings, rateMultiplier
   </>;
 }
 
-function Reservations({ bookings, setBookings, rooms, setRooms, role, approvals, setApprovals, policy, pushActivity, flash, setActive }) {
+function Reservations({ bookings, setBookings, rooms, setRooms, role, approvals, setApprovals, policy, pushActivity, flash, setActive, emitHotelEvent }) {
   const [filter, setFilter] = useState("All");
   const [selected, setSelected] = useState(null);
   const list = filter === "All" ? bookings : bookings.filter(b => b.status === filter);
@@ -1001,7 +1003,7 @@ function Reservations({ bookings, setBookings, rooms, setRooms, role, approvals,
       </div>
     </article>
     <div className="mini-note"><CalendarDays size={15} /> Select a reservation to assign rooms, check guests in or out, or cancel the stay.</div>
-    {selected && <ReservationDrawer booking={bookings.find(b => b.id === selected.id) || selected} bookings={bookings} setBookings={setBookings} rooms={rooms} setRooms={setRooms} role={role} approvals={approvals} setApprovals={setApprovals} policy={policy} pushActivity={pushActivity} flash={flash} onClose={() => setSelected(null)} />}
+    {selected && <ReservationDrawer booking={bookings.find(b => b.id === selected.id) || selected} bookings={bookings} setBookings={setBookings} rooms={rooms} setRooms={setRooms} role={role} approvals={approvals} setApprovals={setApprovals} policy={policy} pushActivity={pushActivity} flash={flash} emitHotelEvent={emitHotelEvent} onClose={() => setSelected(null)} />}
   </>;
 }
 
@@ -1024,6 +1026,7 @@ function Rooms({ rooms, setRooms, pushActivity, flash, role, policy }) {
     flash("Room " + room.number + ": " + maintenance);
   };
   const syncInventory = () => {
+    if (role === "manager" && !policy.managerCanSyncChannels) return flash("Channel reconciliation is restricted by Owner policy");
     const sellable = rooms.filter(roomSellable).length;
     pushActivity("green", "Room inventory synchronized", sellable + " sellable rooms · 5 channels");
     flash("Inventory synced across connected channels");
@@ -1051,16 +1054,17 @@ function Rooms({ rooms, setRooms, pushActivity, flash, role, policy }) {
   </>;
 }
 
-function Inventory({ role, approvals, setApprovals, pushActivity, flash, setActive, policy }) {
-  const [stock, setStock] = useState(() => load("sp-stock", seedStock));
-  useEffect(() => localStorage.setItem("sp-stock", JSON.stringify(stock)), [stock]);
-
+function Inventory({ role, approvals, setApprovals, pushActivity, flash, setActive, policy, stock, setStock, emitHotelEvent }) {
   const low = stock.filter(i => i.stock < i.par);
   const value = stock.reduce((a, i) => a + i.stock * i.cost, 0);
   const canManage = role === "owner" || policy.managerCanManageInventory;
   const adjust = (id, delta) => {
     if (!canManage) return flash("Manager inventory controls are restricted by Owner policy");
-    setStock(prev => prev.map(i => i.id === id ? { ...i, stock: Math.max(0, i.stock + delta) } : i));
+    const item = stock.find(i => i.id === id);
+    if (!item) return;
+    const nextStock = Math.max(0, item.stock + delta);
+    setStock(prev => prev.map(i => i.id === id ? { ...i, stock: nextStock } : i));
+    if (item.stock >= item.par && nextStock < item.par) emitHotelEvent("inventory.low_stock", { item: { ...item, stock: nextStock } });
   };
   const requestOrder = item => {
     const existing = approvals.find(a => a.type === "Purchase order" && a.itemRef === item.id && ["Pending", "Approved"].includes(a.status));
@@ -1130,7 +1134,7 @@ function Inventory({ role, approvals, setApprovals, pushActivity, flash, setActi
   </>;
 }
 
-function ApprovalCenter({ role, approvals, setApprovals, rateMultiplier, setRateMultiplier, metaPaused, setMetaPaused, pushActivity, flash }) {
+function ApprovalCenter({ role, approvals, setApprovals, rateMultiplier, setRateMultiplier, metaPaused, setMetaPaused, pushActivity, flash, bookings, setBookings }) {
   const [draft, setDraft] = useState({ type: "Purchase order", title: "", detail: "", amount: "" });
   const pending = approvals.filter(a => a.status === "Pending");
   const myRequests = approvals.filter(a => a.requestedBy === "Sam Rahman" || role === "owner");
@@ -1144,6 +1148,13 @@ function ApprovalCenter({ role, approvals, setApprovals, rateMultiplier, setRate
     if (status === "Approved" && item.type === "Marketing") {
       if (item.title.toLowerCase().includes("pause meta")) setMetaPaused(true);
       if (item.title.toLowerCase().includes("resume meta")) setMetaPaused(false);
+    }
+    if (status === "Approved" && item.type === "Refund" && item.reservationRef) {
+      setBookings(prev => prev.map(b => {
+        if (b.id !== item.reservationRef) return b;
+        const captured = Number(b.paid ?? (b.status === "Checked in" ? b.total : Math.round(Number(b.total || 0) * 0.2)));
+        return { ...b, paid: Math.max(0, captured - Number(item.amount || 0)), lastRefund: Number(item.amount || 0) };
+      }));
     }
     pushActivity(status === "Approved" ? "green" : "amber", item.title + " " + status.toLowerCase(), item.id + " · " + item.requestedBy);
     flash(item.id + " " + status.toLowerCase());
@@ -1628,7 +1639,7 @@ function Operations({ activities, role, pushActivity, flash, setActive, tasks, s
   </>;
 }
 
-function BookingEngine({ rooms, setRooms, bookings, setBookings, rateMultiplier, pushActivity, flash, setActive }) {
+function BookingEngine({ rooms, setRooms, bookings, setBookings, rateMultiplier, pushActivity, flash, setActive, emitHotelEvent }) {
   const [form, setForm] = useState({ guest: "", email: "", type: "Deluxe King", nights: 2, guests: 2 });
   const [success, setSuccess] = useState(null);
   const rates = { "City Queen": 149, "Deluxe King": 189, "Sky Suite": 279 };
@@ -1647,6 +1658,7 @@ function BookingEngine({ rooms, setRooms, bookings, setBookings, rateMultiplier,
     const nights = Number(form.nights || 1);
     const booking = { id, guest: form.guest, paid: Math.round(total * 0.2), room: "Unassigned", type: form.type, source: "Direct Website", checkIn: "Today", checkOut: frontDeskDays[nights] || "After Sep 29", guests: Number(form.guests), total, status: "Confirmed" };
     setBookings(prev => [booking, ...prev]);
+    emitHotelEvent("reservation.created", { booking });
     pushActivity("green", "New direct booking confirmed", id + " · " + form.type + " · room assignment pending · " + fmt(total));
     setSuccess(booking);
     flash("Reservation " + id + " created");
@@ -1893,7 +1905,7 @@ function AutomationCenter({ role, pushActivity, flash, policy, automationRules, 
 
 function AuditLog({ activities, role }) {
   const [filter, setFilter] = useState("All");
-  const categories = ["All", "Operations", "Automation", "Guest messaging", "System"];
+  const categories = ["All", "Operations", "Automation", "Guest messaging", "Governance", "System"];
   const rows = activities.filter(a => filter === "All" || (a.category || "Operations") === filter);
   return <>
     <PageHeader eyebrow="Governance" title="Audit log" text="Trace human, system and automation actions across the shared hotel state." />
