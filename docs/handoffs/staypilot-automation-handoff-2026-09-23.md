@@ -6,12 +6,12 @@ Canonical demo: https://staypilot-hotel-os.pages.dev/
 
 ## Durable source state
 
-- verified application release commit: `9de867d90b407b377f435565324443a3857b9d7e`
+- verified application release commit: `4f289274a76df824c8dfe8ad3f50f785842ff1b9`
 - verified Cloudflare bundle branch: `cloudflare-deploy`
 - verified bundle commit: `43d0d606fe0e80a5090546945d6f60dd823625a7`
 - bundle commit message: `stage Cloudflare bundle for 9de867d90b407b377f435565324443a3857b9d7e`
-- latest deployment preview: https://3980d10b.staypilot-hotel-os.pages.dev
-- canonical deployment: https://staypilot-hotel-os.pages.dev/?v=9de867d9
+- latest deployment preview: https://4bb43030.staypilot-hotel-os.pages.dev
+- canonical deployment: https://staypilot-hotel-os.pages.dev/?v=4f289274
 - verification workflow: `.github/workflows/verify.yml`
 - Node 22 + npm ci + npm run build: PASS
 - production artifact upload: PASS
@@ -339,3 +339,20 @@ Still required for commercial SaaS:
 - do not reduce Automation Center to counter-only simulation
 - do not remove CI build verification
 - do not use samvr as primary development machine
+
+
+## Automation run inspector production QA — PASS
+
+Verified on canonical production for release `4f289274`.
+
+- New Reservation opens without runtime errors.
+- New Reservation contains no stray automation inspector.
+- seeded Failed Payment Recovery trace opens the inspector with 3 execution steps.
+- failed run action routes to Exception Center.
+- fresh `review.negative` Event-ID run opens with Event ID and **Idempotency protected** proof.
+- Review Recovery action routes to Unified Guest Inbox.
+- mobile 390px inspector width equals viewport width with no horizontal overflow.
+- desktop run inspector has no horizontal overflow.
+- browser reported zero console/page errors.
+
+This closes the accidental duplicate-inspector JSX issue and verifies the run-trace trust layer end-to-end.
