@@ -390,12 +390,15 @@ The repository now contains a **dormant server-side foundation** for the next co
 - Owner-authenticated webhook endpoint registration + signed challenge verification with server-derived per-endpoint credentials
 - verified-host outbound dispatcher with exact HTTPS allowlisting, server-managed signing secrets, HMAC delivery signatures and bounded retry/dead-letter handling
 - audited delivery-only dead-letter redrive that never replays the source hotel action
+- staged server orchestration contract with a separate Cloudflare Cron Worker, bounded worker→dispatcher draining and double enable gates
 
 No dedicated StayPilot Supabase project has been provisioned yet, and no unrelated Supabase project is reused. Until server secrets and a dedicated database are explicitly configured, `/api/events` fails closed and the verified portfolio frontend remains local-first.
 
 The staged `/api/worker-run` endpoint also fails closed until a separate server-only `WORKER_SECRET` and the dedicated database exist. Its current safe server-handler set is deliberately limited to non-financial hotel operations.
 
 See `docs/production-backend-foundation.md` for the staged rollout contract.
+
+See `docs/server-orchestration-contract.md` for the scheduler/control-plane split and rollout gates.
 
 ## Production boundary
 
@@ -406,7 +409,7 @@ A commercial implementation still requires:
 - multi-tenant backend/database
 - authentication and server-enforced RBAC
 - durable event bus / queue
-- scheduled job service
+- deployed/enabled scheduled job service (the fail-closed Cron Worker contract is staged in-repo)
 - transactional/idempotent action execution
 - live PMS / OTA partner adapters
 - real payment processor integration
