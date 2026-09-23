@@ -6,12 +6,12 @@ Canonical demo: https://staypilot-hotel-os.pages.dev/
 
 ## Durable source state
 
-- verified application release commit: `9b9b748d6e3e3dfa52a694e08ac9a54486a52414`
+- verified application release commit: `11492c6ed186f4e14e1ae7bc5f2be4eab7b2c1c1`
 - verified Cloudflare bundle branch: `cloudflare-deploy`
 - verified bundle commit: `43d0d606fe0e80a5090546945d6f60dd823625a7`
 - bundle commit message: `stage Cloudflare bundle for 9de867d90b407b377f435565324443a3857b9d7e`
-- latest deployment preview: https://98800461.staypilot-hotel-os.pages.dev
-- canonical deployment: https://staypilot-hotel-os.pages.dev/?v=9b9b748d
+- latest deployment preview: https://f8c261e8.staypilot-hotel-os.pages.dev
+- canonical deployment: https://staypilot-hotel-os.pages.dev/?v=11492c6e
 - verification workflow: `.github/workflows/verify.yml`
 - Node 22 + npm ci + npm run build: PASS
 - production artifact upload: PASS
@@ -464,3 +464,27 @@ Refund governance:
 The fail-closed backend contract remained unchanged during this release:
 - backend health = `not_configured`
 - `POST /api/events` = HTTP 503 `backend_not_configured`
+
+
+## Stateful approval effects & metric truth QA — PASS
+
+Verified on canonical production for application release `11492c6e`.
+
+Metric truth:
+- Owner KPI is **Gross booking value**, not revenue recognition.
+- KPI shows active reservation total and active-stay count.
+- channel/direct exposure is complementary and totals exactly 100%.
+- seeded verification: `67% OTA + 33% direct = 100%`.
+- booking-channel allocation uses largest-remainder rounding so category percentages sum to exactly 100%.
+
+Approval effects:
+- generic Manager request options are Expense / Maintenance / Rate change / Refund / Marketing.
+- generic Purchase Order was removed; supply POs remain in the dedicated Supplies & Inventory workflow.
+- approved `$120` Expense request created an approved `sp-expenses` ledger row with `approvalRef`.
+- approved Maintenance request created a real `sp-tasks` Maintenance work item with `approvalRef`.
+- approvals themselves moved from Pending to Approved.
+- zero browser console/page errors.
+
+Fail-closed backend regression:
+- backend health remains `not_configured`.
+- `POST /api/events` remains HTTP 503 `backend_not_configured`.
