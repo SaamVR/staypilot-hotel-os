@@ -203,7 +203,7 @@ async function recordRun(config, event, rule, {
     "/rest/v1/automation_runs?on_conflict=hotel_id,event_id,rule_id",
     {
       method:"POST",
-      prefer:"resolution=ignore-duplicates,return=minimal",
+      prefer:"resolution=merge-duplicates,return=minimal",
       body:{
         hotel_id:event.hotel_id,
         rule_id:rule?.id || null,
@@ -307,7 +307,7 @@ export async function processClaimedEvent(config, event) {
     }
 
     const existing = await findExistingRun(config, event, rule.id);
-    if (existing) {
+    if (existing && existing.result !== "Failed") {
       await finishEvent(config, event.id, "completed");
       return { eventId:event.event_id, status:"completed", duplicate:true, runId:existing.id };
     }
