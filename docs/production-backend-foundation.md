@@ -19,12 +19,17 @@ This directory documents the first server-side foundation for moving StayPilot f
 - duplicate-safe event insertion
 - backend configuration health endpoint
 - CI contract verification
+- atomic durable-worker claim/lease lifecycle
+- retry/backoff and dead-letter state
+- stale processing lease recovery
+- server-only worker authentication
+- idempotent worker-side tasks, approvals and audit effects
 
 ## What this phase intentionally does not do
 
 The current frontend still runs its hotel state and automation engine in browser localStorage.
 
-The new server endpoint currently **stores verified events as queued records only**. It does not yet execute hotel automation server-side.
+The signed inbound endpoint stores verified events as queued records. A **dormant durable worker contract** now exists for a narrow safe event set, but it cannot execute until a dedicated StayPilot database, migrations and server worker secret are configured.
 
 Production migration should happen in this order:
 
@@ -32,7 +37,7 @@ Production migration should happen in this order:
 2. apply schema/RLS migration
 3. configure Cloudflare server secrets
 4. validate signed event ingestion and duplicate handling
-5. build durable queue/worker execution
+5. validate the staged durable worker against the dedicated database
 6. mirror browser automation runs to server for comparison
 7. move authentication/roles to Supabase Auth
 8. move hotel state reads/writes from localStorage to Supabase
@@ -47,6 +52,10 @@ This staged approach keeps the verified portfolio demo stable while backend auth
 - `functions/_shared/webhook.js`
 - `functions/api/events.js`
 - `functions/api/backend-health.js`
+- `supabase/migrations/20260923_002_durable_worker.sql`
+- `functions/_shared/supabase.js`
+- `functions/_shared/worker.js`
+- `functions/api/worker-run.js`
 - `scripts/verify-backend-contract.mjs`
 - `.dev.vars.example`
 
@@ -148,6 +157,7 @@ Configure as Cloudflare Pages encrypted secrets / environment variables:
 SUPABASE_URL
 SUPABASE_SECRET_KEY
 WEBHOOK_SIGNING_SECRET
+WORKER_SECRET
 ```
 
 A legacy `SUPABASE_SERVICE_ROLE_KEY` is accepted as a compatibility fallback by the current function.
@@ -190,24 +200,60 @@ transaction:
 commit
 ```
 
-## Queue/worker next phase
+## Durable worker contract
 
-`inbound_events.status = queued` is the handoff point to the future durable worker.
+`inbound_events.status = queued` is now backed by a staged service-role worker lifecycle.
 
-Worker requirements:
+### Atomic claim lifecycle
 
-- claim events atomically
-- increment attempt count
-- normalize provider payloads into StayPilot domain events
-- resolve matching automation rule
-- enforce current Owner policy
-- execute database actions transactionally
-- create `automation_runs`
-- create `audit_events`
-- mark source event completed
-- retry transient failures with backoff
-- move exhausted failures to `dead_letter`
-- never repeat a completed Event ID business effect
+Migration `20260923_002_durable_worker.sql` adds:
+
+- `next_attempt_at`
+- processing lease fields
+- attempt count timestamps
+- dead-letter timestamp
+- idempotency keys on task / approval / audit side effects
+- `claim_inbound_events()` with `FOR UPDATE ... SKIP LOCKED`
+- stale processing lease recovery after 10 minutes
+- `finish_inbound_event()` for complete / retry / dead-letter outcomes
+- service-role-only execution grants
+
+Queued/failed events stop being newly claimed after five attempts. A stale `processing` lease is still reclaimable after the cap so a worker crash cannot permanently strand the row.
+
+### Worker endpoint
+
+```
+POST /api/worker-run
+X-StayPilot-Worker-Secret: <server-only secret>
+```
+
+The endpoint:
+
+1. fails 503 until Supabase + `WORKER_SECRET` exist
+2. constant-time verifies the worker secret
+3. atomically claims a bounded batch
+4. resolves an active automation rule
+5. checks for an existing Event-ID run before mutation
+6. respects `Suggest` and `Approval` autonomy without executing the business mutation
+7. executes only the safe server handler set below
+8. records automation run + audit
+9. completes, retries or dead-letters the source event
+
+### Safe server handler set
+
+Currently staged:
+
+- `guest.request_received` → idempotent Housekeeping task
+- `review.negative` → idempotent Front Desk recovery task
+- `housekeeping.completed` → room housekeeping = Clean
+- `room.maintenance_blocked` → room maintenance = Out of order
+- `guest.checked_out` → room Vacant + Dirty and idempotent turnover task
+
+Room-scoped events must resolve a real room or fail safely.
+
+Financial/revenue workflows such as payments, refunds and rate changes remain unsupported by the server worker until their policy/accounting semantics are migrated. Unsupported events are dead-lettered rather than guessed.
+
+The worker is **not active in production yet** because the dedicated StayPilot Supabase project and server secrets have not been provisioned.
 
 ## Outbound webhooks next phase
 
