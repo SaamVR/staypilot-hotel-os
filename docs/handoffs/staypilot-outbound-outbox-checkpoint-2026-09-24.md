@@ -14,7 +14,7 @@ Repository: SaamVR/staypilot-hotel-os
 
 Implemented:
 
-- migration `20260924_003_webhook_outbox.sql`
+- migration `20260924030000_webhook_outbox.sql`
 - `webhook_deliveries.inbound_event_id`
 - unique `hotel_id + endpoint_id + event_id` delivery boundary
 - service-role-only `enqueue_webhook_deliveries(event_uuid)`
