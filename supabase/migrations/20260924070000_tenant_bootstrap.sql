@@ -51,16 +51,26 @@ begin
 
   perform pg_advisory_xact_lock(hashtextextended(user_uuid::text || ':' || safe_key, 0));
 
-  select r.request_fingerprint, h.*
-  into existing_fingerprint, existing_hotel
+  select r.request_fingerprint
+  into existing_fingerprint
   from private.hotel_bootstrap_requests r
-  join public.hotels h on h.id = r.hotel_id
   where r.user_id = user_uuid and r.idempotency_key = safe_key;
 
   if existing_fingerprint is not null then
     if existing_fingerprint <> request_fingerprint then
       raise exception 'idempotency_key_reused';
     end if;
+
+    select h.*
+    into existing_hotel
+    from private.hotel_bootstrap_requests r
+    join public.hotels h on h.id = r.hotel_id
+    where r.user_id = user_uuid and r.idempotency_key = safe_key;
+
+    if existing_hotel.id is null then
+      raise exception 'bootstrap_state_corrupt';
+    end if;
+
     return jsonb_build_object(
       'created', false,
       'hotel', jsonb_build_object(
