@@ -38,6 +38,19 @@ function ownerFetch(onRpc){
   assert.equal(r.status,400); assert.equal((await read(r)).error,"invalid_invite_role"); assert.equal(fetched,false);
 }
 
+// Unconfirmed Owner cannot create team invitations.
+{
+  let rpcCalled=false;
+  const r=await withFetch(async (url)=>{
+    const p=new URL(String(url)).pathname;
+    if(p==="/auth/v1/user") return json({id:OWNER,email:"owner@example.com"});
+    if(p==="/rest/v1/hotel_members") return json([{hotel_id:HOTEL,user_id:OWNER,role:"owner"}]);
+    if(p.startsWith("/rest/v1/rpc/")){rpcCalled=true;throw new Error("RPC must not run");}
+    throw new Error("unexpected "+p);
+  },()=>createInvite({request:post("/api/team/invitations",{hotel_id:HOTEL,email:"manager@example.com",role:"manager"}),env}));
+  assert.equal(r.status,403); assert.equal((await read(r)).error,"account_verification_required"); assert.equal(rpcCalled,false);
+}
+
 // Owner creates a manager invite; raw token is returned once, only hash reaches persistence.
 {
   let persistedHash="";
