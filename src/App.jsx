@@ -115,6 +115,8 @@ function App() {
   const [metaPaused, setMetaPaused] = useState(() => load("sp-meta-paused", false));
   const [notice, setNotice] = useState("");
   const [mobileNav, setMobileNav] = useState(false);
+  const [commandOpen, setCommandOpen] = useState(false);
+  const [commandQuery, setCommandQuery] = useState("");
   const liveIndex = useRef(0);
 
   useEffect(() => localStorage.setItem("sp-rooms", JSON.stringify(rooms)), [rooms]);
@@ -122,6 +124,18 @@ function App() {
   useEffect(() => localStorage.setItem("sp-activities", JSON.stringify(activities)), [activities]);
   useEffect(() => localStorage.setItem("sp-rate", JSON.stringify(rateMultiplier)), [rateMultiplier]);
   useEffect(() => localStorage.setItem("sp-meta-paused", JSON.stringify(metaPaused)), [metaPaused]);
+
+  useEffect(() => {
+    const onKey = e => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
+        e.preventDefault();
+        setCommandOpen(v => !v);
+      }
+      if (e.key === "Escape") setCommandOpen(false);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
 
   useEffect(() => {
     const pool = [
@@ -208,7 +222,7 @@ function App() {
     <main className="main">
       <header className="topbar">
         <button className="mobile-menu" onClick={() => setMobileNav(v => !v)}><SlidersHorizontal size={18} /></button>
-        <div className="search"><Search size={17} /><span>Search reservations, rooms, guests...</span><kbd>⌘ K</kbd></div>
+        <button className="search search-button" onClick={() => { setCommandQuery(""); setCommandOpen(true); }}><Search size={17} /><span>Jump to a workspace or action...</span><kbd>⌘ K</kbd></button>
         <div className="top-actions">
           <div className="live-pill"><span /> Live demo</div>
           <button className="icon-btn"><Bell size={18} /><i /></button>
@@ -217,6 +231,16 @@ function App() {
           <ChevronDown size={16} />
         </div>
       </header>
+
+      <div className="demo-rail">
+        <div className="demo-rail-copy"><Sparkles size={15} /><span><b>Connected demo path</b> — create a booking, watch inventory update, then operate the hotel with AI.</span></div>
+        <div className="demo-rail-steps">
+          <button onClick={() => setActive("booking")}><i>01</i> Create booking</button>
+          <button onClick={() => setActive("reservations")}><i>02</i> Verify reservation</button>
+          <button onClick={() => setActive("rooms")}><i>03</i> Check inventory</button>
+          <button onClick={() => setActive("assistant")}><i>04</i> Run with AI</button>
+        </div>
+      </div>
 
       <div className="content">
         {active === "overview" && <Overview {...pageProps} />}
@@ -230,6 +254,18 @@ function App() {
       </div>
     </main>
 
+    {commandOpen && <div className="command-backdrop" onMouseDown={() => setCommandOpen(false)}>
+      <div className="command-palette" onMouseDown={e => e.stopPropagation()}>
+        <div className="command-search"><Search size={18} /><input autoFocus value={commandQuery} onChange={e => setCommandQuery(e.target.value)} placeholder="Search workspaces..." /><kbd>ESC</kbd></div>
+        <div className="command-label">Workspaces</div>
+        <div className="command-grid">
+          {nav.filter(([, label]) => label.toLowerCase().includes(commandQuery.toLowerCase())).map(([id, label, Icon]) => <button key={id} onClick={() => { setActive(id); setCommandOpen(false); setCommandQuery(""); }}>
+            <span><Icon size={17} /></span><div><b>{label}</b><small>{id === "assistant" ? "Operate hotel actions with natural language" : id === "booking" ? "Create a live demo reservation" : "Open " + label.toLowerCase()}</small></div><ArrowUpRight size={14} />
+          </button>)}
+        </div>
+        <div className="command-tip"><Sparkles size={14} /> Tip: the strongest portfolio flow is Booking engine → Reservations → Rooms → AI assistant.</div>
+      </div>
+    </div>}
     {notice && <div className="toast"><CheckCircle2 size={18} />{notice}<button onClick={() => setNotice("")}><X size={14} /></button></div>}
     {mobileNav && <div className="scrim" onClick={() => setMobileNav(false)} />}
   </div>;
@@ -244,6 +280,14 @@ function Overview({ stats, activities, setActive }) {
   ];
   return <>
     <PageHeader eyebrow="Wednesday · September 23" title="Good afternoon, Sam." text="Here’s what is happening across Northstar Grand right now." action={<button className="primary-btn" onClick={() => setActive("booking")}><Plus size={16} /> New reservation</button>} />
+
+    <section className="ops-pulse">
+      <div className="ops-pulse-label"><span className="live-dot" /><div><b>Property pulse</b><small>Live operational signals</small></div></div>
+      <button onClick={() => setActive("reservations")}><span>Next arrival</span><b>14:30 · Olivia Martin</b><ArrowUpRight size={14} /></button>
+      <button onClick={() => setActive("rooms")}><span>Needs attention</span><b>2 rooms · cleaning + HVAC</b><ArrowUpRight size={14} /></button>
+      <button onClick={() => setActive("marketing")}><span>Direct revenue</span><b>38% share · +7 pts</b><ArrowUpRight size={14} /></button>
+      <button className="pulse-ai" onClick={() => setActive("assistant")}><Sparkles size={15} /><span><b>Ask StayPilot AI</b><small>Operate the property</small></span></button>
+    </section>
 
     <section className="kpi-grid">
       {kpis.map(([label, value, trend, Icon, sub]) => <article className="kpi-card" key={label}>
@@ -443,7 +487,7 @@ function Operations({ activities }) {
   </>;
 }
 
-function BookingEngine({ rooms, setRooms, bookings, setBookings, rateMultiplier, pushActivity, flash }) {
+function BookingEngine({ rooms, setRooms, bookings, setBookings, rateMultiplier, pushActivity, flash, setActive }) {
   const [form, setForm] = useState({ guest: "", email: "", type: "Deluxe King", nights: 2, guests: 2 });
   const [success, setSuccess] = useState(null);
   const rates = { "City Queen": 149, "Deluxe King": 189, "Sky Suite": 279 };
@@ -477,7 +521,7 @@ function BookingEngine({ rooms, setRooms, bookings, setBookings, rateMultiplier,
 
       <aside className="checkout panel">
         <div className="checkout-head"><span className="panel-kicker">Live demo checkout</span><h3>Create a direct reservation</h3><p>Submit it, then open Reservations or Rooms to see the dashboard update.</p></div>
-        {success ? <div className="booking-success"><span><CheckCircle2 size={30} /></span><h3>Reservation confirmed</h3><p>{success.guest} · Room {success.room}</p><div><b>{success.id}</b><b>{fmt(success.total)}</b></div><button className="secondary-btn" onClick={() => setSuccess(null)}>Create another booking</button></div> :
+        {success ? <div className="booking-success"><span><CheckCircle2 size={30} /></span><h3>Reservation confirmed</h3><p>{success.guest} · Room {success.room}</p><div><b>{success.id}</b><b>{fmt(success.total)}</b></div><div className="success-actions"><button className="secondary-btn" onClick={() => setActive("reservations")}>View reservation <ArrowUpRight size={14} /></button><button className="ghost-btn" onClick={() => setActive("assistant")}><Sparkles size={14} /> Ask assistant</button></div><button className="text-link-btn" onClick={() => setSuccess(null)}>Create another booking</button></div> :
         <form onSubmit={submit}>
           <label>Guest name<input value={form.guest} onChange={e => setForm({ ...form, guest: e.target.value })} placeholder="e.g. Maya Thompson" /></label>
           <label>Email<input value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} placeholder="guest@example.com" type="email" /></label>
