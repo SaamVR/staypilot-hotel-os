@@ -173,4 +173,20 @@ assert.match(dispatcherModule, /verified_host_mismatch/i, "dispatcher must bind 
 assert.match(dispatcherModule, /private_or_local_destination_forbidden/i, "dispatcher must reject local/IP destinations");
 assert.match(dispatcherModule, /x-staypilot-signature/i, "dispatcher must HMAC-sign outbound bodies");
 
+const redriveMigration = await readFile(
+  new URL("../supabase/migrations/20260924_005_webhook_redrive.sql", import.meta.url),
+  "utf8",
+);
+const redriveEndpoint = await readFile(new URL("../functions/api/webhook-redrive.js", import.meta.url), "utf8");
+assert.match(redriveMigration, /redrive_count integer not null default 0/i, "delivery redrive count must be durable");
+assert.match(redriveMigration, /delivery\.status in \('dead_letter','failed'\)/i, "redrive must only target exhausted delivery records");
+assert.match(redriveMigration, /set status = 'queued'/i, "redrive must reset only the delivery lifecycle");
+assert.match(redriveMigration, /redrive_count = delivery\.redrive_count \+ 1/i, "redrive must be counted");
+assert.match(redriveMigration, /Webhook delivery redriven/i, "redrive must write an audit event");
+assert.match(redriveMigration, /grant execute on function public\.redrive_webhook_delivery\(uuid, text\) to service_role/i, "redrive RPC must be service-role only");
+assert.doesNotMatch(redriveMigration, /update public\.inbound_events/i, "redrive must never replay or mutate the source inbound event");
+assert.match(redriveEndpoint, /x-staypilot-dispatcher-secret/i, "redrive endpoint must share the trusted dispatcher authentication boundary");
+assert.match(redriveEndpoint, /dispatcher_not_configured/i, "redrive must fail closed before dispatcher configuration");
+assert.match(redriveEndpoint, /invalid_delivery_id/i, "redrive endpoint must validate delivery UUIDs");
+
 console.log("StayPilot backend contract verification passed.");
