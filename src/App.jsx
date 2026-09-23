@@ -1192,6 +1192,35 @@ function NewReservation({ rooms, setRooms, bookings, setBookings, rateMultiplier
         <p>{candidates.length} clean, unblocked {form.type} rooms are currently available for assignment.</p>
       </aside>
     </section>
+
+    {selectedRun && <div className="automation-inspector-backdrop" onMouseDown={() => setSelectedRun(null)}>
+      <aside className="automation-run-inspector" role="dialog" aria-modal="true" aria-label={"Automation run " + selectedRun.runId} onMouseDown={e => e.stopPropagation()}>
+        <div className="automation-inspector-head">
+          <div><span className="panel-kicker">Execution trace</span><h2>{selectedRun.rule}</h2><p>{selectedRun.event}</p></div>
+          <button className="icon-btn" onClick={() => setSelectedRun(null)} aria-label="Close run inspector"><X size={17}/></button>
+        </div>
+        <div className="automation-inspector-status">
+          <span className={"automation-result " + String(selectedRun.result).toLowerCase()}><i />{selectedRun.result}</span>
+          <span>{selectedRun.duration ? selectedRun.duration + " ms" : selectedRun.time}</span>
+        </div>
+        <div className="automation-inspector-grid">
+          <div><span>Run ID</span><b>{selectedRun.runId || "Legacy run"}</b></div>
+          <div><span>Event ID</span><b>{selectedRun.eventId || "Internal event"}</b></div>
+          <div><span>Scope</span><b>{selectedRunRule?.scope || "Automation"}</b></div>
+          <div><span>Autonomy</span><b>{selectedRunRule?.autonomy || "Auto"}</b></div>
+        </div>
+        <div className="automation-inspector-detail"><span>Outcome</span><p>{selectedRun.detail}</p></div>
+        <div className="automation-step-trace">
+          <span>Execution steps</span>
+          <ol>{(selectedRun.steps?.length ? selectedRun.steps : ["Execution recorded"]).map((step, idx) => <li key={idx}><i>{idx + 1}</i><div><b>{step}</b>{idx < (selectedRun.steps?.length || 1) - 1 && <small>completed before next step</small>}</div></li>)}</ol>
+        </div>
+        {selectedRun.eventId && <div className="idempotency-proof-card"><ShieldCheck size={17}/><div><b>Idempotency protected</b><span>Re-delivery of Event ID {selectedRun.eventId} is suppressed after this recorded action.</span></div></div>}
+        <div className="automation-inspector-foot">
+          <button className="ghost-btn" onClick={copyRunId}><Copy size={15}/> Copy run ID</button>
+          {selectedRunTarget && <button className="primary-btn" onClick={() => { setSelectedRun(null); setActive(selectedRunTarget); }}>{selectedRunTarget === "exceptions" ? "Open exception center" : "Open approval center"} <ArrowUpRight size={15}/></button>}
+        </div>
+      </aside>
+    </div>}
   </>;
 }
 
@@ -2096,9 +2125,10 @@ function Assistant({ rooms, setRooms, bookings, stats, rateMultiplier, setRateMu
   </div>;
 }
 
-function AutomationCenter({ role, pushActivity, flash, policy, automationRules, setAutomationRules, automationLogs, automationMaster, setAutomationMaster, automationQueue, emitHotelEvent }) {
+function AutomationCenter({ role, pushActivity, flash, policy, automationRules, setAutomationRules, automationLogs, automationMaster, setAutomationMaster, automationQueue, emitHotelEvent, setActive }) {
   const [scopeFilter, setScopeFilter] = useState("All");
   const [runFilter, setRunFilter] = useState("All");
+  const [selectedRun, setSelectedRun] = useState(null);
 
   const roleRules = role === "owner" ? automationRules : automationRules.filter(r => r.scope === "Operations");
   const roleLogs = role === "owner" ? automationLogs : automationLogs.filter(log => {
@@ -2115,6 +2145,14 @@ function AutomationCenter({ role, pushActivity, flash, policy, automationRules, 
     return true;
   });
   const minutesSaved = roleRules.reduce((n, r) => n + Number(r.minutesSaved || 0), 0);
+  const selectedRunRule = selectedRun ? automationRules.find(r => r.id === selectedRun.ruleId) : null;
+  const selectedRunTarget = selectedRun?.result === "Failed" ? "exceptions" : selectedRun?.result === "Approval" ? "approvals" : null;
+
+  const copyRunId = async () => {
+    if (!selectedRun?.runId) return;
+    try { await navigator.clipboard.writeText(selectedRun.runId); flash("Run ID copied"); }
+    catch { flash("Run ID ready to copy"); }
+  };
 
   const toggle = rule => {
     if (role === "manager" && (!policy.managerCanOperateAutomations || rule.scope !== "Operations")) return flash("Owner permission required");
@@ -2179,11 +2217,11 @@ function AutomationCenter({ role, pushActivity, flash, policy, automationRules, 
       </div>
       <aside className="panel automation-log-panel">
         <div className="panel-head"><div><span className="panel-kicker">Execution history</span><h3>Real workflow traces</h3></div></div>
-        <div className="automation-log">{visibleLogs.slice(0,10).map(log => <div key={log.id}>
+        <div className="automation-log">{visibleLogs.slice(0,10).map(log => <button type="button" className="automation-log-row" key={log.id} onClick={() => setSelectedRun(log)}>
           <span className={"automation-result " + String(log.result).toLowerCase()}><i />{log.result}</span>
           <div><b>{log.rule}</b><small>{log.detail}</small>{log.steps?.length ? <small>{log.steps.join(" → ")}</small> : null}</div>
           <time>{log.duration ? log.duration + " ms" : log.time}</time>
-        </div>)}</div>
+        </button>)}</div>
       </aside>
     </section>
   </>;
