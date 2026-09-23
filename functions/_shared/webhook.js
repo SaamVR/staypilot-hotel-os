@@ -74,5 +74,7 @@ export function getBackendConfig(env = {}) {
     dispatcherSecret: String(env.DISPATCHER_SECRET || ""),
     webhookAllowedHosts: String(env.WEBHOOK_ALLOWED_HOSTS || ""),
     outboundSigningMasterSecret: String(env.OUTBOUND_SIGNING_MASTER_SECRET || ""),
+    orchestratorSecret: String(env.ORCHESTRATOR_SECRET || ""),
+    orchestratorEnabled: String(env.ORCHESTRATOR_ENABLED || "").trim().toLowerCase() === "true",
   };
 }
