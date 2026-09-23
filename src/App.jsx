@@ -200,7 +200,7 @@ const seedAutomationRules = [
   { id: "AUTO-02", name: "Checkout turnover", scope: "Operations", event: "guest.checked_out", trigger: "Guest checked out", action: "Room → Dirty → housekeeping task → sellability update", status: "Active", autonomy: "Auto", last: "18 min ago", runs: 42, failures: 0, minutesSaved: 168 },
   { id: "AUTO-03", name: "Pre-arrival message", scope: "Operations", event: "prearrival.due", trigger: "24h before arrival", action: "Send arrival instructions → track delivery", status: "Active", autonomy: "Auto", last: "42 min ago", runs: 67, failures: 1, minutesSaved: 134 },
   { id: "AUTO-04", name: "Occupancy rate guard", scope: "Revenue", event: "occupancy.threshold", trigger: "Occupancy > 80%", action: "BAR +8% → policy check → apply or approve", status: "Active", autonomy: "Policy", last: "1 hr ago", runs: 12, failures: 0, minutesSaved: 36 },
-  { id: "AUTO-05", name: "Failed payment recovery", scope: "Finance", event: "payment.failed", trigger: "Payment authorization fails", action: "Retry → flag folio → create exception", status: "Paused", autonomy: "Auto", last: "Yesterday", runs: 9, failures: 1, minutesSaved: 27 },
+  { id: "AUTO-05", name: "Failed payment recovery", scope: "Finance", event: "payment.failed", trigger: "Payment authorization fails", action: "Model retry → flag folio → create exception", status: "Paused", autonomy: "Auto", last: "Yesterday", runs: 9, failures: 1, minutesSaved: 27 },
   { id: "AUTO-06", name: "Low-stock replenishment", scope: "Operations", event: "inventory.low_stock", trigger: "Item falls below par", action: "Calculate reorder → policy check → PO / approval", status: "Active", autonomy: "Policy", last: "Yesterday", runs: 8, failures: 0, minutesSaved: 32 },
   { id: "AUTO-07", name: "Cancellation recovery", scope: "Operations", event: "reservation.cancelled", trigger: "Reservation cancelled", action: "Release room/inventory → reconcile channels → resale", status: "Active", autonomy: "Auto", last: "Not run", runs: 0, failures: 0, minutesSaved: 0 },
   { id: "AUTO-08", name: "Room-ready release", scope: "Operations", event: "housekeeping.completed", trigger: "Housekeeping marks room ready", action: "Set Clean → recalculate sellability → channel release", status: "Active", autonomy: "Auto", last: "Not run", runs: 0, failures: 0, minutesSaved: 0 },
@@ -214,7 +214,7 @@ const seedAutomationLogs = [
   { id: 1, runId: "RUN-2818", ruleId: "AUTO-01", rule: "Reservation intake", event: "reservation.created", result: "Success", detail: "SP-1048 · Booking.com", steps: ["Inventory held", "Channel reconciliation recorded", "Confirmation recorded"], duration: 412, minutesSaved: 3, time: "2 min ago" },
   { id: 2, runId: "RUN-2817", ruleId: "AUTO-03", rule: "Pre-arrival message", event: "prearrival.due", result: "Success", detail: "Olivia Martin · delivery recorded", steps: ["Arrival detected", "Instructions sent", "Delivery tracked"], duration: 286, minutesSaved: 2, time: "42 min ago" },
   { id: 3, runId: "RUN-2816", ruleId: "AUTO-04", rule: "Occupancy rate guard", event: "occupancy.threshold", result: "Approval", detail: "APR-102 · BAR +18%", steps: ["Threshold crossed", "Policy checked", "Owner approval requested"], duration: 191, minutesSaved: 3, time: "1 hr ago" },
-  { id: 4, runId: "RUN-2815", ruleId: "AUTO-05", rule: "Failed payment recovery", event: "payment.failed", result: "Failed", detail: "Retry exhausted · operator alerted", steps: ["Authorization failed", "Retry attempted", "Exception raised"], duration: 734, minutesSaved: 3, time: "Yesterday" }
+  { id: 4, runId: "RUN-2815", ruleId: "AUTO-05", rule: "Failed payment recovery", event: "payment.failed", result: "Failed", detail: "Retry exhausted · operator alerted", steps: ["Authorization failed", "Retry modeled", "Exception raised"], duration: 734, minutesSaved: 3, time: "Yesterday" }
 ];
 
 const defaultPolicy = {
@@ -452,7 +452,7 @@ function App() {
       if (!booking) return { ok: false, reason: "No reservation available" };
       setBookings(prev => prev.map(b => b.id === booking.id ? { ...b, paymentRisk: "Retry exhausted" } : b));
       upsertSystemException({ id: "PAY-" + booking.id, type: "Payment", severity: "High", title: "Payment retry exhausted", detail: booking.id + " · " + booking.guest + " · authorization failed twice", route: "reservations", status: "Open" });
-      recordAutomation(rule.id, "Failed", booking.id + " · retry exhausted · exception raised", ["Authorization failure received", "Retry attempted", "Folio flagged payment-at-risk", "Front desk exception created"], 3);
+      recordAutomation(rule.id, "Failed", booking.id + " · retry exhausted · exception raised", ["Authorization failure received", "Processor retry modeled", "Folio flagged payment-at-risk", "Front desk exception created"], 3);
       return { ok: true };
     }
 
@@ -2392,8 +2392,8 @@ function Connections({ pushActivity, flash }) {
     const delivery = { id:"DLV-"+String(Date.now()).slice(-5), endpoint:endpoint.id, event:endpoint.events[0] || "reservation.created", code:"200 OK", duration:(160 + Date.now()%180) + " ms", time:"now" };
     setWebhookDeliveries(prev => [delivery, ...prev].slice(0, 30));
     setWebhookEndpoints(prev => prev.map(x => x.id === endpoint.id ? { ...x, deliveries:Number(x.deliveries||0)+1, last:"now", success:"100%" } : x));
-    pushActivity("green", "Signed webhook delivered", endpoint.name + " · " + delivery.event + " · " + delivery.code, "Automation", "StayPilot integration gateway");
-    flash("Webhook delivery replayed successfully");
+    pushActivity("green", "Webhook replay simulated", endpoint.name + " · " + delivery.event + " · " + delivery.code, "Automation", "StayPilot integration gateway");
+    flash("Demo webhook replay recorded");
   };
 
   return <>
