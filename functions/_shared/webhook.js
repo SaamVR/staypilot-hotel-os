@@ -70,5 +70,6 @@ export function getBackendConfig(env = {}) {
     supabaseUrl: String(env.SUPABASE_URL || "").replace(/\/$/, ""),
     supabaseKey,
     webhookSigningSecret: String(env.WEBHOOK_SIGNING_SECRET || ""),
+    workerSecret: String(env.WORKER_SECRET || ""),
   };
 }
