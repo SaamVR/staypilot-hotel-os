@@ -387,6 +387,7 @@ The repository now contains a **dormant server-side foundation** for the next co
 - CI security-contract verification
 - dormant durable worker with atomic SKIP LOCKED claims, retries/dead-lettering and stale-lease recovery
 - durable outbound webhook outbox with endpoint/Event-ID dedupe for optional n8n, Make, Zapier or custom consumers
+- verified-host outbound dispatcher with exact HTTPS allowlisting, server-managed signing secrets, HMAC delivery signatures and bounded retry/dead-letter handling
 
 No dedicated StayPilot Supabase project has been provisioned yet, and no unrelated Supabase project is reused. Until server secrets and a dedicated database are explicitly configured, `/api/events` fails closed and the verified portfolio frontend remains local-first.
 
