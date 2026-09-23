@@ -14,6 +14,10 @@ import {
   onRequestPost as dispatcherPost,
   onRequest as dispatcherFallback,
 } from "../functions/api/webhook-dispatch-run.js";
+import {
+  onRequestPost as redrivePost,
+  onRequest as redriveFallback,
+} from "../functions/api/webhook-redrive.js";
 
 async function readJson(response) {
   return JSON.parse(await response.text());
@@ -188,6 +192,10 @@ const fullEnv = {
   const dispatcher = dispatcherFallback();
   assert.equal(dispatcher.status, 405);
   assert.equal(dispatcher.headers.get("allow"), "POST");
+
+  const redrive = redriveFallback();
+  assert.equal(redrive.status, 405);
+  assert.equal(redrive.headers.get("allow"), "POST");
 }
 
 // 8. Worker endpoint fails closed before database/worker secret configuration.
@@ -326,6 +334,98 @@ const fullEnv = {
   assert.deepEqual(body.results, []);
   assert.equal(claimBody.batch_size, 10, "dispatcher endpoint must cap requested batch size");
   assert.match(claimBody.worker_name, /^cf-webhook-[0-9a-f-]{36}$/i);
+}
+
+// 14. Redrive endpoint fails closed before dispatcher/database configuration.
+{
+  const request = new Request("https://staypilot.test/api/webhook-redrive", {
+    method:"POST",
+    headers:{ "content-type":"application/json" },
+    body:JSON.stringify({ delivery_id:"11111111-1111-4111-8111-111111111111" }),
+  });
+  let fetched = false;
+  const response = await withMockFetch(async () => {
+    fetched = true;
+    throw new Error("database should not be called");
+  }, () => redrivePost({ request, env:{} }));
+  assert.equal(response.status, 503);
+  assert.equal((await readJson(response)).error, "dispatcher_not_configured");
+  assert.equal(fetched, false);
+}
+
+// 15. Wrong dispatcher secret cannot redrive a delivery.
+{
+  const request = new Request("https://staypilot.test/api/webhook-redrive", {
+    method:"POST",
+    headers:{
+      "content-type":"application/json",
+      "x-staypilot-dispatcher-secret":"wrong-secret",
+    },
+    body:JSON.stringify({ delivery_id:"11111111-1111-4111-8111-111111111111" }),
+  });
+  let fetched = false;
+  const response = await withMockFetch(async () => {
+    fetched = true;
+    throw new Error("database should not be called");
+  }, () => redrivePost({ request, env:fullEnv }));
+  assert.equal(response.status, 401);
+  assert.equal((await readJson(response)).error, "dispatcher_unauthorized");
+  assert.equal(fetched, false);
+}
+
+// 16. Invalid delivery IDs are rejected before database access.
+{
+  const request = new Request("https://staypilot.test/api/webhook-redrive", {
+    method:"POST",
+    headers:{
+      "content-type":"application/json",
+      "x-staypilot-dispatcher-secret":"integration-dispatcher-secret",
+    },
+    body:JSON.stringify({ delivery_id:"not-a-uuid" }),
+  });
+  let fetched = false;
+  const response = await withMockFetch(async () => {
+    fetched = true;
+    throw new Error("database should not be called");
+  }, () => redrivePost({ request, env:fullEnv }));
+  assert.equal(response.status, 400);
+  assert.equal((await readJson(response)).error, "invalid_delivery_id");
+  assert.equal(fetched, false);
+}
+
+// 17. Authorized redrive calls only the service-role redrive RPC with bounded reason text.
+{
+  const deliveryId = "11111111-1111-4111-8111-111111111111";
+  const request = new Request("https://staypilot.test/api/webhook-redrive", {
+    method:"POST",
+    headers:{
+      "content-type":"application/json",
+      "x-staypilot-dispatcher-secret":"integration-dispatcher-secret",
+    },
+    body:JSON.stringify({ delivery_id:deliveryId, reason:"Operator retry after endpoint recovery" }),
+  });
+
+  let rpcBody = null;
+  const response = await withMockFetch(async (url, options = {}) => {
+    const parsed = new URL(String(url));
+    assert.equal(parsed.pathname, "/rest/v1/rpc/redrive_webhook_delivery");
+    rpcBody = JSON.parse(options.body);
+    return new Response(JSON.stringify({
+      id:deliveryId,
+      status:"queued",
+      redrive_count:2,
+      next_retry_at:"2026-09-24T00:00:00Z",
+    }), { status:200, headers:{ "content-type":"application/json" } });
+  }, () => redrivePost({ request, env:fullEnv }));
+
+  assert.equal(response.status, 200);
+  const body = await readJson(response);
+  assert.equal(body.ok, true);
+  assert.equal(body.delivery_id, deliveryId);
+  assert.equal(body.status, "queued");
+  assert.equal(body.redrive_count, 2);
+  assert.equal(rpcBody.delivery_uuid, deliveryId);
+  assert.equal(rpcBody.reason_text, "Operator retry after endpoint recovery");
 }
 
 console.log("StayPilot server HTTP boundary tests passed.");
