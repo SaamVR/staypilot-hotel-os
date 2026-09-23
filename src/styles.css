@@ -1140,14 +1140,24 @@ nav button,.primary-btn,.secondary-btn,.ghost-btn,.danger-btn,.icon-btn,.row-act
 .inbound-event-lab{margin:0 0 18px}
 .inbound-event-lab .panel-head{align-items:flex-start}
 .inbound-event-lab .panel-head p{max-width:760px;font-size:10.5px;color:#748079;line-height:1.55;margin:4px 0 0}
-.inbound-event-grid{display:grid;grid-template-columns:minmax(210px,.7fr) minmax(280px,1.3fr) auto;align-items:end;gap:12px;padding:0 20px 16px}
-.inbound-event-grid label,.event-payload-preview{display:flex;flex-direction:column;gap:6px}
-.inbound-event-grid label>span,.event-payload-preview>span{font-size:9px;text-transform:uppercase;letter-spacing:.07em;color:#77837d;font-weight:750}
+.inbound-event-grid{display:grid;grid-template-columns:minmax(190px,.7fr) minmax(190px,.8fr) minmax(250px,1.25fr) auto;align-items:end;gap:12px;padding:0 20px 16px}
+.inbound-event-grid label,.event-payload-preview,.event-id-preview{display:flex;flex-direction:column;gap:6px;min-width:0}
+.inbound-event-grid label>span,.event-payload-preview>span,.event-id-preview>span{font-size:9px;text-transform:uppercase;letter-spacing:.07em;color:#77837d;font-weight:750}
 .inbound-event-grid select{width:100%;min-height:42px;border:1px solid var(--line);border-radius:8px;background:var(--surface);color:var(--ink);padding:0 34px 0 11px;font-size:11px;font-weight:700}
-.event-payload-preview code{min-height:42px;display:flex;align-items:center;border:1px solid var(--line);border-radius:8px;background:var(--charcoal-950);color:#c9ddd4;padding:0 11px;font-size:9.5px;white-space:nowrap;overflow:auto}
-.inbound-event-grid .primary-btn{min-height:42px;white-space:nowrap}
-@media(max-width:900px){.automation-filter-bar{flex-direction:column}.inbound-event-grid{grid-template-columns:1fr 1fr}.inbound-event-grid .primary-btn{grid-column:1/-1;width:100%}}
-@media(max-width:620px){.automation-filter-bar{padding:9px}.automation-filter-bar>div{width:100%}.automation-filter-bar button{flex:1}.inbound-event-grid{grid-template-columns:1fr;padding-inline:14px}.inbound-event-grid .primary-btn{grid-column:auto}.event-payload-preview code{white-space:normal;line-height:1.4;padding-block:10px}}
+.event-payload-preview code,.event-id-preview code{min-height:42px;display:flex;align-items:center;border:1px solid var(--line);border-radius:8px;padding:0 11px;font-size:9.5px;white-space:nowrap;overflow:auto}
+.event-payload-preview code{background:var(--charcoal-950);color:#c9ddd4}
+.event-id-preview code{background:var(--forest-50);color:var(--forest-800);font-weight:750}
+.inbound-event-actions{display:flex;align-items:center;gap:7px}
+.inbound-event-actions button{min-height:42px;white-space:nowrap}
+.inbound-outcome{grid-column:1/-1;display:flex;align-items:center;gap:8px;min-height:36px;padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:var(--surface-2);font-size:9.5px}
+.inbound-outcome b{font-size:10px}.inbound-outcome span{color:#6f7d76}
+.inbound-outcome.success{border-color:#cde2d8;background:#f3f9f6}.inbound-outcome.success b{color:var(--forest-700)}
+.inbound-outcome.queued{border-color:#e7cba6;background:#fffaf3}.inbound-outcome.queued b{color:#8b5f22}
+.inbound-outcome.duplicate{border-color:#cfd9e5;background:#f6f8fb}.inbound-outcome.duplicate b{color:#435d79}
+.inbound-outcome.failed{border-color:#e4c4c4;background:#fff7f7}.inbound-outcome.failed b{color:#914646}
+@media(max-width:1100px){.inbound-event-grid{grid-template-columns:1fr 1fr}.inbound-event-actions{align-self:end}.inbound-event-actions button{flex:1}}
+@media(max-width:900px){.automation-filter-bar{flex-direction:column}}
+@media(max-width:620px){.automation-filter-bar{padding:9px}.automation-filter-bar>div{width:100%}.automation-filter-bar button{flex:1}.inbound-event-grid{grid-template-columns:1fr;padding-inline:14px}.inbound-event-actions{flex-direction:column;align-items:stretch}.event-payload-preview code,.event-id-preview code{white-space:normal;line-height:1.4;padding-block:10px}}
 
 
 /* Global automation safety */
