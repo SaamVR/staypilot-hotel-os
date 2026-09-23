@@ -431,3 +431,114 @@ The endpoint shares the dispatcher fail-closed boundary:
 - missing delivery → 404
 
 The public portfolio deployment remains dormant: the browser UI demonstrates delivery-only recovery locally, while the server endpoint returns fail-closed until dedicated infrastructure is configured.
+
+
+## Secure webhook endpoint provisioning
+
+The outbound dispatcher now has a staged server-owned endpoint onboarding flow.
+
+Endpoints:
+
+```
+POST /api/webhook-endpoints/register
+POST /api/webhook-endpoints/verify
+```
+
+Both endpoints require a valid Supabase user bearer token and an Owner membership for the target hotel.
+
+### Registration
+
+Registration validates:
+
+- hotel UUID
+- Owner membership
+- endpoint name
+- subscribed event names
+- HTTPS-only destination
+- no URL credentials
+- no non-443 port
+- no localhost / local / internal host
+- no IP-literal destination
+- exact membership in `WEBHOOK_ALLOWED_HOSTS`
+
+A successful registration creates the webhook endpoint as:
+
+- `status = Paused`
+- `verification_status = Pending`
+- no verified host
+- no verified timestamp
+
+Authenticated browser sessions have direct `INSERT` / `UPDATE` privileges revoked for `webhook_endpoints`, so they cannot forge verification state or `secret_ref`.
+
+### Per-endpoint signing credentials
+
+StayPilot does not store the raw endpoint HMAC credential in the endpoint table.
+
+The server creates a non-secret reference:
+
+```
+DERIVED_V1_<endpoint uuid without dashes>
+```
+
+and derives the actual credential with:
+
+```
+HMAC-SHA256(
+  OUTBOUND_SIGNING_MASTER_SECRET,
+  "staypilot:webhook:" + secret_ref
+)
+```
+
+The Owner receives the derived credential from the registration response so it can be configured in the downstream webhook receiver.
+
+The dispatcher can re-derive that credential server-side when sending an event. Legacy manually provisioned `WEBHOOK_SECRET_*` references remain supported.
+
+### Verification challenge
+
+Verification re-checks Owner authorization and the exact destination safety rules.
+
+StayPilot then sends a no-redirect verification request to the allowlisted destination with:
+
+- random UUID challenge
+- exact JSON body
+- timestamp
+- HMAC signature over `timestamp.body`
+
+The destination must return:
+
+```json
+{
+  "challenge": "<same challenge>",
+  "proof": "<HMAC-SHA256(endpoint secret, 'verify:' + challenge)>"
+}
+```
+
+Only a correct challenge + HMAC proof causes the service-role RPC to set:
+
+- `verification_status = Verified`
+- `verified_host = exact destination host`
+- `verified_at = now()`
+- `status = Active`
+
+Failed verification persists `Failed` and keeps the endpoint Paused.
+
+Changing the endpoint URL or signing reference clears verification automatically.
+
+### Required server configuration
+
+Endpoint registration / verification remains disabled until all required server values exist:
+
+```
+SUPABASE_URL
+SUPABASE_SECRET_KEY
+WEBHOOK_ALLOWED_HOSTS
+OUTBOUND_SIGNING_MASTER_SECRET
+```
+
+Outbound dispatch additionally requires:
+
+```
+DISPATCHER_SECRET
+```
+
+The current portfolio production environment intentionally does not configure these values.
