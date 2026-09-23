@@ -6,13 +6,13 @@ Canonical demo: https://staypilot-hotel-os.pages.dev/
 
 ## Durable source state
 
-- verified application release commit: `e300fd38af719e34f57dee39dcae0df85f52251d`
+- verified application release commit: `5acade4737a62352a8b9d62cb9c8f038e8c3845a`
 - StayPilot current `main` docs checkpoint: `1141659b9836fcf963e624aa78be29f40d196a31`
 - verified Cloudflare bundle branch: `cloudflare-deploy`
 - verified bundle commit: `43d0d606fe0e80a5090546945d6f60dd823625a7`
 - bundle commit message: `stage Cloudflare bundle for 9de867d90b407b377f435565324443a3857b9d7e`
-- latest deployment preview: https://3a917355.staypilot-hotel-os.pages.dev
-- canonical deployment: https://staypilot-hotel-os.pages.dev/?v=e300fd38
+- latest deployment preview: https://56890e60.staypilot-hotel-os.pages.dev
+- canonical deployment: https://staypilot-hotel-os.pages.dev/?v=5acade47
 - verification workflow: `.github/workflows/verify.yml`
 - Node 22 + npm ci + npm run build: PASS
 - production artifact upload: PASS
@@ -418,3 +418,26 @@ Creating a new Supabase project is an account-level/cost-bearing action. Before 
 - do not add real Supabase server secrets to Cloudflare
 - do not claim server authority is live
 - continue using the verified browser-local demo for portfolio interactions
+
+
+## Production backend foundation release QA — PASS
+
+Verified on canonical production for application release `5acade47`.
+
+Server contract:
+- `GET /api/backend-health` returns HTTP 200 with `mode: not_configured`.
+- database dependency reports `false`.
+- inbound HMAC secret dependency reports `false`.
+- `POST /api/events` returns HTTP 503 with `backend_not_configured`.
+- no inbound event is accepted before dedicated Supabase + signing secrets exist.
+- preview and canonical aliases return the same fail-closed contract.
+
+Integration Hub UI:
+- desktop 1280px shows **Foundation staged · fail-closed**.
+- 390px mobile shows the same state.
+- event ingestion is labeled **Rejects requests**.
+- frontend authority is explicitly labeled browser-local.
+- no horizontal overflow.
+- zero browser console/page errors.
+
+This verifies that the dormant server foundation is deployed while remaining fail-closed and truthful.
