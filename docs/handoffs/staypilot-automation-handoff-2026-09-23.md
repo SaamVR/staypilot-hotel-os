@@ -7,6 +7,7 @@ Canonical demo: https://staypilot-hotel-os.pages.dev/
 ## Durable source state
 
 - verified application release commit: `e300fd38af719e34f57dee39dcae0df85f52251d`
+- StayPilot current `main` docs checkpoint: `1141659b9836fcf963e624aa78be29f40d196a31`
 - verified Cloudflare bundle branch: `cloudflare-deploy`
 - verified bundle commit: `43d0d606fe0e80a5090546945d6f60dd823625a7`
 - bundle commit message: `stage Cloudflare bundle for 9de867d90b407b377f435565324443a3857b9d7e`
@@ -270,12 +271,12 @@ This verifies duplicate delivery protection for both immediate execution and pau
 Repository: SaamVR/Portfolio
 
 - backup branch: `backup/pre-staypilot-work2-20260923`
-- current Portfolio main commit: `c9aa0847c746094ecf7211013d026199221c85cb`
+- current Portfolio main commit: `3bba96ade77aeb1e172a701c811e255f70a54a18`
 - LeadFlow remains the immersive Work #1 page
 - StayPilot Work #2 handoff is responsive and light-mode aware
 - source CTA points to StayPilot repo
 - Cloudflare CTA points to canonical demo
-- live Portfolio preview: https://ecfbdf1d.leadflow-ai-bhy.pages.dev
+- live Portfolio preview: https://21c165f7.leadflow-ai-bhy.pages.dev
 - primary Portfolio alias: https://leadflow-ai-bhy.pages.dev/
 
 Portfolio Work #2 displays `Verified main · 12cb4d22` and is synchronized with the deployed application release.
@@ -400,3 +401,20 @@ Backend source:
 - CI backend security contract on every PR/push.
 
 The server foundation is deployed but intentionally dormant. The verified frontend remains browser-local authority until a dedicated StayPilot Supabase project and server secrets are explicitly provisioned.
+
+
+## External provisioning blocker
+
+The only blocker to switching from the fail-closed server foundation to a live multi-tenant backend is provisioning a **dedicated StayPilot Supabase project**.
+
+Connected Supabase account discovery found:
+- an unrelated active `CMS Project`
+- an unrelated inactive `Booking agent`
+
+Do not reuse either project.
+
+Creating a new Supabase project is an account-level/cost-bearing action. Before doing it, explicitly confirm which Supabase organization should own StayPilot and confirm the current quoted project cost. Until that approval exists:
+- keep `/api/events` fail-closed
+- do not add real Supabase server secrets to Cloudflare
+- do not claim server authority is live
+- continue using the verified browser-local demo for portfolio interactions
