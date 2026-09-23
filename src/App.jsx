@@ -24,13 +24,8 @@ const revenueData = [
   { d: "Sun", revenue: 10150, bookings: 33 }
 ];
 
-const channelData = [
-  { name: "Direct", value: 38 },
-  { name: "Booking.com", value: 27 },
-  { name: "Airbnb", value: 18 },
-  { name: "Expedia", value: 10 },
-  { name: "Agoda", value: 7 }
-];
+const channelOrder = ["Direct", "Booking.com", "Airbnb", "Expedia", "Agoda"];
+const normalizeBookingSource = source => ["Direct Website", "Direct", "Walk-in", "Phone", "Email"].includes(source) ? "Direct" : source;
 
 const seedBookings = [
   { id: "SP-1048", guest: "Olivia Martin", room: "204", type: "Deluxe King", source: "Booking.com", checkIn: "Today", checkOut: "Sep 26", guests: 2, total: 684, status: "Confirmed" },
@@ -802,7 +797,7 @@ function App() {
   </div>;
 }
 
-function Overview({ stats, activities, setActive, role, rooms, approvals, stock, automationRules, automationLogs }) {
+function Overview({ stats, activities, setActive, role, rooms, bookings, approvals, stock, automationRules, automationLogs }) {
   const owner = role === "owner";
   const attentionRooms = rooms.filter(r => r.housekeeping !== "Clean" || r.maintenance !== "Clear");
   const readyRooms = rooms.filter(roomSellable).length;
@@ -826,6 +821,26 @@ function Overview({ stats, activities, setActive, role, rooms, approvals, stock,
   const automationFailures = roleRules.reduce((n,r) => n + Number(r.failures || 0), 0);
   const openSystemExceptions = load("sp-exceptions", seedSystemExceptions).filter(x => x.status === "Open" && (owner || x.type !== "Distribution")).length;
   const humanAttention = attentionRooms.length + pendingApprovals + openSystemExceptions;
+  const activeBookings = (bookings || []).filter(b => b.status !== "Cancelled");
+  const sourceCounts = activeBookings.reduce((acc, booking) => {
+    const source = normalizeBookingSource(booking.source || "Direct");
+    acc[source] = (acc[source] || 0) + 1;
+    return acc;
+  }, {});
+  const orderedSources = [
+    ...channelOrder.filter(name => sourceCounts[name]),
+    ...Object.keys(sourceCounts).filter(name => !channelOrder.includes(name)).sort()
+  ];
+  const derivedChannelData = orderedSources.map(name => ({
+    name,
+    value: activeBookings.length ? Math.round(sourceCounts[name] / activeBookings.length * 100) : 0
+  }));
+  const bookingChannelData = derivedChannelData.length ? derivedChannelData : [{ name:"No bookings", value:0 }];
+  const directCount = sourceCounts.Direct || 0;
+  const directShare = activeBookings.length ? Math.round(directCount / activeBookings.length * 100) : 0;
+  const otaExposure = Math.max(0, 100 - directShare);
+  const directGoal = 50;
+  const directGoalProgress = Math.min(100, Math.round((directShare / directGoal) * 100));
 
   const ownerKpis = [
     ["Occupancy", stats.occupancy + "%", "+6.8%", TrendingUp, "vs. last week"],
@@ -881,7 +896,7 @@ function Overview({ stats, activities, setActive, role, rooms, approvals, stock,
         <button className="panel owner-field" onClick={() => setActive("exceptions")}><span className="field-icon"><Bell size={19} /></span><div><span>Exceptions</span><b>{openSystemExceptions} open</b><small>automation could not safely resolve</small></div><ArrowUpRight size={15} /></button>
         <button className="panel owner-field" onClick={() => setActive("approvals")}><span className="field-icon"><ShieldCheck size={19} /></span><div><span>Decision queue</span><b>{pendingApprovals} pending</b><small>rate, spend & refund approvals</small></div><ArrowUpRight size={15} /></button>
         <button className="panel owner-field" onClick={() => setActive("inventory")}><span className="field-icon"><Boxes size={19} /></span><div><span>Supply inventory value</span><b>{fmt(Math.round(stockValue))}</b><small>{lowStock} items need reorder</small></div><ArrowUpRight size={15} /></button>
-        <button className="panel owner-field" onClick={() => setActive("channels")}><span className="field-icon"><RefreshCw size={19} /></span><div><span>OTA exposure</span><b>62%</b><small>38% direct share</small></div><ArrowUpRight size={15} /></button>
+        <button className="panel owner-field" onClick={() => setActive("channels")}><span className="field-icon"><RefreshCw size={19} /></span><div><span>OTA exposure</span><b>{otaExposure}%</b><small>{directShare}% direct share</small></div><ArrowUpRight size={15} /></button>
         <button className="panel owner-field" onClick={() => setActive("marketing")}><span className="field-icon"><Megaphone size={19} /></span><div><span>Paid acquisition</span><b>{paidRoas.toFixed(2)}x</b><small>blended ROAS</small></div><ArrowUpRight size={15} /></button>
       </section>
 
@@ -906,12 +921,12 @@ function Overview({ stats, activities, setActive, role, rooms, approvals, stock,
       <section className="bottom-grid">
         <article className="panel channel-panel">
           <div className="panel-head"><div><span className="panel-kicker">Distribution</span><h3>Booking channel mix</h3></div><span className="period-label">Current mix</span></div>
-          <div className="bar-wrap"><ResponsiveContainer width="100%" height="100%"><BarChart data={channelData} barSize={24}><CartesianGrid stroke="#edf1f7" vertical={false} /><XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: "#78859a", fontSize: 11 }} /><YAxis hide /><Tooltip cursor={{ fill: "#f5f7fb" }} contentStyle={{ borderRadius: 12, border: "1px solid #e4eaf2" }} formatter={v => [v + "%", "Share"]} /><Bar dataKey="value" fill="#1b624b" radius={[3, 3, 0, 0]} /></BarChart></ResponsiveContainer></div>
+          <div className="bar-wrap"><ResponsiveContainer width="100%" height="100%"><BarChart data={bookingChannelData} barSize={24}><CartesianGrid stroke="#edf1f7" vertical={false} /><XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: "#78859a", fontSize: 11 }} /><YAxis hide /><Tooltip cursor={{ fill: "#f5f7fb" }} contentStyle={{ borderRadius: 12, border: "1px solid #e4eaf2" }} formatter={v => [v + "%", "Share"]} /><Bar dataKey="value" fill="#1b624b" radius={[3, 3, 0, 0]} /></BarChart></ResponsiveContainer></div>
         </article>
         <article className="panel snapshot">
           <div className="panel-head"><div><span className="panel-kicker">Owner metrics</span><h3>Property snapshot</h3></div></div>
-          <div className="snapshot-grid"><div><span>ADR</span><b>{fmt(stats.adr)}</b><small>+4.8%</small></div><div><span>RevPAR</span><b>{fmt(stats.revpar)}</b><small>+9.2%</small></div><div><span>Direct share</span><b>38%</b><small>+7 pts</small></div><div><span>Guest rating</span><b>4.8</b><small>218 reviews</small></div></div>
-          <div className="goal"><div><span>Direct booking goal</span><b>76%</b></div><div className="progress"><i style={{ width: "76%" }} /></div><p>19 bookings away from this month’s target.</p></div>
+          <div className="snapshot-grid"><div><span>ADR</span><b>{fmt(stats.adr)}</b><small>+4.8%</small></div><div><span>RevPAR</span><b>{fmt(stats.revpar)}</b><small>+9.2%</small></div><div><span>Direct share</span><b>{directShare}%</b><small>{directCount} of {activeBookings.length} bookings</small></div><div><span>Guest rating</span><b>4.8</b><small>218 reviews</small></div></div>
+          <div className="goal"><div><span>Direct booking goal</span><b>{directShare}% / {directGoal}%</b></div><div className="progress"><i style={{ width: directGoalProgress + "%" }} /></div><p>{directShare >= directGoal ? "Direct-share target reached." : (directGoal - directShare) + " percentage points to the current target."}</p></div>
         </article>
       </section>
     </> : <>
@@ -1358,8 +1373,10 @@ function Inventory({ role, approvals, setApprovals, pushActivity, flash, setActi
 }
 
 function ApprovalCenter({ role, approvals, setApprovals, rateMultiplier, setRateMultiplier, metaPaused, setMetaPaused, pushActivity, flash, bookings, setBookings, emitHotelEvent }) {
-  const [draft, setDraft] = useState({ type: "Purchase order", title: "", detail: "", amount: "" });
+  const [draft, setDraft] = useState({ type: "Purchase order", title: "", detail: "", amount: "", reservationRef: "" });
   const pending = approvals.filter(a => a.status === "Pending");
+  const capturedForBooking = booking => Number(booking?.paid ?? (booking?.status === "Checked in" ? booking?.total : Math.round(Number(booking?.total || 0) * 0.2)));
+  const refundableBookings = bookings.filter(booking => booking.status !== "Cancelled" && capturedForBooking(booking) > 0);
   const myRequests = approvals.filter(a => a.requestedBy === "Sam Rahman" || role === "owner");
 
   const decide = (item, status) => {
@@ -1387,18 +1404,27 @@ function ApprovalCenter({ role, approvals, setApprovals, rateMultiplier, setRate
   const submit = e => {
     e.preventDefault();
     if (!draft.title.trim()) return flash("Add a request title");
+    if (draft.type === "Refund") {
+      const reservation = bookings.find(b => b.id === draft.reservationRef);
+      if (!reservation) return flash("Choose a reservation for the refund");
+      const amount = Number(draft.amount || 0);
+      const captured = capturedForBooking(reservation);
+      if (amount <= 0) return flash("Add a refund amount");
+      if (amount > captured) return flash("Refund cannot exceed the captured amount of " + fmt(captured));
+    }
     const item = {
       id: "APR-" + (105 + approvals.length),
       type: draft.type,
       title: draft.title.trim(),
       detail: draft.detail.trim() || "Manager request",
       amount: draft.amount ? Number(draft.amount) : null,
+      reservationRef: draft.type === "Refund" ? draft.reservationRef : undefined,
       requestedBy: "Sam Rahman",
       status: "Pending",
       time: "just now"
     };
     setApprovals(prev => [item, ...prev]);
-    setDraft({ type: "Purchase order", title: "", detail: "", amount: "" });
+    setDraft({ type: "Purchase order", title: "", detail: "", amount: "", reservationRef: "" });
     pushActivity("blue", "Approval request submitted", item.id + " · " + item.title);
     flash("Request sent to Owner");
   };
@@ -1421,7 +1447,7 @@ function ApprovalCenter({ role, approvals, setApprovals, rateMultiplier, setRate
         <div className="approval-list">
           {(role === "owner" ? approvals : myRequests).map(item => <div className="approval-item" key={item.id}>
             <span className={"approval-type " + item.type.toLowerCase().replaceAll(" ","-")}>{item.type}</span>
-            <div className="approval-copy"><div><b>{item.title}</b><StatusDot status={item.status} /></div><p>{item.detail}</p><small>{item.id} · {item.requestedBy} · {item.time}</small></div>
+            <div className="approval-copy"><div><b>{item.title}</b><StatusDot status={item.status} /></div><p>{item.detail}</p><small>{item.id}{item.reservationRef ? " · " + item.reservationRef : ""} · {item.requestedBy} · {item.time}</small></div>
             {item.amount != null && <strong>{fmt(item.amount)}</strong>}
             {role === "owner" && item.status === "Pending" ? <div className="approval-actions"><button className="ghost-btn" onClick={() => decide(item, "Rejected")}>Reject</button><button className="primary-btn" onClick={() => decide(item, "Approved")}><Check size={15} /> Approve</button></div> : <span className="approval-result">{item.status}</span>}
           </div>)}
@@ -1431,7 +1457,8 @@ function ApprovalCenter({ role, approvals, setApprovals, rateMultiplier, setRate
       {role === "manager" && <aside className="panel request-form">
         <span className="panel-kicker">New request</span><h3>Ask for Owner approval</h3><p>Use this for spend, refunds or changes beyond your assigned authority.</p>
         <form onSubmit={submit}>
-          <label>Request type<select value={draft.type} onChange={e => setDraft({...draft,type:e.target.value})}><option>Purchase order</option><option>Expense</option><option>Maintenance</option><option>Rate change</option><option>Refund</option><option>Marketing</option></select></label>
+          <label>Request type<select value={draft.type} onChange={e => setDraft({...draft,type:e.target.value,reservationRef:e.target.value === "Refund" ? draft.reservationRef : ""})}><option>Purchase order</option><option>Expense</option><option>Maintenance</option><option>Rate change</option><option>Refund</option><option>Marketing</option></select></label>
+          {draft.type === "Refund" && <label>Reservation<select required value={draft.reservationRef} onChange={e => setDraft({...draft,reservationRef:e.target.value})}><option value="">Choose refundable reservation</option>{refundableBookings.map(booking => <option key={booking.id} value={booking.id}>{booking.id} · {booking.guest} · captured {fmt(capturedForBooking(booking))}</option>)}</select></label>}
           <label>Title<input value={draft.title} onChange={e => setDraft({...draft,title:e.target.value})} placeholder="e.g. Weekend BAR +18%" /></label>
           <label>Details<textarea value={draft.detail} onChange={e => setDraft({...draft,detail:e.target.value})} placeholder="Why is this needed?" /></label>
           <label>Amount (optional)<div className="modal-money"><span>$</span><input type="number" min="0" value={draft.amount} onChange={e => setDraft({...draft,amount:e.target.value})} placeholder="0" /></div></label>
