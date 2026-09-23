@@ -285,11 +285,15 @@ The Integration Hub demonstrates:
 - event-oriented endpoint configuration
 - an inbound-event test console for PMS/payment/guest/reputation-style events
 - the same normalized inbound events executing through StayPilot's policy-aware automation engine
+- visible Event IDs / idempotency keys
+- **Send new event** versus **Replay same ID** duplicate-suppression proof
+- paused-event queue dedupe so the same Event ID is stored only once
 
 Production architecture is designed around:
 
 - HMAC signatures
 - event IDs
+- atomic idempotency storage / uniqueness constraints
 - idempotency keys
 - retries
 - delivery replay
@@ -298,6 +302,8 @@ Production architecture is designed around:
 **n8n, Make, Zapier and custom scripts are optional webhook/API consumers. They are not required for StayPilot’s internal automations.**
 
 Provider connection tests, webhook delivery and external API outcomes are explicitly modeled/simulated in this browser prototype. The application does not claim to be calling live OTA, accounting, payment, WhatsApp or ad APIs.
+
+The browser demo persists up to 120 processed inbound Event IDs in localStorage. This demonstrates the behavior only; production exactly-once business effects require transactional server-side idempotency and durable queue semantics.
 
 ## Property setup
 
