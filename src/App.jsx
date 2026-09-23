@@ -189,13 +189,24 @@ const seedTasks = [
   { id: 4, place: "Room 108", title: "Extra towels requested", team: "Housekeeping", due: "Due 16:20", status: "New" }
 ];
 
+const seedSystemExceptions = [
+  { id:"EXC-03", type:"Payment", severity:"High", title:"Payment retry exhausted", detail:"SP-1042 · Visa authorization failed twice", route:"reservations", status:"Open" },
+  { id:"EXC-04", type:"Distribution", severity:"Normal", title:"Agoda acknowledgement delayed", detail:"Inventory push waiting 94 seconds", route:"channels", status:"Open" }
+];
+
 const seedAutomationRules = [
   { id: "AUTO-01", name: "Reservation intake", scope: "Operations", event: "reservation.created", trigger: "Reservation received", action: "Hold inventory → reconcile channels → confirmation", status: "Active", autonomy: "Auto", last: "2 min ago", runs: 184, failures: 0, minutesSaved: 552 },
   { id: "AUTO-02", name: "Checkout turnover", scope: "Operations", event: "guest.checked_out", trigger: "Guest checked out", action: "Room → Dirty → housekeeping task → sellability update", status: "Active", autonomy: "Auto", last: "18 min ago", runs: 42, failures: 0, minutesSaved: 168 },
   { id: "AUTO-03", name: "Pre-arrival message", scope: "Operations", event: "prearrival.due", trigger: "24h before arrival", action: "Send arrival instructions → track delivery", status: "Active", autonomy: "Auto", last: "42 min ago", runs: 67, failures: 1, minutesSaved: 134 },
   { id: "AUTO-04", name: "Occupancy rate guard", scope: "Revenue", event: "occupancy.threshold", trigger: "Occupancy > 80%", action: "BAR +8% → policy check → apply or approve", status: "Active", autonomy: "Policy", last: "1 hr ago", runs: 12, failures: 0, minutesSaved: 36 },
   { id: "AUTO-05", name: "Failed payment recovery", scope: "Finance", event: "payment.failed", trigger: "Payment authorization fails", action: "Retry → flag folio → create exception", status: "Paused", autonomy: "Auto", last: "Yesterday", runs: 9, failures: 1, minutesSaved: 27 },
-  { id: "AUTO-06", name: "Low-stock replenishment", scope: "Operations", event: "inventory.low_stock", trigger: "Item falls below par", action: "Calculate reorder → policy check → PO / approval", status: "Active", autonomy: "Policy", last: "Yesterday", runs: 8, failures: 0, minutesSaved: 32 }
+  { id: "AUTO-06", name: "Low-stock replenishment", scope: "Operations", event: "inventory.low_stock", trigger: "Item falls below par", action: "Calculate reorder → policy check → PO / approval", status: "Active", autonomy: "Policy", last: "Yesterday", runs: 8, failures: 0, minutesSaved: 32 },
+  { id: "AUTO-07", name: "Cancellation recovery", scope: "Operations", event: "reservation.cancelled", trigger: "Reservation cancelled", action: "Release room/inventory → reconcile channels → resale", status: "Active", autonomy: "Auto", last: "Not run", runs: 0, failures: 0, minutesSaved: 0 },
+  { id: "AUTO-08", name: "Room-ready release", scope: "Operations", event: "housekeeping.completed", trigger: "Housekeeping marks room ready", action: "Set Clean → recalculate sellability → channel release", status: "Active", autonomy: "Auto", last: "Not run", runs: 0, failures: 0, minutesSaved: 0 },
+  { id: "AUTO-09", name: "Room conflict guard", scope: "Operations", event: "room.maintenance_blocked", trigger: "Assigned room goes out of order", action: "Find affected stay → alternatives → exception", status: "Active", autonomy: "Approval", last: "Not run", runs: 0, failures: 0, minutesSaved: 0 },
+  { id: "AUTO-10", name: "Guest request router", scope: "Operations", event: "guest.request_received", trigger: "Guest service request received", action: "Classify → create task → route team", status: "Active", autonomy: "Auto", last: "Not run", runs: 0, failures: 0, minutesSaved: 0 },
+  { id: "AUTO-11", name: "Approval executor", scope: "Governance", event: "approval.approved", trigger: "Owner approves an action", action: "Execute approved action → close handoff → audit", status: "Active", autonomy: "Auto", last: "Not run", runs: 0, failures: 0, minutesSaved: 0 },
+  { id: "AUTO-12", name: "Review recovery", scope: "Guest experience", event: "review.negative", trigger: "Low guest feedback detected", action: "Create service-recovery exception → notify manager", status: "Active", autonomy: "Approval", last: "Not run", runs: 0, failures: 0, minutesSaved: 0 }
 ];
 
 const seedAutomationLogs = [
@@ -228,6 +239,11 @@ const load = (key, fallback) => {
   } catch { return fallback; }
 };
 
+const loadAutomationRules = () => {
+  const saved = load("sp-automations", []);
+  return seedAutomationRules.map(seed => ({ ...seed, ...(saved.find(rule => rule.id === seed.id) || {}) }));
+};
+
 function StatusDot({ status }) {
   return <span className={"status status-" + status.toLowerCase().replaceAll(" ", "-")}><i />{status}</span>;
 }
@@ -251,7 +267,7 @@ function App() {
   const [approvals, setApprovals] = useState(() => load("sp-approvals", seedApprovals));
   const [tasks, setTasks] = useState(() => load("sp-tasks", seedTasks));
   const [stock, setStock] = useState(() => load("sp-stock", seedStock));
-  const [automationRules, setAutomationRules] = useState(() => load("sp-automations", seedAutomationRules));
+  const [automationRules, setAutomationRules] = useState(loadAutomationRules);
   const [automationLogs, setAutomationLogs] = useState(() => load("sp-automation-log", seedAutomationLogs));
   const [policy, setPolicy] = useState(() => load("sp-policy", defaultPolicy));
   const [activities, setActivities] = useState(() => load("sp-activities", initialActivities));
@@ -363,7 +379,7 @@ function App() {
   };
 
   const upsertSystemException = issue => {
-    const current = load("sp-exceptions", []);
+    const current = load("sp-exceptions", seedSystemExceptions);
     if (current.some(x => x.id === issue.id && x.status === "Open")) return;
     localStorage.setItem("sp-exceptions", JSON.stringify([issue, ...current].slice(0, 30)));
   };
@@ -449,7 +465,7 @@ function App() {
       const requiresApproval = rule.autonomy === "Approval" || (rule.autonomy === "Policy" && amount > Number(policy.managerPurchaseLimit || 0));
       const status = requiresApproval ? "Pending" : "Approved";
       const order = {
-        id: "APR-" + (105 + approvals.length + Math.floor(Date.now() % 50)),
+        id: "APR-AUTO-" + item.id + "-" + String(Date.now()).slice(-4),
         type: "Purchase order",
         title: item.item + " automated restock",
         detail: qty + " " + item.unit + " · " + item.supplier,
@@ -461,6 +477,65 @@ function App() {
       setApprovals(prev => [order, ...prev]);
       recordAutomation(rule.id, requiresApproval ? "Approval" : "Success", order.id + " · " + item.item + " · " + fmt(amount), ["Below-par condition detected", "Reorder quantity calculated", "Spend policy checked", requiresApproval ? "Owner approval requested" : "Purchase order approved within policy"], 4);
       return { ok: true };
+    }
+
+    if (event === "reservation.cancelled") {
+      const booking = payload.booking || bookings.find(b => b.status === "Cancelled") || bookings[0];
+      if (!booking) return { ok: false, reason: "No reservation available" };
+      if (booking.room && booking.room !== "Unassigned") setRooms(prev => prev.map(r => r.number === booking.room ? { ...r, occupancy: "Vacant" } : r));
+      setBookings(prev => prev.map(b => b.id === booking.id ? { ...b, channelSync: "Inventory released" } : b));
+      recordAutomation(rule.id, "Success", booking.id + " · inventory released", ["Cancellation received", "Room hold released", "Room-type inventory recalculated", "Channel reconciliation recorded", "Resale availability restored"], 4);
+      return { ok: true };
+    }
+
+    if (event === "housekeeping.completed") {
+      const roomNumber = payload.roomNumber || rooms.find(r => r.housekeeping !== "Clean" && r.maintenance === "Clear")?.number || "103";
+      setRooms(prev => prev.map(r => r.number === roomNumber ? { ...r, housekeeping: "Clean" } : r));
+      setTasks(prev => prev.map(t => t.place === "Room " + roomNumber && t.team === "Housekeeping" && t.status !== "Done" ? { ...t, status: "Done" } : t));
+      const target = rooms.find(r => r.number === roomNumber);
+      const sellable = target ? target.occupancy === "Vacant" && target.maintenance === "Clear" : true;
+      recordAutomation(rule.id, "Success", "Room " + roomNumber + (sellable ? " · returned to sellable inventory" : " · readiness updated"), ["Housekeeping completion received", "Room marked Clean", "Open housekeeping task closed", "Sellability recalculated", "Channel availability reconciliation recorded"], 3);
+      return { ok: true };
+    }
+
+    if (event === "room.maintenance_blocked") {
+      const roomNumber = payload.roomNumber || rooms.find(r => r.maintenance !== "Clear")?.number || "207";
+      const affected = payload.booking || bookings.find(b => b.room === roomNumber && !["Cancelled", "Checked out"].includes(b.status));
+      const targetRoom = rooms.find(r => r.number === roomNumber);
+      const alternatives = rooms.filter(r => r.number !== roomNumber && r.type === (affected?.type || targetRoom?.type) && roomSellable(r)).slice(0, 3);
+      const detail = affected
+        ? affected.id + " · " + affected.guest + " affected · alternatives: " + (alternatives.map(r => r.number).join(", ") || "none ready")
+        : "Room " + roomNumber + " blocked · no active reservation conflict";
+      if (affected) upsertSystemException({ id:"CONFLICT-"+affected.id, type:"Room conflict", severity:"High", title:"Room "+roomNumber+" conflict for "+affected.guest, detail, route:"frontdesk", status:"Open", suggestedRooms: alternatives.map(r => r.number) });
+      recordAutomation(rule.id, affected ? "Approval" : "Success", detail, ["Maintenance block received", "Reservation conflict checked", "Compatible rooms searched", affected ? "Manager exception created" : "No guest move required"], 5);
+      return { ok: true };
+    }
+
+    if (event === "guest.request_received") {
+      const booking = payload.booking || bookings.find(b => b.status === "Checked in") || bookings[0];
+      const roomNumber = payload.roomNumber || booking?.room || "108";
+      const request = payload.request || "Extra towels requested";
+      setTasks(prev => {
+        const exists = prev.some(t => t.place === "Room " + roomNumber && t.title === request && t.status !== "Done");
+        return exists ? prev : [{ id:Date.now(), place:"Room "+roomNumber, title:request, team:"Housekeeping", due:"Guest request · respond within 15 min", status:"New", automated:true }, ...prev];
+      });
+      recordAutomation(rule.id, "Success", (booking?.guest || "Guest") + " · Room " + roomNumber + " · " + request, ["Guest request classified", "Housekeeping route selected", "Service task created", "Response SLA started"], 3);
+      return { ok: true };
+    }
+
+    if (event === "approval.approved") {
+      const item = payload.item || approvals.find(a => a.status === "Approved");
+      if (!item) return { ok:false, reason:"No approved action available" };
+      recordAutomation(rule.id, "Success", item.id + " · " + item.title, ["Owner approval received", item.type + " action released", "Operational handoff closed", "Audit trail recorded"], 2);
+      return { ok:true };
+    }
+
+    if (event === "review.negative") {
+      const guest = payload.guest || "Recent guest";
+      const score = payload.score || 2;
+      upsertSystemException({ id:"REV-"+String(Date.now()).slice(-6), type:"Guest recovery", severity:"High", title:score+"★ feedback needs follow-up", detail:guest+" · cleanliness/service concern · manager response requested", route:"inbox", status:"Open" });
+      recordAutomation(rule.id, "Approval", guest + " · " + score + "★ review", ["Negative feedback detected", "Service-recovery case created", "Manager follow-up requested"], 4);
+      return { ok:true };
     }
 
     return { ok: false, reason: "Unsupported automation event" };
@@ -1958,10 +2033,7 @@ function RolePolicy({ policy, setPolicy, flash, pushActivity }) {
 }
 
 function ExceptionCenter({ rooms, bookings, approvals, role, setActive, flash, pushActivity }) {
-  const [systemIssues, setSystemIssues] = useState(() => load("sp-exceptions", [
-    { id:"EXC-03", type:"Payment", severity:"High", title:"Payment retry exhausted", detail:"SP-1042 · Visa authorization failed twice", route:"reservations", status:"Open" },
-    { id:"EXC-04", type:"Distribution", severity:"Normal", title:"Agoda acknowledgement delayed", detail:"Inventory push waiting 94 seconds", route:"channels", status:"Open" }
-  ]));
+  const [systemIssues, setSystemIssues] = useState(() => load("sp-exceptions", seedSystemExceptions));
   useEffect(() => localStorage.setItem("sp-exceptions", JSON.stringify(systemIssues)), [systemIssues]);
 
   const dynamic = [
