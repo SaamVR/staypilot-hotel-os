@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { hmacSha256Hex } from "../functions/_shared/webhook.js";
 import {
   buildWebhookEnvelope,
+  claimWebhookDeliveries,
   classifyHttpStatus,
   dispatchClaimedDelivery,
   parseAllowedHosts,
@@ -234,6 +235,43 @@ async function withGlobalFetch(fetchMock, fn) {
     });
     assert.equal(externalCalls, 0);
     assert.equal(supabase.calls.at(-1).body.outcome, "dead_letter");
+  }
+}
+
+// 11. Explicit timeout aborts are retryable and keep bounded backoff.
+{
+  const supabase = createSupabaseHarness();
+  await withGlobalFetch(supabase.fetchMock, async () => {
+    const abort = new Error("aborted");
+    abort.name = "AbortError";
+    const result = await dispatchClaimedDelivery(config, env, delivery({ attempts:3 }), {
+      fetchImpl:async () => { throw abort; },
+      timeoutMs:2000,
+    });
+    assert.equal(result.status, "retrying");
+    assert.equal(result.error, "delivery_timeout");
+    assert.equal(result.retryDelay, 120);
+  });
+  assert.equal(supabase.calls.at(-1).body.outcome, "retry");
+}
+
+// 12. Delivery claiming is RPC-backed and batch bounded.
+{
+  const original = globalThis.fetch;
+  let claimBody = null;
+  globalThis.fetch = async (url, options = {}) => {
+    const parsed = new URL(String(url));
+    assert.equal(parsed.pathname, "/rest/v1/rpc/claim_webhook_deliveries");
+    claimBody = JSON.parse(options.body);
+    return response([delivery()]);
+  };
+  try {
+    const claimed = await claimWebhookDeliveries(config, "dispatcher-test", 99);
+    assert.equal(claimed.length, 1);
+    assert.equal(claimBody.batch_size, 10);
+    assert.equal(claimBody.worker_name, "dispatcher-test");
+  } finally {
+    globalThis.fetch = original;
   }
 }
 
