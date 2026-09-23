@@ -104,6 +104,39 @@ function req(body={},headers={}){
   assert.equal(r.status,409); assert.equal((await read(r)).error,"hotel_slug_taken");
 }
 
+// Invalid onboarding fields are rejected before the bootstrap RPC.
+{
+  const cases=[
+    [{ hotel_slug:"INVALID SLUG!" }, "invalid_hotel_slug"],
+    [{ timezone:"Mars/Olympus" }, "invalid_timezone"],
+    [{ currency:"ZZZZ" }, "invalid_currency"],
+  ];
+  for(const [body,error] of cases){
+    let rpcCalled=false;
+    const r=await withFetch(async url=>{
+      const p=new URL(String(url)).pathname;
+      if(p==="/auth/v1/user") return json({id:"11111111-1111-4111-8111-111111111111",email_confirmed_at:"2026-09-24T00:00:00Z"});
+      if(p==="/rest/v1/rpc/bootstrap_hotel_owner"){rpcCalled=true; throw new Error("RPC must not run");}
+      throw new Error("unexpected");
+    },()=>onRequestPost({request:req(body,{authorization:"Bearer session"}),env:enabledEnv}));
+    assert.equal(r.status,400);
+    assert.equal((await read(r)).error,error);
+    assert.equal(rpcCalled,false);
+  }
+}
+
+// Existing owned slug with conflicting property fields maps to 409.
+{
+  const r=await withFetch(async url=>{
+    const p=new URL(String(url)).pathname;
+    if(p==="/auth/v1/user") return json({id:"11111111-1111-4111-8111-111111111111",email_confirmed_at:"2026-09-24T00:00:00Z"});
+    if(p==="/rest/v1/rpc/bootstrap_hotel_owner") return json({message:"hotel_already_exists"},400);
+    throw new Error("unexpected");
+  },()=>onRequestPost({request:req({hotel_name:"Renamed Hotel"},{authorization:"Bearer session"}),env:enabledEnv}));
+  assert.equal(r.status,409);
+  assert.equal((await read(r)).error,"hotel_already_exists");
+}
+
 // Legacy route is the same hardened handler; non-POST remains closed.
 assert.equal(legacyPost,onRequestPost);
 const fallback=onRequest(); assert.equal(fallback.status,405); assert.equal(fallback.headers.get("allow"),"POST");
