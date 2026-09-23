@@ -128,6 +128,8 @@ assert.match(workerEndpoint, /worker_not_configured/, "worker endpoint must fail
 assert.match(workerEndpoint, /claimInboundEvents/, "worker endpoint must atomically claim events");
 assert.match(workerEndpoint, /processClaimedEvent/, "worker endpoint must process claimed events");
 assert.match(workerModule, /resolution=ignore-duplicates/i, "worker side effects must use duplicate-safe inserts");
+assert.match(workerModule, /resolution=merge-duplicates/i, "failed automation runs must be able to merge into a later terminal retry result");
 assert.match(workerModule, /findExistingRun/, "worker must check for an existing Event-ID run before mutation");
+assert.match(workerModule, /existing && existing\.result !== "Failed"/, "a prior Failed run must not suppress a retry");
 
 console.log("StayPilot backend contract verification passed.");
