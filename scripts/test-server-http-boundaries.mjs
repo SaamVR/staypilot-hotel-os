@@ -66,6 +66,7 @@ const fullEnv = {
   WORKER_SECRET:"integration-worker-secret",
   DISPATCHER_SECRET:"integration-dispatcher-secret",
   WEBHOOK_ALLOWED_HOSTS:"hooks.example.com,workflow.example.com",
+  OUTBOUND_SIGNING_MASTER_SECRET:"server-http-boundary-signing-master-that-is-long-enough",
 };
 
 // 1. Health reports fail-closed dependencies truthfully when unconfigured.
