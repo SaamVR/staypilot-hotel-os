@@ -241,4 +241,21 @@ assert.match(scheduledWorker, /untrusted_control_plane_origin/i, "scheduler must
 assert.match(scheduledConfig, /"crons": \["\* \* \* \* \*"\]/, "scheduler template must define an explicit once-per-minute cron");
 assert.match(scheduledConfig, /"SCHEDULER_ENABLED": "false"/, "scheduler template must ship disabled by default");
 
+const bootstrapMigration = await readFile(
+  new URL("../supabase/migrations/20260924070000_tenant_bootstrap.sql", import.meta.url),
+  "utf8",
+);
+const bootstrapEndpoint = await readFile(new URL("../functions/api/hotels/bootstrap.js", import.meta.url), "utf8");
+assert.match(bootstrapMigration, /create table if not exists private\.hotel_bootstrap_requests/i, "bootstrap idempotency state must stay in private schema");
+assert.match(bootstrapMigration, /pg_advisory_xact_lock/i, "bootstrap must serialize duplicate idempotency keys");
+assert.match(bootstrapMigration, /insert into public\.hotel_members\(hotel_id,user_id,role\)/i, "bootstrap must create first membership transactionally");
+assert.match(bootstrapMigration, /'owner'/i, "bootstrap must assign Owner server-side");
+assert.match(bootstrapMigration, /insert into public\.automation_rules/i, "bootstrap must seed default automation rules");
+assert.match(bootstrapMigration, /Initial Owner tenant bootstrap completed/i, "bootstrap must write an audit event");
+assert.match(bootstrapMigration, /revoke all on function public\.bootstrap_hotel_owner\(uuid,text,text,text,text,text\) from public, anon, authenticated/i, "browser sessions must not execute bootstrap RPC");
+assert.match(bootstrapMigration, /grant execute on function public\.bootstrap_hotel_owner\(uuid,text,text,text,text,text\) to service_role/i, "bootstrap RPC must be service-role only");
+assert.match(bootstrapEndpoint, /requireAuthenticatedUser/i, "bootstrap endpoint must derive identity from authenticated session");
+assert.match(bootstrapEndpoint, /user_uuid:user\.id/i, "bootstrap endpoint must pass authenticated user id to RPC");
+assert.doesNotMatch(bootstrapEndpoint, /input\?\.user_id|input\?\.role/i, "bootstrap endpoint must ignore client identity/role fields");
+
 console.log("StayPilot backend contract verification passed.");
