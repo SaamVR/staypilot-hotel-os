@@ -117,6 +117,7 @@ const ownerNav = [
   ["overview", "Owner dashboard", LayoutDashboard, "Property"],
   ["frontdesk", "Front desk calendar", CalendarDays, "Property"],
   ["reservations", "Reservations", ClipboardCheck, "Property"],
+  ["exceptions", "Exceptions", Bell, "Property"],
   ["inbox", "Guest inbox", MessageSquare, "Property"],
   ["rooms", "Rooms & availability", BedDouble, "Property"],
   ["operations", "Operations", ClipboardCheck, "Property"],
@@ -129,6 +130,7 @@ const ownerNav = [
   ["marketing", "Marketing", Megaphone, "Business"],
   ["automations", "Automation center", Zap, "System"],
   ["audit", "Audit log", Clock3, "System"],
+  ["permissions", "Roles & permissions", ShieldCheck, "System"],
   ["assistant", "Operations assistant", Bot, "System"],
   ["connections", "Connections & API", Settings2, "System"]
 ];
@@ -137,6 +139,7 @@ const managerNav = [
   ["overview", "Manager dashboard", LayoutDashboard, "Property"],
   ["frontdesk", "Front desk calendar", CalendarDays, "Property"],
   ["reservations", "Reservations", ClipboardCheck, "Property"],
+  ["exceptions", "Exceptions", Bell, "Property"],
   ["inbox", "Guest inbox", MessageSquare, "Property"],
   ["rooms", "Rooms & availability", BedDouble, "Property"],
   ["operations", "Room prep & maintenance", ClipboardCheck, "Property"],
@@ -186,6 +189,18 @@ const seedTasks = [
   { id: 4, place: "Room 108", title: "Extra towels requested", team: "Housekeeping", due: "Due 16:20", status: "New" }
 ];
 
+const defaultPolicy = {
+  managerCanManageRooms: true,
+  managerCanSyncChannels: true,
+  managerCanManageInventory: true,
+  managerCanGuestMessage: true,
+  managerCanOperateAutomations: true,
+  managerCanMarketing: false,
+  managerRateLimit: 10,
+  managerRefundLimit: 100,
+  managerPurchaseLimit: 150
+};
+
 const frontDeskDays = ["Sep 23", "Sep 24", "Sep 25", "Sep 26", "Sep 27", "Sep 28", "Sep 29"];
 const dateIndex = value => value === "Today" ? 0 : frontDeskDays.indexOf(value);
 
@@ -219,6 +234,7 @@ function App() {
   const [bookings, setBookings] = useState(() => load("sp-bookings", seedBookings));
   const [approvals, setApprovals] = useState(() => load("sp-approvals", seedApprovals));
   const [tasks, setTasks] = useState(() => load("sp-tasks", seedTasks));
+  const [policy, setPolicy] = useState(() => load("sp-policy", defaultPolicy));
   const [activities, setActivities] = useState(() => load("sp-activities", initialActivities));
   const [rateMultiplier, setRateMultiplier] = useState(() => load("sp-rate", 1));
   const [metaPaused, setMetaPaused] = useState(() => load("sp-meta-paused", false));
@@ -232,6 +248,7 @@ function App() {
   useEffect(() => localStorage.setItem("sp-bookings", JSON.stringify(bookings)), [bookings]);
   useEffect(() => localStorage.setItem("sp-approvals", JSON.stringify(approvals)), [approvals]);
   useEffect(() => localStorage.setItem("sp-tasks", JSON.stringify(tasks)), [tasks]);
+  useEffect(() => localStorage.setItem("sp-policy", JSON.stringify(policy)), [policy]);
   useEffect(() => localStorage.setItem("sp-activities", JSON.stringify(activities)), [activities]);
   useEffect(() => localStorage.setItem("sp-rate", JSON.stringify(rateMultiplier)), [rateMultiplier]);
   useEffect(() => localStorage.setItem("sp-meta-paused", JSON.stringify(metaPaused)), [metaPaused]);
@@ -318,14 +335,17 @@ function App() {
     localStorage.removeItem("sp-guest-threads");
     localStorage.removeItem("sp-automations");
     localStorage.removeItem("sp-automation-log");
+    localStorage.removeItem("sp-exceptions");
+    localStorage.removeItem("sp-policy");
     setApprovals(seedApprovals);
     setTasks(seedTasks);
+    setPolicy(defaultPolicy);
     setActive("overview");
     flash("Demo data reset");
   };
 
   const pageProps = {
-    rooms, setRooms, bookings, setBookings, approvals, setApprovals, tasks, setTasks, activities, setActivities,
+    rooms, setRooms, bookings, setBookings, approvals, setApprovals, tasks, setTasks, policy, setPolicy, activities, setActivities,
     rateMultiplier, setRateMultiplier, metaPaused, setMetaPaused,
     stats, pushActivity, flash, setActive, role
   };
@@ -366,7 +386,7 @@ function App() {
             <button className={role === "owner" ? "active" : ""} onClick={() => switchRole("owner")}><WalletCards size={14} /> Owner</button>
             <button className={role === "manager" ? "active" : ""} onClick={() => switchRole("manager")}><UserCog size={14} /> Manager</button>
           </div></div>
-          <button className="icon-btn"><Bell size={18} /><i /></button>
+          <button className="icon-btn" onClick={() => setActive("exceptions")} aria-label="Open exceptions"><Bell size={18} /><i /></button>
           <div className="avatar">{role === "owner" ? "MR" : "SR"}</div>
           <div className="profile"><b>{role === "owner" ? "Maya Rahman" : "Sam Rahman"}</b><span>{role === "owner" ? "Owner" : "Property Manager"}</span></div>
           <ChevronDown size={16} />
@@ -378,20 +398,22 @@ function App() {
         {active === "frontdesk" && <FrontDesk {...pageProps} />}
         {active === "newreservation" && <NewReservation {...pageProps} />}
         {active === "reservations" && <Reservations {...pageProps} />}
+        {active === "exceptions" && <ExceptionCenter {...pageProps} />}
         {active === "inbox" && <GuestInbox {...pageProps} />}
         {active === "rooms" && <Rooms {...pageProps} />}
         {active === "inventory" && <Inventory {...pageProps} />}
         {active === "approvals" && <ApprovalCenter {...pageProps} />}
         {active === "expenses" && role === "owner" && <Expenses {...pageProps} />}
-        {active === "channels" && <Channels {...pageProps} />}
-        {active === "marketing" && <Marketing {...pageProps} />}
+        {active === "channels" && role === "owner" && <Channels {...pageProps} />}
+        {active === "marketing" && role === "owner" && <Marketing {...pageProps} />}
         {active === "operations" && <Operations {...pageProps} />}
         {active === "instructions" && <Instructions {...pageProps} />}
-        {active === "booking" && <BookingEngine {...pageProps} />}
+        {active === "booking" && role === "owner" && <BookingEngine {...pageProps} />}
         {active === "automations" && <AutomationCenter {...pageProps} />}
         {active === "audit" && <AuditLog {...pageProps} />}
+        {active === "permissions" && role === "owner" && <RolePolicy {...pageProps} />}
         {active === "assistant" && <Assistant {...pageProps} />}
-        {active === "connections" && <Connections {...pageProps} />}
+        {active === "connections" && role === "owner" && <Connections {...pageProps} />}
       </div>
     </main>
 
@@ -544,7 +566,7 @@ function ActivityPanel({ activities, setActive }) {
   </article>;
 }
 
-function FrontDesk({ bookings, setBookings, rooms, setRooms, role, pushActivity, flash, setActive }) {
+function FrontDesk({ bookings, setBookings, rooms, setRooms, role, approvals, setApprovals, policy, pushActivity, flash, setActive }) {
   const [selected, setSelected] = useState(null);
   const activeBookings = bookings.filter(b => !["Cancelled", "Checked out"].includes(b.status));
   const unassigned = activeBookings.filter(b => !b.room || b.room === "Unassigned");
@@ -604,14 +626,19 @@ function FrontDesk({ bookings, setBookings, rooms, setRooms, role, pushActivity,
       </div>
     </article>
 
-    {selected && <ReservationDrawer booking={bookings.find(b => b.id === selected.id) || selected} bookings={bookings} setBookings={setBookings} rooms={rooms} setRooms={setRooms} role={role} pushActivity={pushActivity} flash={flash} onClose={() => setSelected(null)} />}
+    {selected && <ReservationDrawer booking={bookings.find(b => b.id === selected.id) || selected} bookings={bookings} setBookings={setBookings} rooms={rooms} setRooms={setRooms} role={role} approvals={approvals} setApprovals={setApprovals} policy={policy} pushActivity={pushActivity} flash={flash} onClose={() => setSelected(null)} />}
   </>;
 }
 
-function ReservationDrawer({ booking, setBookings, rooms, setRooms, role, pushActivity, flash, onClose }) {
+function ReservationDrawer({ booking, setBookings, rooms, setRooms, role, approvals, setApprovals, policy, pushActivity, flash, onClose }) {
   const [roomNumber, setRoomNumber] = useState(booking.room && booking.room !== "Unassigned" ? booking.room : "");
   const candidateRooms = rooms.filter(r => r.type === booking.type && r.maintenance === "Clear" && (r.occupancy === "Vacant" || r.number === booking.room));
   const currentRoom = rooms.find(r => r.number === booking.room);
+  const paid = Number(booking.paid ?? (booking.status === "Checked in" ? booking.total : Math.round(booking.total * 0.2)));
+  const taxAndFees = Math.round(Number(booking.total) * 0.12);
+  const roomCharges = Math.max(0, Number(booking.total) - taxAndFees);
+  const balance = Math.max(0, Number(booking.total) - paid);
+  const refundAmount = Math.min(85, paid);
 
   const updateBooking = patch => setBookings(prev => prev.map(b => b.id === booking.id ? { ...b, ...patch } : b));
 
@@ -641,12 +668,35 @@ function ReservationDrawer({ booking, setBookings, rooms, setRooms, role, pushAc
   };
 
   const checkOut = () => {
+    if (balance > 0) return flash("Collect the remaining balance before checkout");
     if (booking.room && booking.room !== "Unassigned") {
       setRooms(prev => prev.map(r => r.number === booking.room ? { ...r, occupancy: "Vacant", housekeeping: "Dirty" } : r));
     }
     updateBooking({ status: "Checked out" });
     pushActivity("blue", booking.guest + " checked out", booking.id + " · housekeeping task created");
     flash("Checkout complete · room marked dirty");
+  };
+
+  const captureBalance = () => {
+    if (balance <= 0) return flash("Folio is already paid");
+    updateBooking({ paid: Number(booking.total) });
+    pushActivity("green", "Reservation balance captured", booking.id + " · " + fmt(balance), "Operations");
+    flash("Balance captured");
+  };
+
+  const refund = () => {
+    if (refundAmount <= 0) return flash("No captured payment available to refund");
+    if (role === "manager" && refundAmount > Number(policy.managerRefundLimit || 0)) {
+      const existing = approvals.find(a => a.status === "Pending" && a.type === "Refund" && a.reservationRef === booking.id);
+      if (existing) return flash(existing.id + " is already awaiting Owner approval");
+      const item = { id: "APR-" + (105 + approvals.length), type: "Refund", title: booking.id + " refund", detail: booking.guest + " · service recovery", amount: refundAmount, reservationRef: booking.id, requestedBy: "Sam Rahman", status: "Pending", time: "just now" };
+      setApprovals(prev => [item, ...prev]);
+      pushActivity("blue", "Refund approval requested", item.id + " · " + booking.id + " · " + fmt(refundAmount), "Governance");
+      return flash("Refund sent to Owner approval");
+    }
+    updateBooking({ paid: Math.max(0, paid - refundAmount) });
+    pushActivity("amber", "Reservation refund issued", booking.id + " · " + fmt(refundAmount), "Operations");
+    flash(fmt(refundAmount) + " refunded");
   };
 
   const cancel = () => {
@@ -664,7 +714,17 @@ function ReservationDrawer({ booking, setBookings, rooms, setRooms, role, pushAc
       <div className="drawer-head"><div><span className="panel-kicker">Reservation {booking.id}</span><h2>{booking.guest}</h2><p>{booking.source} · {booking.guests} guest{booking.guests > 1 ? "s" : ""}</p></div><button className="icon-btn" onClick={onClose}><X size={18} /></button></div>
       <div className="drawer-status"><StatusDot status={booking.status} /><span>{booking.checkIn} → {booking.checkOut}</span></div>
 
-      <section className="drawer-section"><span className="drawer-label">Stay</span><div className="drawer-facts"><div><span>Room type</span><b>{booking.type}</b></div><div><span>Assigned room</span><b>{booking.room || "Unassigned"}</b></div><div><span>Total</span><b>{fmt(booking.total)}</b></div><div><span>Payment</span><b>Secured</b></div></div></section>
+      <section className="drawer-section"><span className="drawer-label">Stay</span><div className="drawer-facts"><div><span>Room type</span><b>{booking.type}</b></div><div><span>Assigned room</span><b>{booking.room || "Unassigned"}</b></div><div><span>Total</span><b>{fmt(booking.total)}</b></div><div><span>Payment</span><b>{balance > 0 ? "Balance due" : "Paid"}</b></div></div></section>
+
+      <section className="drawer-section"><span className="drawer-label">Folio & payment</span>
+        <div className="folio-lines">
+          <div><span>Room charges</span><b>{fmt(roomCharges)}</b></div>
+          <div><span>Taxes & fees</span><b>{fmt(taxAndFees)}</b></div>
+          <div><span>Captured / deposit</span><b>{fmt(paid)}</b></div>
+          <div className="folio-total"><span>Balance due</span><b>{fmt(balance)}</b></div>
+        </div>
+        <div className="folio-actions">{balance > 0 && <button className="secondary-btn" onClick={captureBalance}><CreditCard size={15} /> Capture {fmt(balance)}</button>}{paid > 0 && <button className="ghost-btn" onClick={refund}>Refund {fmt(refundAmount)}</button>}</div>
+      </section>
 
       <section className="drawer-section"><span className="drawer-label">Room assignment</span><div className="drawer-assign"><select value={roomNumber} onChange={e => setRoomNumber(e.target.value)}><option value="">Choose {booking.type}</option>{candidateRooms.map(r => <option value={r.number} key={r.number}>Room {r.number} · {r.housekeeping}{r.occupancy !== "Vacant" ? " · " + r.occupancy : ""}</option>)}</select><button className="secondary-btn" onClick={assignRoom}>Assign room</button></div>{currentRoom && <div className="room-readiness-line"><span>Housekeeping <b>{currentRoom.housekeeping}</b></span><span>Maintenance <b>{currentRoom.maintenance}</b></span></div>}</section>
 
@@ -702,6 +762,7 @@ function NewReservation({ rooms, setRooms, bookings, setBookings, rateMultiplier
     const booking = {
       id,
       guest: form.guest.trim(),
+      paid: 0,
       room: form.room || "Unassigned",
       type: form.type,
       source: form.source,
@@ -747,7 +808,7 @@ function NewReservation({ rooms, setRooms, bookings, setBookings, rateMultiplier
   </>;
 }
 
-function Reservations({ bookings, setBookings, rooms, setRooms, role, pushActivity, flash, setActive }) {
+function Reservations({ bookings, setBookings, rooms, setRooms, role, approvals, setApprovals, policy, pushActivity, flash, setActive }) {
   const [filter, setFilter] = useState("All");
   const [selected, setSelected] = useState(null);
   const list = filter === "All" ? bookings : bookings.filter(b => b.status === filter);
@@ -767,7 +828,7 @@ function Reservations({ bookings, setBookings, rooms, setRooms, role, pushActivi
             <td><b>{b.checkIn}</b><small>{b.checkOut}</small></td>
             <td><b>{b.room || "Unassigned"}</b><small>{b.type}</small></td>
             <td><span className={"source source-" + b.source.toLowerCase().replaceAll(" ","-").replace(".","")}>{b.source}</span></td>
-            <td><b>{fmt(b.total)}</b><small>Paid / secured</small></td>
+            <td><b>{fmt(b.total)}</b><small>{Number(b.paid ?? (b.status === "Checked in" ? b.total : Math.round(b.total * 0.2))) >= Number(b.total) ? "Paid" : "Deposit / secured"}</small></td>
             <td><StatusDot status={b.status} /></td>
             <td><button className="icon-btn flat" onClick={e => { e.stopPropagation(); setSelected(b); }}><MoreHorizontal size={17} /></button></td>
           </tr>)}</tbody>
@@ -775,20 +836,23 @@ function Reservations({ bookings, setBookings, rooms, setRooms, role, pushActivi
       </div>
     </article>
     <div className="mini-note"><CalendarDays size={15} /> Select a reservation to assign rooms, check guests in or out, or cancel the stay.</div>
-    {selected && <ReservationDrawer booking={bookings.find(b => b.id === selected.id) || selected} bookings={bookings} setBookings={setBookings} rooms={rooms} setRooms={setRooms} role={role} pushActivity={pushActivity} flash={flash} onClose={() => setSelected(null)} />}
+    {selected && <ReservationDrawer booking={bookings.find(b => b.id === selected.id) || selected} bookings={bookings} setBookings={setBookings} rooms={rooms} setRooms={setRooms} role={role} approvals={approvals} setApprovals={setApprovals} policy={policy} pushActivity={pushActivity} flash={flash} onClose={() => setSelected(null)} />}
   </>;
 }
 
-function Rooms({ rooms, setRooms, pushActivity, flash }) {
+function Rooms({ rooms, setRooms, pushActivity, flash, role, policy }) {
   const grouped = ["Available", "Occupied", "Reserved", "Cleaning", "Maintenance"];
+  const canManage = role === "owner" || policy.managerCanManageRooms;
   const counts = Object.fromEntries(grouped.map(s => [s, rooms.filter(r => roomPrimaryStatus(r) === s).length]));
 
   const setHousekeeping = (number, housekeeping) => {
+    if (!canManage) return flash("Manager room controls are restricted by Owner policy");
     setRooms(prev => prev.map(r => r.number === number ? { ...r, housekeeping } : r));
     pushActivity(housekeeping === "Clean" ? "green" : "amber", "Room " + number + " housekeeping updated", housekeeping);
     flash("Room " + number + " housekeeping: " + housekeeping);
   };
   const toggleMaintenance = room => {
+    if (!canManage) return flash("Manager room controls are restricted by Owner policy");
     const maintenance = room.maintenance === "Clear" ? "Out of order" : "Clear";
     setRooms(prev => prev.map(r => r.number === room.number ? { ...r, maintenance } : r));
     pushActivity(maintenance === "Clear" ? "green" : "amber", "Room " + room.number + " maintenance updated", maintenance);
@@ -822,26 +886,30 @@ function Rooms({ rooms, setRooms, pushActivity, flash }) {
   </>;
 }
 
-function Inventory({ role, approvals, setApprovals, pushActivity, flash, setActive }) {
+function Inventory({ role, approvals, setApprovals, pushActivity, flash, setActive, policy }) {
   const [stock, setStock] = useState(() => load("sp-stock", seedStock));
   useEffect(() => localStorage.setItem("sp-stock", JSON.stringify(stock)), [stock]);
 
   const low = stock.filter(i => i.stock < i.par);
   const value = stock.reduce((a, i) => a + i.stock * i.cost, 0);
+  const canManage = role === "owner" || policy.managerCanManageInventory;
   const adjust = (id, delta) => {
+    if (!canManage) return flash("Manager inventory controls are restricted by Owner policy");
     setStock(prev => prev.map(i => i.id === id ? { ...i, stock: Math.max(0, i.stock + delta) } : i));
   };
   const requestOrder = item => {
     const existing = approvals.find(a => a.type === "Purchase order" && a.itemRef === item.id && ["Pending", "Approved"].includes(a.status));
     if (existing) return flash(existing.status === "Approved" ? "Order approved · receive it when delivered" : "Purchase request is already awaiting approval");
     const qty = Math.max(item.par - item.stock, Math.ceil(item.par * .35));
-    const status = role === "owner" ? "Approved" : "Pending";
+    if (!canManage) return flash("Manager inventory controls are restricted by Owner policy");
+    const amount = Number((qty * item.cost).toFixed(2));
+    const status = role === "owner" || amount <= Number(policy.managerPurchaseLimit || 0) ? "Approved" : "Pending";
     const order = {
       id: "APR-" + (105 + approvals.length),
       type: "Purchase order",
       title: item.item + " restock",
       detail: qty + " " + item.unit + " · " + item.supplier,
-      amount: Number((qty * item.cost).toFixed(2)),
+      amount,
       itemRef: item.id,
       qty,
       requestedBy: role === "owner" ? "Maya Rahman" : "Sam Rahman",
@@ -850,9 +918,10 @@ function Inventory({ role, approvals, setApprovals, pushActivity, flash, setActi
     };
     setApprovals(prev => [order, ...prev]);
     pushActivity(status === "Approved" ? "green" : "blue", "Purchase order " + status.toLowerCase(), order.id + " · " + item.item);
-    flash(role === "owner" ? "Purchase order created · awaiting delivery" : "Purchase request sent to Owner");
+    flash(status === "Approved" ? "Purchase order approved · awaiting delivery" : "Purchase request sent to Owner");
   };
   const receiveOrder = (item, order) => {
+    if (!canManage) return flash("Manager inventory controls are restricted by Owner policy");
     setStock(prev => prev.map(i => i.id === item.id ? { ...i, stock: i.stock + Number(order.qty || 0) } : i));
     setApprovals(prev => prev.map(a => a.id === order.id ? { ...a, status: "Received" } : a));
     pushActivity("green", "Inventory delivery received", item.item + " · +" + order.qty + " " + item.unit);
@@ -1082,7 +1151,7 @@ function Instructions({ role, pushActivity, flash }) {
   </>;
 }
 
-function GuestInbox({ bookings, pushActivity, flash, setActive }) {
+function GuestInbox({ bookings, pushActivity, flash, setActive, role, policy }) {
   const seedThreads = [
     { id: "TH-1048", guest: "Olivia Martin", reservation: "SP-1048", source: "Booking.com", unread: 2, last: "Could we arrive around 13:30?", time: "4 min", messages: [
       { from: "hotel", text: "Hi Olivia, your Deluxe King is confirmed for Sep 23–26. We look forward to welcoming you.", time: "Yesterday · 18:20" },
@@ -1113,6 +1182,7 @@ function GuestInbox({ bookings, pushActivity, flash, setActive }) {
   const send = text => {
     const clean = text.trim();
     if (!clean || !selected) return;
+    if (role === "manager" && !policy.managerCanGuestMessage) return flash("Guest messaging is restricted by Owner policy");
     setThreads(prev => prev.map(t => t.id === selected.id ? {
       ...t,
       unread: 0,
@@ -1335,13 +1405,14 @@ function Marketing({ metaPaused, setMetaPaused, pushActivity, flash, setActive }
   </>;
 }
 
-function Operations({ activities, role, pushActivity, flash, setActive, tasks, setTasks, rooms, setRooms }) {
+function Operations({ activities, role, pushActivity, flash, setActive, tasks, setTasks, rooms, setRooms, policy }) {
   const payments = [
     ["SP-1046", "Ava Garcia", "Direct Website", 1180, "Captured"],
     ["SP-1048", "Olivia Martin", "Booking.com", 684, "Secured"],
     ["SP-1043", "Ethan Lee", "Direct Website", 612, "Captured"]
   ];
   const complete = task => {
+    if (role === "manager" && !policy.managerCanManageRooms && task.place.startsWith("Room ")) return flash("Room operations are restricted by Owner policy");
     setTasks(prev => prev.map(t => t.id === task.id ? { ...t, status: "Completed" } : t));
     if (task.place === "Room 103" && task.team === "Housekeeping") {
       setRooms(prev => prev.map(r => r.number === "103" ? { ...r, housekeeping: "Clean" } : r));
@@ -1350,6 +1421,7 @@ function Operations({ activities, role, pushActivity, flash, setActive, tasks, s
     flash(task.place + " marked complete");
   };
   const resolveRoom207 = () => {
+    if (role === "manager" && !policy.managerCanManageRooms) return flash("Room operations are restricted by Owner policy");
     setRooms(prev => prev.map(r => r.number === "207" ? { ...r, maintenance: "Clear" } : r));
     setTasks(prev => prev.map(t => t.place === "Room 207" ? { ...t, status: "Completed" } : t));
     pushActivity("green", "Room 207 maintenance resolved", "HVAC inspection completed · room block cleared");
@@ -1408,7 +1480,7 @@ function BookingEngine({ rooms, setRooms, bookings, setBookings, rateMultiplier,
     if (availableCount < 1) return flash("No sellable inventory available in this room type");
     const id = "SP-" + (1050 + bookings.length);
     const nights = Number(form.nights || 1);
-    const booking = { id, guest: form.guest, room: "Unassigned", type: form.type, source: "Direct Website", checkIn: "Today", checkOut: frontDeskDays[nights] || "After Sep 29", guests: Number(form.guests), total, status: "Confirmed" };
+    const booking = { id, guest: form.guest, paid: Math.round(total * 0.2), room: "Unassigned", type: form.type, source: "Direct Website", checkIn: "Today", checkOut: frontDeskDays[nights] || "After Sep 29", guests: Number(form.guests), total, status: "Confirmed" };
     setBookings(prev => [booking, ...prev]);
     pushActivity("green", "New direct booking confirmed", id + " · " + form.type + " · room assignment pending · " + fmt(total));
     setSuccess(booking);
@@ -1443,7 +1515,7 @@ function BookingEngine({ rooms, setRooms, bookings, setBookings, rateMultiplier,
   </>;
 }
 
-function Assistant({ rooms, setRooms, bookings, stats, rateMultiplier, setRateMultiplier, metaPaused, setMetaPaused, approvals, setApprovals, pushActivity, flash, setActive, role }) {
+function Assistant({ rooms, setRooms, bookings, stats, rateMultiplier, setRateMultiplier, metaPaused, setMetaPaused, approvals, setApprovals, pushActivity, flash, setActive, role, policy }) {
   const [messages, setMessages] = useState([
     { role: "assistant", text: role === "owner" ? "I can operate property, pricing and marketing controls within the Owner role." : "I can operate daily property controls. Actions outside Manager authority are routed to the Owner for approval." }
   ]);
@@ -1482,6 +1554,8 @@ function Assistant({ rooms, setRooms, bookings, stats, rateMultiplier, setRateMu
 
     if (roomNumber && !room) {
       reply = "I can’t find Room " + roomNumber + ", so I didn’t change property state.";
+    } else if (room && role === "manager" && !policy.managerCanManageRooms && (wantsMaintenance || wantsReady || wantsCleaning)) {
+      reply = "Room controls are restricted by Owner policy. I did not change Room " + roomNumber + ".";
     } else if (room && wantsMaintenance) {
       if (room.maintenance !== "Clear") {
         reply = "Room " + roomNumber + " already has a maintenance block. Its " + room.occupancy.toLowerCase() + " state was left unchanged.";
@@ -1504,35 +1578,40 @@ function Assistant({ rooms, setRooms, bookings, stats, rateMultiplier, setRateMu
       reply = "Room " + roomNumber + " is now in Cleaning. I preserved its " + room.occupancy.toLowerCase() + " state.";
     } else if (rateMatch) {
       const pct = Math.min(Number(rateMatch[1]), 30);
-      if (role === "manager" && pct > 10) {
-        const item = requestApproval("Rate change", "BAR +" + pct + "%", "Requested through Operations Assistant · Manager limit is 10%");
-        reply = "A " + pct + "% rate increase exceeds the Manager limit of 10%. I did not change rates; I submitted " + item.id + " to the Owner for approval.";
+      const managerLimit = Number(policy.managerRateLimit || 0);
+      if (role === "manager" && pct > managerLimit) {
+        const item = requestApproval("Rate change", "BAR +" + pct + "%", "Requested through Operations Assistant · Manager limit is " + managerLimit + "%");
+        reply = "A " + pct + "% rate increase exceeds your Manager limit of " + managerLimit + "%. I did not change rates; I submitted " + item.id + " to the Owner for approval.";
       } else {
         setRateMultiplier(v => Number((v * (1 + pct / 100)).toFixed(3)));
         pushActivity("blue", "Assistant adjusted BAR rates", "+" + pct + "% · synchronized to connected channels");
         reply = "Rates increased " + pct + "%. Current modeled ADR is approximately " + fmt(Math.round(stats.adr * (1 + pct / 100))) + ".";
       }
     } else if (lower.includes("pause") && lower.includes("meta")) {
-      if (role === "manager") {
-        const item = requestApproval("Marketing", "Pause Meta campaigns", "Requested through Operations Assistant · Owner-controlled marketing");
-        reply = "Marketing delivery is Owner-controlled. Meta remains " + (metaPaused ? "paused" : "active") + "; I submitted " + item.id + " for approval.";
+      if (role === "manager" && !policy.managerCanMarketing) {
+        const item = requestApproval("Marketing", "Pause Meta campaigns", "Requested through Operations Assistant · restricted by Owner policy");
+        reply = "Marketing delivery is restricted by Owner policy. Meta remains " + (metaPaused ? "paused" : "active") + "; I submitted " + item.id + " for approval.";
       } else {
         setMetaPaused(true);
         pushActivity("violet", "Assistant paused Meta campaigns", "Owner action · all Meta campaigns paused");
         reply = "Meta campaigns are paused.";
       }
     } else if ((lower.includes("resume") || lower.includes("start")) && lower.includes("meta")) {
-      if (role === "manager") {
-        const item = requestApproval("Marketing", "Resume Meta campaigns", "Requested through Operations Assistant · Owner-controlled marketing");
-        reply = "Marketing delivery is Owner-controlled. I submitted " + item.id + " for approval and made no campaign change.";
+      if (role === "manager" && !policy.managerCanMarketing) {
+        const item = requestApproval("Marketing", "Resume Meta campaigns", "Requested through Operations Assistant · restricted by Owner policy");
+        reply = "Marketing delivery is restricted by Owner policy. I submitted " + item.id + " for approval and made no campaign change.";
       } else {
         setMetaPaused(false);
         pushActivity("violet", "Assistant resumed Meta campaigns", "Owner action · campaign delivery enabled");
         reply = "Meta campaigns are active again.";
       }
     } else if (lower.includes("sync")) {
-      pushActivity("blue", "Assistant triggered channel sync", "5 channels acknowledged · no conflicts");
-      reply = "Channel reconciliation completed. Booking.com, Airbnb, Expedia, Agoda and Direct match the current sellable inventory.";
+      if (role === "manager" && !policy.managerCanSyncChannels) {
+        reply = "Channel reconciliation is restricted by Owner policy. I did not trigger a sync.";
+      } else {
+        pushActivity("blue", "Assistant triggered channel sync", "5 channels acknowledged · no conflicts");
+        reply = "Channel reconciliation completed. Booking.com, Airbnb, Expedia, Agoda and Direct match the current sellable inventory.";
+      }
     } else if (lower.includes("arrival")) {
       const arr = bookings.filter(b => b.checkIn === "Today" && !["Cancelled","Checked out"].includes(b.status));
       reply = "There are " + arr.length + " arrivals today: " + arr.map(b => b.guest + " · " + (b.room === "Unassigned" ? "room unassigned" : "Room " + b.room)).join(", ") + ".";
@@ -1576,9 +1655,9 @@ function Assistant({ rooms, setRooms, bookings, stats, rateMultiplier, setRateMu
           <div className="tool-list">
             <div><CalendarDays size={16} /><span>Reservations & rooms</span><b>Operate</b></div>
             <div><BedDouble size={16} /><span>Housekeeping / maintenance</span><b>Operate</b></div>
-            <div><RefreshCw size={16} /><span>Channel sync</span><b>Operate</b></div>
-            <div><DollarSign size={16} /><span>Rate changes</span><b>{role === "owner" ? "Full" : "≤ 10%"}</b></div>
-            <div><Megaphone size={16} /><span>Marketing</span><b>{role === "owner" ? "Operate" : "Approval"}</b></div>
+            <div><RefreshCw size={16} /><span>Channel sync</span><b>{role === "owner" || policy.managerCanSyncChannels ? "Operate" : "Restricted"}</b></div>
+            <div><DollarSign size={16} /><span>Rate changes</span><b>{role === "owner" ? "Full" : "≤ " + policy.managerRateLimit + "%"}</b></div>
+            <div><Megaphone size={16} /><span>Marketing</span><b>{role === "owner" || policy.managerCanMarketing ? "Operate" : "Approval"}</b></div>
           </div>
         </article>
         <article className="panel assistant-tip"><span><ShieldCheck size={19} /></span><h3>Permission-safe actions.</h3><p>Commands use the same room state and approval queue as the rest of StayPilot. Restricted actions are requested, not silently executed.</p><button className="secondary-btn" onClick={() => setActive(role === "owner" ? "approvals" : "frontdesk")}>{role === "owner" ? "Open approvals" : "Open front desk"} <ArrowUpRight size={14} /></button></article>
@@ -1587,7 +1666,7 @@ function Assistant({ rooms, setRooms, bookings, stats, rateMultiplier, setRateMu
   </div>;
 }
 
-function AutomationCenter({ role, pushActivity, flash }) {
+function AutomationCenter({ role, pushActivity, flash, policy }) {
   const seedRules = [
     { id: "AUTO-01", name: "Reservation intake", scope: "Operations", trigger: "Reservation received", action: "Hold room-type inventory → sync channels → confirmation", status: "Active", last: "2 min ago", runs: 184, failures: 0 },
     { id: "AUTO-02", name: "Checkout turnover", scope: "Operations", trigger: "Guest checked out", action: "Room → Dirty → housekeeping task", status: "Active", last: "18 min ago", runs: 42, failures: 0 },
@@ -1608,13 +1687,14 @@ function AutomationCenter({ role, pushActivity, flash }) {
 
   const visibleRules = role === "owner" ? rules : rules.filter(r => r.scope === "Operations");
   const toggle = rule => {
-    if (role === "manager" && rule.scope !== "Operations") return flash("Owner permission required");
+    if (role === "manager" && (!policy.managerCanOperateAutomations || rule.scope !== "Operations")) return flash("Owner permission required");
     const next = rule.status === "Active" ? "Paused" : "Active";
     setRules(prev => prev.map(r => r.id === rule.id ? { ...r, status: next } : r));
     pushActivity(next === "Active" ? "green" : "amber", rule.name + " " + next.toLowerCase(), rule.id + " · automation control", "Automation");
     flash(rule.name + " " + next.toLowerCase());
   };
   const runNow = rule => {
+    if (role === "manager" && !policy.managerCanOperateAutomations) return flash("Operational automation control is restricted by Owner policy");
     if (rule.status !== "Active") return flash("Enable the automation before running it");
     const entry = { id: Date.now(), rule: rule.name, result: "Success", detail: "Manual demo run · " + (role === "owner" ? "Owner" : "Manager"), time: "now" };
     setLogs(prev => [entry, ...prev].slice(0,30));
@@ -1660,6 +1740,81 @@ function AuditLog({ activities, role }) {
         <div><div><b>{a.title}</b><span className="audit-category">{a.category || "Operations"}</span></div><p>{a.meta}</p><small>{a.actor || "StayPilot system"}</small></div>
         <time>{a.time}</time>
       </div>)}</div>
+    </article>
+  </>;
+}
+
+function RolePolicy({ policy, setPolicy, flash, pushActivity }) {
+  const toggle = key => {
+    const next = !policy[key];
+    setPolicy(prev => ({ ...prev, [key]: next }));
+    pushActivity("blue", "Manager permission updated", key + " · " + (next ? "allowed" : "restricted"), "Governance");
+    flash("Manager policy updated");
+  };
+  const updateLimit = (key, value) => {
+    const next = Math.max(0, Number(value) || 0);
+    setPolicy(prev => ({ ...prev, [key]: next }));
+  };
+  const permissions = [
+    ["managerCanManageRooms", "Rooms & housekeeping", "Change housekeeping and maintenance state"],
+    ["managerCanSyncChannels", "Channel reconciliation", "Trigger inventory/rate synchronization"],
+    ["managerCanManageInventory", "Supply inventory", "Adjust stock and submit purchase requests"],
+    ["managerCanGuestMessage", "Guest messaging", "Reply to guest conversations"],
+    ["managerCanOperateAutomations", "Operational automations", "Run and pause Operations-scoped rules"],
+    ["managerCanMarketing", "Marketing control", "Pause/resume campaigns without Owner approval"]
+  ];
+  return <>
+    <PageHeader eyebrow="Owner governance" title="Roles & permissions" text="Define Manager operating authority and approval thresholds. These policies are used by the Operations Assistant and role-aware controls." />
+    <section className="policy-layout">
+      <article className="panel role-policy-card">
+        <div className="policy-person"><span className="avatar">SR</span><div><span className="panel-kicker">Property Manager</span><h3>Sam Rahman</h3><p>Daily hotel operations with Owner-defined financial and system boundaries.</p></div></div>
+        <div className="permission-list">{permissions.map(([key,label,desc]) => <div key={key}><div><b>{label}</b><small>{desc}</small></div><button className={"toggle-switch " + (policy[key] ? "on" : "")} onClick={() => toggle(key)}><i /></button></div>)}</div>
+      </article>
+      <aside className="panel threshold-card">
+        <span className="panel-kicker">Approval thresholds</span><h3>Manager financial authority</h3><p>Actions above these limits become Owner approval requests.</p>
+        <label>Rate adjustment limit <div><input type="number" min="0" max="30" value={policy.managerRateLimit} onChange={e => updateLimit("managerRateLimit",e.target.value)} /><span>%</span></div></label>
+        <label>Refund limit <div><span>$</span><input type="number" min="0" max="1000" value={policy.managerRefundLimit} onChange={e => updateLimit("managerRefundLimit",e.target.value)} /></div></label>
+        <label>Unapproved purchase limit <div><span>$</span><input type="number" min="0" max="2000" value={policy.managerPurchaseLimit} onChange={e => updateLimit("managerPurchaseLimit",e.target.value)} /></div></label>
+        <div className="policy-note"><ShieldCheck size={16} /><span>Production permissions would be server-enforced RBAC. This prototype applies the policy to shared client-side controls.</span></div>
+      </aside>
+    </section>
+  </>;
+}
+
+function ExceptionCenter({ rooms, bookings, approvals, role, setActive, flash, pushActivity }) {
+  const [systemIssues, setSystemIssues] = useState(() => load("sp-exceptions", [
+    { id:"EXC-03", type:"Payment", severity:"High", title:"Payment retry exhausted", detail:"SP-1042 · Visa authorization failed twice", route:"reservations", status:"Open" },
+    { id:"EXC-04", type:"Distribution", severity:"Normal", title:"Agoda acknowledgement delayed", detail:"Inventory push waiting 94 seconds", route:"channels", status:"Open" }
+  ]));
+  useEffect(() => localStorage.setItem("sp-exceptions", JSON.stringify(systemIssues)), [systemIssues]);
+
+  const dynamic = [
+    ...rooms.filter(r => r.maintenance !== "Clear").map(r => ({ id:"ROOM-"+r.number, type:"Maintenance", severity:"High", title:"Room "+r.number+" out of order", detail:r.type+" · "+r.occupancy+" · maintenance block", route:"rooms", status:"Open", dynamic:true })),
+    ...rooms.filter(r => r.occupancy === "Reserved" && r.housekeeping !== "Clean").map(r => ({ id:"READY-"+r.number, type:"Readiness", severity:"High", title:"Reserved room "+r.number+" is not ready", detail:r.housekeeping+" · arrival risk", route:"rooms", status:"Open", dynamic:true })),
+    ...bookings.filter(b => b.room === "Unassigned" && !["Cancelled","Checked out"].includes(b.status)).map(b => ({ id:"ASSIGN-"+b.id, type:"Front desk", severity:"Normal", title:b.guest+" needs room assignment", detail:b.id+" · "+b.type+" · "+b.checkIn, route:"frontdesk", status:"Open", dynamic:true })),
+    ...(role === "owner" ? approvals.filter(a => a.status === "Pending").map(a => ({ id:"APP-"+a.id, type:"Approval", severity:"Normal", title:a.title+" awaiting decision", detail:a.id+" · requested by "+a.requestedBy, route:"approvals", status:"Open", dynamic:true })) : [])
+  ];
+  const visibleSystemIssues = role === "owner" ? systemIssues : systemIssues.filter(x => x.type !== "Distribution");
+  const issues = [...dynamic, ...visibleSystemIssues.filter(x => x.status === "Open")];
+  const resolveSystem = issue => {
+    setSystemIssues(prev => prev.map(x => x.id === issue.id ? { ...x, status:"Resolved" } : x));
+    pushActivity("green", issue.title + " resolved", issue.id + " · exception closed", "Operations");
+    flash("Exception resolved");
+  };
+
+  return <>
+    <PageHeader eyebrow="Attention center" title="Exceptions & blockers" text="Surface only the conditions that need a human decision, operational fix or follow-up." />
+    <section className="exception-summary">
+      <div><span>Open issues</span><b>{issues.length}</b><small>across current demo state</small></div>
+      <div><span>High priority</span><b>{issues.filter(x=>x.severity==="High").length}</b><small>needs prompt action</small></div>
+      <div><span>Room related</span><b>{issues.filter(x=>["Maintenance","Readiness"].includes(x.type)).length}</b><small>affects sellability/readiness</small></div>
+    </section>
+    <article className="panel exception-panel">
+      <div className="exception-list">{issues.length ? issues.map(issue => <div className="exception-row" key={issue.id}>
+        <span className={"exception-severity "+issue.severity.toLowerCase()}>{issue.severity}</span>
+        <div><span className="exception-type">{issue.type}</span><b>{issue.title}</b><p>{issue.detail}</p></div>
+        <div className="exception-actions"><button className="ghost-btn" onClick={() => setActive(issue.route)}>Open</button>{!issue.dynamic && <button className="row-action" onClick={() => resolveSystem(issue)}>Resolve</button>}</div>
+      </div>) : <div className="empty-state"><CheckCircle2 size={28} /><b>No active exceptions</b><span>The current property state has no unresolved blockers.</span></div>}</div>
     </article>
   </>;
 }

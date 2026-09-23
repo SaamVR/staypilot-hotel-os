@@ -22,6 +22,9 @@ The Operations Assistant uses the same role rules. Manager commands outside poli
 - 7-day room tape chart / reservation calendar
 - Reservation assignment queue
 - Reservation drawer with room assignment, check-in, check-out and cancellation
+- Reservation folio with room charges, taxes/fees, deposits, balance capture and refunds
+- Checkout is blocked until the folio balance is settled
+- Manager refunds above the Owner-defined threshold become approval requests
 - Internal walk-in / phone reservation entry
 - Guest-facing direct booking engine
 - Direct bookings reserve **room-type inventory first** and enter the assignment queue instead of immediately claiming a physical room
@@ -41,7 +44,7 @@ This prevents housekeeping or maintenance actions from overwriting reservation/o
 
 - Manager purchase, expense, refund, rate and marketing requests
 - Owner approval / rejection
-- Manager rate changes above 10% are approval-gated
+- Manager rate changes above the Owner-configured threshold are approval-gated
 - Manager marketing commands are approval-gated
 - Approved purchase orders become receivable stock; inventory does not increase until delivery is received
 
@@ -51,6 +54,7 @@ This prevents housekeeping or maintenance actions from overwriting reservation/o
 - Room-readiness controls
 - Maintenance resolution updates the same room state used by Front Desk
 - Shared owner/manager instructions and handoff notes
+- Exception Center for payment, distribution, room-readiness, room-assignment and approval blockers
 - Activity stream and audit history
 
 ### Guest communication
@@ -59,6 +63,19 @@ This prevents housekeeping or maintenance actions from overwriting reservation/o
 - Reservation context beside each conversation
 - Quick response templates
 - Interactive replies stored in demo state
+
+### Roles & permissions
+
+The Owner can configure Manager authority for:
+
+- room / housekeeping / maintenance controls
+- channel reconciliation
+- supply inventory
+- guest messaging
+- operational automations
+- marketing control
+
+The Owner can also set configurable thresholds for rate changes, refunds and unapproved purchases. The same policy is consumed by Manager controls and the Operations Assistant.
 
 ### Automation Center
 
