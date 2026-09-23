@@ -2482,6 +2482,8 @@ function Connections({ pushActivity, flash, emitHotelEvent }) {
   useEffect(() => localStorage.setItem("sp-webhook-endpoints", JSON.stringify(webhookEndpoints)), [webhookEndpoints]);
   useEffect(() => localStorage.setItem("sp-webhook-deliveries", JSON.stringify(webhookDeliveries)), [webhookDeliveries]);
   const [testEvent, setTestEvent] = useState("guest.request_received");
+  const [testEventId, setTestEventId] = useState(() => "evt_demo_" + String(Date.now()).slice(-8));
+  const [lastInboundOutcome, setLastInboundOutcome] = useState(null);
   const provider = providers[selected];
   const webhook = "https://api.staypilot.demo/webhooks/" + selected;
 
@@ -2508,7 +2510,7 @@ function Connections({ pushActivity, flash, emitHotelEvent }) {
     setTimeout(() => {
       setTestingAll(false);
       setLastDemoCheck("just now");
-      pushActivity("green", "Integration demo checks completed", "Webhook, token renewal, conversion export and retry policy simulated");
+      pushActivity("green", "Integration demo checks completed", "Webhook, token renewal, idempotency guard and retry policy simulated");
       flash("Demo integration checks completed");
     }, 850);
   };
@@ -2526,7 +2528,7 @@ function Connections({ pushActivity, flash, emitHotelEvent }) {
     flash("Demo webhook replay recorded");
   };
 
-  const sendInboundTest = () => {
+  const sendInboundTest = (reuseId = false) => {
     const payloads = {
       "guest.request_received": { request:"Extra pillows requested" },
       "review.negative": { guest:"Demo Guest", score:2 },
@@ -2534,14 +2536,24 @@ function Connections({ pushActivity, flash, emitHotelEvent }) {
       "prearrival.due": {},
       "occupancy.threshold": { adjustment:12 }
     };
-    const result = emitHotelEvent(testEvent, { ...(payloads[testEvent] || {}) });
-    if (result?.ok) {
-      pushActivity("blue", "Inbound test event accepted", testEvent + " · normalized by Integration Hub", "Automation", "StayPilot integration gateway");
+    const eventId = reuseId ? testEventId : "evt_demo_" + Date.now().toString(36);
+    if (!reuseId) setTestEventId(eventId);
+    const result = emitHotelEvent(testEvent, { ...(payloads[testEvent] || {}), eventId });
+    if (result?.duplicate) {
+      const queuedDuplicate = Boolean(result?.queued);
+      setLastInboundOutcome({ tone:"duplicate", label:queuedDuplicate ? "Duplicate already queued" : "Duplicate suppressed", detail:eventId + " · no business action repeated" });
+      pushActivity("blue", queuedDuplicate ? "Duplicate inbound event already queued" : "Duplicate inbound event suppressed", eventId + " · " + testEvent, "Automation", "StayPilot integration gateway");
+      flash(queuedDuplicate ? "Duplicate event is already waiting in the queue" : "Duplicate event suppressed · no action repeated");
+    } else if (result?.ok) {
+      setLastInboundOutcome({ tone:"success", label:"Executed once", detail:eventId + " · " + testEvent });
+      pushActivity("blue", "Inbound test event accepted", eventId + " · " + testEvent + " · normalized by Integration Hub", "Automation", "StayPilot integration gateway");
       flash("Inbound event executed: " + testEvent);
     } else if (result?.queued) {
-      pushActivity("amber", "Inbound test event queued", testEvent + " · waiting for Owner resume", "Automation", "StayPilot integration gateway");
+      setLastInboundOutcome({ tone:"queued", label:"Queued", detail:eventId + " · waiting for Owner resume" });
+      pushActivity("amber", "Inbound test event queued", eventId + " · " + testEvent + " · waiting for Owner resume", "Automation", "StayPilot integration gateway");
       flash("Inbound event queued while automations are paused");
     } else {
+      setLastInboundOutcome({ tone:"failed", label:"Not executed", detail:eventId + " · " + (result?.reason || "Unknown error") });
       flash(result?.reason || "Inbound test could not execute");
     }
   };
@@ -2571,17 +2583,22 @@ function Connections({ pushActivity, flash, emitHotelEvent }) {
     <section className="panel inbound-event-lab">
       <div className="panel-head"><div><span className="panel-kicker">Integration test console</span><h3>Send an inbound hotel event</h3><p>Simulate what a PMS, payment processor, guest channel or reputation provider would send. The event enters the same policy-aware automation engine as internal hotel actions.</p></div></div>
       <div className="inbound-event-grid">
-        <label><span>Normalized event</span><select value={testEvent} onChange={e => setTestEvent(e.target.value)}>
+        <label><span>Normalized event</span><select value={testEvent} onChange={e => { setTestEvent(e.target.value); setLastInboundOutcome(null); }}>
           <option value="guest.request_received">guest.request_received</option>
           <option value="payment.failed">payment.failed</option>
           <option value="review.negative">review.negative</option>
           <option value="prearrival.due">prearrival.due</option>
           <option value="occupancy.threshold">occupancy.threshold</option>
         </select></label>
+        <div className="event-id-preview"><span>Event ID / idempotency key</span><code>{testEventId}</code></div>
         <div className="event-payload-preview"><span>Payload preview</span><code>{testEvent === "guest.request_received" ? '{ "request": "Extra pillows requested" }' : testEvent === "review.negative" ? '{ "guest": "Demo Guest", "score": 2 }' : testEvent === "occupancy.threshold" ? '{ "adjustment": 12 }' : '{ "demo": true }'}</code></div>
-        <button className="primary-btn" onClick={sendInboundTest}><Play size={15} /> Send test event</button>
+        <div className="inbound-event-actions">
+          <button className="primary-btn" onClick={() => sendInboundTest(false)}><Play size={15} /> Send new event</button>
+          <button className="ghost-btn" onClick={() => sendInboundTest(true)}><RefreshCw size={15} /> Replay same ID</button>
+        </div>
+        {lastInboundOutcome && <div className={"inbound-outcome " + lastInboundOutcome.tone}><b>{lastInboundOutcome.label}</b><span>{lastInboundOutcome.detail}</span></div>}
       </div>
-      <div className="mini-note"><ShieldCheck size={15} /> Test events are local portfolio simulations; production inbound webhooks require signature verification, tenant resolution, idempotency and queue-backed execution.</div>
+      <div className="mini-note"><ShieldCheck size={15} /> Replay the same Event ID to demonstrate duplicate suppression. Production requires atomic idempotency storage, signature verification, tenant resolution and queue-backed execution.</div>
     </section>
 
     <div className="connections-layout">
@@ -2649,7 +2666,7 @@ function Connections({ pushActivity, flash, emitHotelEvent }) {
       <div className="connection-health-grid">
         <div><span className="health-icon green"><CheckCircle2 size={17} /></span><div><b>Webhook receiver</b><small>Signed-event validation flow</small></div><strong>Demo-ready</strong></div>
         <div><span className="health-icon blue"><KeyRound size={17} /></span><div><b>Token renewal</b><small>Scheduled refresh workflow</small></div><strong>Designed</strong></div>
-        <div><span className="health-icon violet"><RefreshCw size={17} /></span><div><b>Conversion export</b><small>Attribution batch workflow</small></div><strong>Simulated</strong></div>
+        <div><span className="health-icon violet"><ShieldCheck size={17} /></span><div><b>Idempotency guard</b><small>Event-ID duplicate suppression</small></div><strong>Demo-ready</strong></div>
         <div><span className="health-icon amber"><Bell size={17} /></span><div><b>Failure policy</b><small>3 retries → operator alert</small></div><strong>{lastDemoCheck === "Not run" ? "Configured" : "Checked " + lastDemoCheck}</strong></div>
       </div>
     </section>
