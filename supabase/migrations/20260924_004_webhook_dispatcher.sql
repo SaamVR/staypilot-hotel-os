@@ -34,9 +34,9 @@ for each row execute function public.clear_webhook_verification_on_change();
 -- Remove broad client write privileges inherited from migration 001 so verification
 -- columns cannot be forged through the Data API.
 revoke insert, update on public.webhook_endpoints from authenticated;
-grant insert (hotel_id, name, url, events, status, secret_ref)
+grant insert (hotel_id, name, url, events, status)
   on public.webhook_endpoints to authenticated;
-grant update (name, url, events, status, secret_ref)
+grant update (name, url, events, status)
   on public.webhook_endpoints to authenticated;
 
 create or replace function public.mark_webhook_endpoint_verified(
@@ -219,7 +219,7 @@ begin
     claimed.attempts
   from claimed
   join public.webhook_endpoints endpoint on endpoint.id = claimed.endpoint_id
-  left join public.inbound_events inbound on inbound.id = claimed.inbound_event_id;
+  join public.inbound_events inbound on inbound.id = claimed.inbound_event_id;
 end;
 $$;
 
