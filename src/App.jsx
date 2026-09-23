@@ -941,12 +941,13 @@ function ReservationDrawer({ booking, setBookings, rooms, setRooms, role, approv
   };
 
   const cancel = () => {
-    if (booking.room && booking.room !== "Unassigned") {
-      setRooms(prev => prev.map(r => r.number === booking.room ? { ...r, occupancy: "Vacant" } : r));
-    }
     updateBooking({ status: "Cancelled" });
-    pushActivity("amber", "Reservation cancelled", booking.id + " · " + booking.guest);
-    flash("Reservation cancelled");
+    const result = emitHotelEvent("reservation.cancelled", { booking: { ...booking, status: "Cancelled" } });
+    if (!result?.ok && booking.room && booking.room !== "Unassigned") {
+      setRooms(prev => prev.map(r => r.number === booking.room ? { ...r, occupancy: "Vacant" } : r));
+      pushActivity("amber", "Reservation cancelled", booking.id + " · inventory released without automation");
+    }
+    flash(result?.ok ? "Reservation cancelled · recovery automation executed" : "Reservation cancelled");
     onClose();
   };
 
@@ -1082,7 +1083,7 @@ function Reservations({ bookings, setBookings, rooms, setRooms, role, approvals,
   </>;
 }
 
-function Rooms({ rooms, setRooms, pushActivity, flash, role, policy }) {
+function Rooms({ rooms, setRooms, pushActivity, flash, role, policy, emitHotelEvent }) {
   const grouped = ["Available", "Occupied", "Reserved", "Cleaning", "Maintenance"];
   const canManage = role === "owner" || policy.managerCanManageRooms;
   const counts = Object.fromEntries(grouped.map(s => [s, rooms.filter(r => roomPrimaryStatus(r) === s).length]));
@@ -1090,14 +1091,16 @@ function Rooms({ rooms, setRooms, pushActivity, flash, role, policy }) {
   const setHousekeeping = (number, housekeeping) => {
     if (!canManage) return flash("Manager room controls are restricted by Owner policy");
     setRooms(prev => prev.map(r => r.number === number ? { ...r, housekeeping } : r));
-    pushActivity(housekeeping === "Clean" ? "green" : "amber", "Room " + number + " housekeeping updated", housekeeping);
+    if (housekeeping === "Clean") emitHotelEvent("housekeeping.completed", { roomNumber: number });
+    else pushActivity("amber", "Room " + number + " housekeeping updated", housekeeping);
     flash("Room " + number + " housekeeping: " + housekeeping);
   };
   const toggleMaintenance = room => {
     if (!canManage) return flash("Manager room controls are restricted by Owner policy");
     const maintenance = room.maintenance === "Clear" ? "Out of order" : "Clear";
     setRooms(prev => prev.map(r => r.number === room.number ? { ...r, maintenance } : r));
-    pushActivity(maintenance === "Clear" ? "green" : "amber", "Room " + room.number + " maintenance updated", maintenance);
+    if (maintenance === "Out of order") emitHotelEvent("room.maintenance_blocked", { roomNumber: room.number });
+    else pushActivity("green", "Room " + room.number + " maintenance cleared", "Returned to operational pool");
     flash("Room " + room.number + ": " + maintenance);
   };
   const syncInventory = () => {
@@ -1209,7 +1212,7 @@ function Inventory({ role, approvals, setApprovals, pushActivity, flash, setActi
   </>;
 }
 
-function ApprovalCenter({ role, approvals, setApprovals, rateMultiplier, setRateMultiplier, metaPaused, setMetaPaused, pushActivity, flash, bookings, setBookings }) {
+function ApprovalCenter({ role, approvals, setApprovals, rateMultiplier, setRateMultiplier, metaPaused, setMetaPaused, pushActivity, flash, bookings, setBookings, emitHotelEvent }) {
   const [draft, setDraft] = useState({ type: "Purchase order", title: "", detail: "", amount: "" });
   const pending = approvals.filter(a => a.status === "Pending");
   const myRequests = approvals.filter(a => a.requestedBy === "Sam Rahman" || role === "owner");
@@ -1232,6 +1235,7 @@ function ApprovalCenter({ role, approvals, setApprovals, rateMultiplier, setRate
       }));
     }
     pushActivity(status === "Approved" ? "green" : "amber", item.title + " " + status.toLowerCase(), item.id + " · " + item.requestedBy);
+    if (status === "Approved") emitHotelEvent("approval.approved", { item: { ...item, status: "Approved" } });
     flash(item.id + " " + status.toLowerCase());
   };
 
