@@ -277,4 +277,34 @@ assert.match(bootstrapAlias, /tenant-bootstrap\.js/i, "legacy hotel bootstrap ro
 assert.match(onboardingModule, /Intl\.DateTimeFormat/i, "timezone normalization must validate a real IANA timezone");
 assert.match(onboardingModule, /Intl\.NumberFormat/i, "currency normalization must validate a real currency code");
 
+const teamInvitationMigration = await readFile(
+  new URL("../supabase/migrations/20260924080000_team_invitations.sql", import.meta.url),
+  "utf8",
+);
+const teamInvitationApi = await readFile(new URL("../functions/api/team/invitations.js", import.meta.url), "utf8");
+const teamAcceptApi = await readFile(new URL("../functions/api/team/invitations/accept.js", import.meta.url), "utf8");
+const teamRevokeApi = await readFile(new URL("../functions/api/team/invitations/revoke.js", import.meta.url), "utf8");
+const teamInvitationModule = await readFile(new URL("../functions/_shared/team-invitations.js", import.meta.url), "utf8");
+assert.match(teamInvitationMigration, /create table if not exists private\.hotel_invitations/i, "team invitation secrets must stay in private schema");
+assert.match(teamInvitationMigration, /role text not null check \(role in \('manager','staff'\)\)/i, "team invitations must never grant Owner");
+assert.match(teamInvitationMigration, /token_hash text not null unique/i, "only unique invite-token hashes may persist");
+assert.match(teamInvitationMigration, /revoke all on table private\.hotel_invitations from public, anon, authenticated/i, "browser sessions must not read invite secret state");
+assert.match(teamInvitationMigration, /hotel_invitations_pending_email_uidx/i, "one pending invite per hotel/email must be enforced");
+assert.match(teamInvitationMigration, /invite_email_mismatch/i, "acceptance must bind authenticated email to invitation");
+assert.match(teamInvitationMigration, /insert into public\.hotel_members\(hotel_id,user_id,role\)/i, "acceptance must create membership transactionally");
+assert.match(teamInvitationMigration, /values\(invitation\.hotel_id,user_uuid,invitation\.role\)/i, "membership role must come from server invitation");
+assert.doesNotMatch(teamInvitationMigration, /values\(invitation\.hotel_id,user_uuid,'owner'\)/i, "invitation acceptance must never create Owner");
+assert.match(teamInvitationMigration, /grant execute on function public\.create_hotel_invitation.*to service_role/is, "create invite RPC must be service-role only");
+assert.match(teamInvitationMigration, /grant execute on function public\.accept_hotel_invitation.*to service_role/is, "accept invite RPC must be service-role only");
+assert.match(sharedConfig, /TEAM_INVITES_ENABLED/i, "server config must read team invitation rollout gate");
+assert.match(teamInvitationApi, /teamInvitesEnabled/i, "team invitation create/list must fail closed behind rollout gate");
+assert.match(teamInvitationApi, /requireHotelOwner/i, "team invitation management must require Owner");
+assert.match(teamInvitationApi, /sha256Hex\(rawToken\)/i, "raw invite token must be hashed before persistence");
+assert.match(teamAcceptApi, /requireConfirmedAccount/i, "invite acceptance must require confirmed account");
+assert.match(teamAcceptApi, /user_email:email/i, "acceptance must pass authenticated email to server RPC");
+assert.doesNotMatch(teamAcceptApi, /input\?\.role/i, "acceptance must ignore client-supplied role");
+assert.match(teamRevokeApi, /requireHotelOwner/i, "invite revocation must require Owner");
+assert.match(teamInvitationModule, /\["manager","staff"\]/i, "client normalization must reject Owner role");
+assert.match(teamInvitationModule, /crypto\.getRandomValues/i, "invite tokens must use cryptographic randomness");
+
 console.log("StayPilot backend contract verification passed.");
