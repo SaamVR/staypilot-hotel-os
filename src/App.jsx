@@ -132,7 +132,8 @@ const ownerNav = [
   ["audit", "Audit log", Clock3, "Automation"],
   ["permissions", "Roles & permissions", ShieldCheck, "Automation"],
   ["assistant", "Operations assistant", Bot, "Automation"],
-  ["connections", "Integration hub", Settings2, "Platform"]
+  ["connections", "Integration hub", Settings2, "Platform"],
+  ["setup", "Property setup", ClipboardList, "Platform"]
 ];
 
 const managerNav = [
@@ -573,6 +574,31 @@ function App() {
     flash(nextRole === "owner" ? "Owner view enabled" : "Manager view enabled");
   };
 
+  const applyScenario = scenario => {
+    if (scenario === "normal") {
+      const booking = { id:"SP-DEMO-01", guest:"Emma Brooks", paid:96, room:"Unassigned", type:"Deluxe King", source:"Booking.com", checkIn:"Today", checkOut:"Sep 26", guests:2, total:480, status:"Confirmed" };
+      setBookings(prev => [booking, ...prev.filter(b => b.id !== booking.id)]);
+      emitHotelEvent("reservation.created", { booking });
+      setActive("frontdesk");
+      flash("Normal-day scenario loaded · reservation automation executed");
+      return;
+    }
+    if (scenario === "problem") {
+      const booking = bookings.find(b => b.room === "204") || bookings[0];
+      setRooms(prev => prev.map(r => r.number === "204" ? { ...r, maintenance:"Out of order" } : r));
+      emitHotelEvent("room.maintenance_blocked", { roomNumber:"204", booking });
+      setActive("exceptions");
+      flash("Problem-day scenario loaded · room conflict automation executed");
+      return;
+    }
+    if (scenario === "approval") {
+      emitHotelEvent("occupancy.threshold", { adjustment:14 });
+      setRole("owner");
+      setActive("approvals");
+      flash("Approval scenario loaded · pricing request escalated to Owner");
+    }
+  };
+
   const resetDemo = () => {
     setRooms(makeRooms());
     setBookings(seedBookings);
@@ -597,6 +623,7 @@ function App() {
     localStorage.removeItem("sp-exceptions");
     localStorage.removeItem("sp-webhook-endpoints");
     localStorage.removeItem("sp-webhook-deliveries");
+    localStorage.removeItem("sp-property-setup");
     localStorage.removeItem("sp-policy");
     localStorage.removeItem("sp-lowstock-auto");
     localStorage.removeItem("sp-occupancy-auto-fired");
@@ -639,6 +666,12 @@ function App() {
       </nav>
       <div className="sidebar-foot">
         <div className="system-health"><span className="live-dot" /><div><b>Demo systems ready</b><span>shared local state active</span></div></div>
+        <div className="scenario-switcher">
+          <span>Demo scenarios</span>
+          <button onClick={() => applyScenario("normal")}><CheckCircle2 size={13}/> Normal</button>
+          <button onClick={() => applyScenario("problem")}><Wrench size={13}/> Problem</button>
+          <button onClick={() => applyScenario("approval")}><ShieldCheck size={13}/> Approval</button>
+        </div>
         <button className="reset-btn" onClick={resetDemo}><RotateCcw size={15} /> Reset demo</button>
         <div className="prototype-tag">Demo workspace · reset anytime</div>
       </div>
@@ -682,6 +715,7 @@ function App() {
         {active === "permissions" && role === "owner" && <RolePolicy {...pageProps} />}
         {active === "assistant" && <Assistant {...pageProps} />}
         {active === "connections" && role === "owner" && <Connections {...pageProps} />}
+        {active === "setup" && role === "owner" && <PropertySetup {...pageProps} />}
       </div>
     </main>
 
@@ -2112,6 +2146,65 @@ function ExceptionCenter({ rooms, bookings, approvals, role, setActive, flash, p
         <div className="exception-actions"><button className="ghost-btn" onClick={() => setActive(issue.route)}>Open</button>{!issue.dynamic && <button className="row-action" onClick={() => resolveSystem(issue)}>Resolve</button>}</div>
       </div>) : <div className="empty-state"><CheckCircle2 size={28} /><b>No active exceptions</b><span>The current property state has no unresolved blockers.</span></div>}</div>
     </article>
+  </>;
+}
+
+function PropertySetup({ policy, setPolicy, setActive, pushActivity, flash }) {
+  const defaults = {
+    property: true,
+    pms: false,
+    messaging: false,
+    finance: false,
+    team: true,
+    automation: false
+  };
+  const [setup, setSetup] = useState(() => load("sp-property-setup", defaults));
+  useEffect(() => localStorage.setItem("sp-property-setup", JSON.stringify(setup)), [setup]);
+  const steps = [
+    ["property", "Property profile", "Northstar Grand · 24 rooms · Chattogram", Building2],
+    ["pms", "Connect existing PMS / channel source", "Import reservations, rooms, availability and guest state", Database],
+    ["messaging", "Connect guest messaging", "WhatsApp Business or email provider", MessageSquare],
+    ["finance", "Connect finance", "Payments + accounting journal / settlement destination", ReceiptText],
+    ["team", "Invite operating team", "Owner and Manager authority model configured", UserCog],
+    ["automation", "Choose automation authority", "Auto, policy-limited, approval or suggest-only per workflow", Zap]
+  ];
+  const completed = steps.filter(([key]) => setup[key]).length;
+  const toggle = (key, label) => {
+    const next = !setup[key];
+    setSetup(prev => ({ ...prev, [key]: next }));
+    pushActivity(next ? "green" : "amber", label + (next ? " completed" : " reopened"), "Property onboarding · " + label, "Governance");
+    flash(next ? label + " marked complete" : label + " reopened");
+  };
+  const applySafeDefaults = () => {
+    setPolicy(prev => ({ ...prev, managerRateLimit: 10, managerRefundLimit: 100, managerPurchaseLimit: 150 }));
+    setSetup(prev => ({ ...prev, automation: true }));
+    pushActivity("green", "Automation safety defaults applied", "± policy thresholds · approvals above limits", "Governance");
+    flash("Safe automation defaults applied");
+  };
+  return <>
+    <PageHeader eyebrow="Owner onboarding" title="Get value without replacing your hotel stack" text="Connect the systems the property already uses, import operating context, choose authority limits, and let StayPilot automate the work between them." action={<button className="ghost-btn" onClick={() => setActive("connections")}><PlugZap size={16} /> Open integration hub</button>} />
+    <section className="automation-summary">
+      <div><span>Setup progress</span><b>{completed}/{steps.length}</b><small>{Math.round(completed/steps.length*100)}% configured</small></div>
+      <div><span>Property</span><b>24 rooms</b><small>Northstar Grand demo</small></div>
+      <div><span>Manager rate authority</span><b>±{policy.managerRateLimit}%</b><small>above limit → approval</small></div>
+      <div><span>Automation mode</span><b>{setup.automation ? "Ready" : "Review"}</b><small>human-in-the-loop controls</small></div>
+    </section>
+    <section className="policy-layout">
+      <article className="panel role-policy-card">
+        <div className="panel-head"><div><span className="panel-kicker">Guided setup</span><h3>Property readiness</h3></div></div>
+        <div className="permission-list">{steps.map(([key,label,desc,Icon]) => <div key={key}>
+          <div className="setup-step-icon"><Icon size={17} /></div>
+          <div><b>{label}</b><small>{desc}</small></div>
+          <button className={"toggle-switch " + (setup[key] ? "on" : "")} onClick={() => toggle(key,label)}><i /></button>
+        </div>)}</div>
+      </article>
+      <aside className="panel threshold-card">
+        <span className="panel-kicker">Recommended start</span><h3>Controlled automation</h3><p>Start with routine actions on Auto. Keep financial, pricing and guest-impacting actions inside explicit limits or Owner approval.</p>
+        <div className="scope-block"><span>Suggested first automations</span><div><em><Check size={13}/>Reservation intake</em><em><Check size={13}/>Checkout turnover</em><em><Check size={13}/>Room ready</em><em><Check size={13}/>Low-stock policy</em></div></div>
+        <button className="primary-btn full" onClick={applySafeDefaults}><ShieldCheck size={16}/> Apply safe defaults</button>
+        <button className="ghost-btn full" onClick={() => setActive("automations")}><Zap size={16}/> Review automation authority</button>
+      </aside>
+    </section>
   </>;
 }
 
