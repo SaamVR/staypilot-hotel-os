@@ -82,6 +82,7 @@ const fullEnv = {
     durable_worker_authentication:false,
     outbound_dispatcher_authentication:false,
     outbound_host_allowlist:false,
+    outbound_signing_master:false,
   });
 }
 
@@ -97,6 +98,7 @@ const fullEnv = {
     durable_worker_authentication:true,
     outbound_dispatcher_authentication:true,
     outbound_host_allowlist:true,
+    outbound_signing_master:true,
   });
 }
 
