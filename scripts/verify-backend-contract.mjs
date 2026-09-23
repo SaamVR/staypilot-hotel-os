@@ -189,4 +189,35 @@ assert.match(redriveEndpoint, /x-staypilot-dispatcher-secret/i, "redrive endpoin
 assert.match(redriveEndpoint, /dispatcher_not_configured/i, "redrive must fail closed before dispatcher configuration");
 assert.match(redriveEndpoint, /invalid_delivery_id/i, "redrive endpoint must validate delivery UUIDs");
 
+const provisioningMigration = await readFile(
+  new URL("../supabase/migrations/20260924_005_webhook_endpoint_provisioning.sql", import.meta.url),
+  "utf8",
+);
+const provisioningModule = await readFile(new URL("../functions/_shared/provisioning.js", import.meta.url), "utf8");
+const provisioningAuth = await readFile(new URL("../functions/_shared/auth.js", import.meta.url), "utf8");
+const registerEndpoint = await readFile(new URL("../functions/api/webhook-endpoints/register.js", import.meta.url), "utf8");
+const verifyEndpoint = await readFile(new URL("../functions/api/webhook-endpoints/verify.js", import.meta.url), "utf8");
+
+assert.match(provisioningMigration, /revoke insert, update on public\.webhook_endpoints from authenticated/i, "browser sessions must not create or update webhook endpoints directly");
+assert.match(provisioningMigration, /verification_status text not null default 'Pending'/i, "endpoint verification state must be durable");
+assert.match(provisioningMigration, /verification_status = 'Verified'/i, "verified RPC must persist verified state");
+assert.match(provisioningMigration, /status = 'Active'/i, "successful verification must be the gate that activates the endpoint");
+assert.match(provisioningMigration, /verification_status = 'Failed'/i, "failed verification must persist failed state");
+assert.match(provisioningMigration, /grant execute on function public\.mark_webhook_endpoint_verified\(uuid, text\) to service_role/i, "only service role may mark endpoints verified");
+assert.match(provisioningMigration, /grant execute on function public\.mark_webhook_endpoint_verification_failed\(uuid, text\) to service_role/i, "only service role may persist verification failure");
+assert.match(provisioningMigration, /endpoint\.verification_status = 'Verified'/i, "outbox and dispatcher claims must require explicit Verified state");
+assert.match(provisioningAuth, /owner_role_required/i, "endpoint provisioning must require Owner membership");
+assert.match(provisioningModule, /DERIVED_V1_/i, "endpoint credentials must use non-secret derived references");
+assert.match(provisioningModule, /staypilot:webhook:/i, "per-endpoint credentials must derive from the server master secret");
+assert.match(registerEndpoint, /requireHotelOwner/i, "registration endpoint must enforce Owner authorization");
+assert.match(registerEndpoint, /status:"Paused"/i, "new endpoints must start Paused");
+assert.match(registerEndpoint, /verification_status:"Pending"/i, "new endpoints must start Pending");
+assert.match(registerEndpoint, /signing_secret:signingSecret/i, "registration returns the derived credential to the Owner");
+assert.match(verifyEndpoint, /redirect:"manual"/i, "verification must not follow redirects");
+assert.match(verifyEndpoint, /verifyChallengeProof/i, "verification must require HMAC proof from the destination");
+assert.match(verifyEndpoint, /mark_webhook_endpoint_verified/i, "successful challenge must persist trusted state through server RPC");
+assert.match(verifyEndpoint, /mark_webhook_endpoint_verification_failed/i, "failed challenge must persist failure through server RPC");
+assert.match(sharedConfig, /OUTBOUND_SIGNING_MASTER_SECRET/i, "server config must read the outbound signing master");
+assert.match(dispatcherEndpoint, /config\.outboundSigningMasterSecret/i, "dispatcher must fail closed without the outbound signing master");
+
 console.log("StayPilot backend contract verification passed.");
