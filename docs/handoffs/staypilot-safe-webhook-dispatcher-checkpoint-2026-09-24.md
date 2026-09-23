@@ -14,7 +14,7 @@ Repository: SaamVR/staypilot-hotel-os
 
 Implemented:
 
-- migration `20260924_004_webhook_dispatcher.sql`
+- migration `20260924040000_webhook_dispatcher.sql`
 - server-verified webhook endpoint state
 - verification cleared when URL/signing reference changes
 - authenticated browser clients cannot control verification fields or `secret_ref`

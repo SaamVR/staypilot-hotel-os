@@ -48,11 +48,11 @@ This staged approach keeps the verified portfolio demo stable while backend auth
 
 ## Files
 
-- `supabase/migrations/20260923_001_staypilot_core.sql`
+- `supabase/migrations/20260923010000_staypilot_core.sql`
 - `functions/_shared/webhook.js`
 - `functions/api/events.js`
 - `functions/api/backend-health.js`
-- `supabase/migrations/20260923_002_durable_worker.sql`
+- `supabase/migrations/20260923020000_durable_worker.sql`
 - `functions/_shared/supabase.js`
 - `functions/_shared/worker.js`
 - `functions/api/worker-run.js`
@@ -174,7 +174,7 @@ Creation may have account-dependent cost. Before provisioning through the connec
 
 Once provisioned:
 
-1. apply `20260923_001_staypilot_core.sql`
+1. apply `20260923010000_staypilot_core.sql`
 2. run Supabase security advisors
 3. create a test Auth user
 4. bootstrap one hotel + Owner membership server-side
@@ -206,7 +206,7 @@ commit
 
 ### Atomic claim lifecycle
 
-Migration `20260923_002_durable_worker.sql` adds:
+Migration `20260923020000_durable_worker.sql` adds:
 
 - `next_attempt_at`
 - processing lease fields
@@ -293,7 +293,7 @@ Until a dedicated database, secrets, worker, authentication migration and provid
 
 ## Durable outbound integration outbox
 
-Migration `20260924_003_webhook_outbox.sql` adds the server-side handoff from completed hotel events to optional external systems.
+Migration `20260924030000_webhook_outbox.sql` adds the server-side handoff from completed hotel events to optional external systems.
 
 The outbox does **not** make external HTTP calls yet. It only persists delivery intent safely.
 
@@ -343,7 +343,7 @@ Do not add arbitrary external fetches directly to the hotel automation worker.
 
 ## Verified outbound webhook dispatcher
 
-Migration `20260924_004_webhook_dispatcher.sql` and the server dispatcher modules add the delivery layer after the durable outbox.
+Migration `20260924040000_webhook_dispatcher.sql` and the server dispatcher modules add the delivery layer after the durable outbox.
 
 Security boundary:
 
@@ -391,7 +391,7 @@ The dispatcher remains dormant in the current public deployment because no dedic
 
 ## Dead-letter delivery redrive
 
-Migration `20260924_005_webhook_redrive.sql` adds a controlled recovery path for exhausted outbound webhook deliveries.
+Migration `20260924050000_webhook_redrive.sql` adds a controlled recovery path for exhausted outbound webhook deliveries.
 
 The critical rule is:
 
@@ -431,3 +431,114 @@ The endpoint shares the dispatcher fail-closed boundary:
 - missing delivery → 404
 
 The public portfolio deployment remains dormant: the browser UI demonstrates delivery-only recovery locally, while the server endpoint returns fail-closed until dedicated infrastructure is configured.
+
+
+## Secure webhook endpoint provisioning
+
+The outbound dispatcher now has a staged server-owned endpoint onboarding flow.
+
+Endpoints:
+
+```
+POST /api/webhook-endpoints/register
+POST /api/webhook-endpoints/verify
+```
+
+Both endpoints require a valid Supabase user bearer token and an Owner membership for the target hotel.
+
+### Registration
+
+Registration validates:
+
+- hotel UUID
+- Owner membership
+- endpoint name
+- subscribed event names
+- HTTPS-only destination
+- no URL credentials
+- no non-443 port
+- no localhost / local / internal host
+- no IP-literal destination
+- exact membership in `WEBHOOK_ALLOWED_HOSTS`
+
+A successful registration creates the webhook endpoint as:
+
+- `status = Paused`
+- `verification_status = Pending`
+- no verified host
+- no verified timestamp
+
+Authenticated browser sessions have direct `INSERT` / `UPDATE` privileges revoked for `webhook_endpoints`, so they cannot forge verification state or `secret_ref`.
+
+### Per-endpoint signing credentials
+
+StayPilot does not store the raw endpoint HMAC credential in the endpoint table.
+
+The server creates a non-secret reference:
+
+```
+DERIVED_V1_<endpoint uuid without dashes>
+```
+
+and derives the actual credential with:
+
+```
+HMAC-SHA256(
+  OUTBOUND_SIGNING_MASTER_SECRET,
+  "staypilot:webhook:" + secret_ref
+)
+```
+
+The Owner receives the derived credential from the registration response so it can be configured in the downstream webhook receiver.
+
+The dispatcher can re-derive that credential server-side when sending an event. Legacy manually provisioned `WEBHOOK_SECRET_*` references remain supported.
+
+### Verification challenge
+
+Verification re-checks Owner authorization and the exact destination safety rules.
+
+StayPilot then sends a no-redirect verification request to the allowlisted destination with:
+
+- random UUID challenge
+- exact JSON body
+- timestamp
+- HMAC signature over `timestamp.body`
+
+The destination must return:
+
+```json
+{
+  "challenge": "<same challenge>",
+  "proof": "<HMAC-SHA256(endpoint secret, 'verify:' + challenge)>"
+}
+```
+
+Only a correct challenge + HMAC proof causes the service-role RPC to set:
+
+- `verification_status = Verified`
+- `verified_host = exact destination host`
+- `verified_at = now()`
+- `status = Active`
+
+Failed verification persists `Failed` and keeps the endpoint Paused.
+
+Changing the endpoint URL or signing reference clears verification automatically.
+
+### Required server configuration
+
+Endpoint registration / verification remains disabled until all required server values exist:
+
+```
+SUPABASE_URL
+SUPABASE_SECRET_KEY
+WEBHOOK_ALLOWED_HOSTS
+OUTBOUND_SIGNING_MASTER_SECRET
+```
+
+Outbound dispatch additionally requires:
+
+```
+DISPATCHER_SECRET
+```
+
+The current portfolio production environment intentionally does not configure these values.

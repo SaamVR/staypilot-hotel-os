@@ -48,7 +48,7 @@ assert.equal(constantTimeEqual("abcdef", "abcdeg"), false);
 assert.equal((await sha256Hex(body)).length, 64, "payload hash should be SHA-256 hex");
 
 const migration = await readFile(
-  new URL("../supabase/migrations/20260923_001_staypilot_core.sql", import.meta.url),
+  new URL("../supabase/migrations/20260923010000_staypilot_core.sql", import.meta.url),
   "utf8",
 );
 const exposedTables = [
@@ -85,7 +85,7 @@ assert.match(endpoint, /config\.webhookSigningSecret/, "event endpoint must veri
 assert.match(endpoint, /backend_not_configured/, "event endpoint must fail closed before secrets are configured");
 
 const workerMigration = await readFile(
-  new URL("../supabase/migrations/20260923_002_durable_worker.sql", import.meta.url),
+  new URL("../supabase/migrations/20260923020000_durable_worker.sql", import.meta.url),
   "utf8",
 );
 assert.match(workerMigration, /for update of e skip locked/i, "worker claim must use SKIP LOCKED");
@@ -133,7 +133,7 @@ assert.match(workerModule, /findExistingRun/, "worker must check for an existing
 assert.match(workerModule, /existing && existing\.result !== "Failed"/, "a prior Failed run must not suppress a retry");
 
 const outboxMigration = await readFile(
-  new URL("../supabase/migrations/20260924_003_webhook_outbox.sql", import.meta.url),
+  new URL("../supabase/migrations/20260924030000_webhook_outbox.sql", import.meta.url),
   "utf8",
 );
 assert.match(outboxMigration, /webhook_deliveries_endpoint_event_uidx/i, "outbound deliveries need endpoint + Event-ID uniqueness");
@@ -146,7 +146,7 @@ assert.match(workerModule, /completeWithOutbox/, "worker completion must include
 assert.match(workerModule, /terminalRunRecorded/, "outbox retry must preserve terminal business results");
 
 const dispatcherMigration = await readFile(
-  new URL("../supabase/migrations/20260924_004_webhook_dispatcher.sql", import.meta.url),
+  new URL("../supabase/migrations/20260924040000_webhook_dispatcher.sql", import.meta.url),
   "utf8",
 );
 const dispatcherModule = await readFile(new URL("../functions/_shared/dispatcher.js", import.meta.url), "utf8");
@@ -174,7 +174,7 @@ assert.match(dispatcherModule, /private_or_local_destination_forbidden/i, "dispa
 assert.match(dispatcherModule, /x-staypilot-signature/i, "dispatcher must HMAC-sign outbound bodies");
 
 const redriveMigration = await readFile(
-  new URL("../supabase/migrations/20260924_005_webhook_redrive.sql", import.meta.url),
+  new URL("../supabase/migrations/20260924050000_webhook_redrive.sql", import.meta.url),
   "utf8",
 );
 const redriveEndpoint = await readFile(new URL("../functions/api/webhook-redrive.js", import.meta.url), "utf8");
@@ -188,5 +188,36 @@ assert.doesNotMatch(redriveMigration, /update public\.inbound_events/i, "redrive
 assert.match(redriveEndpoint, /x-staypilot-dispatcher-secret/i, "redrive endpoint must share the trusted dispatcher authentication boundary");
 assert.match(redriveEndpoint, /dispatcher_not_configured/i, "redrive must fail closed before dispatcher configuration");
 assert.match(redriveEndpoint, /invalid_delivery_id/i, "redrive endpoint must validate delivery UUIDs");
+
+const provisioningMigration = await readFile(
+  new URL("../supabase/migrations/20260924060000_webhook_endpoint_provisioning.sql", import.meta.url),
+  "utf8",
+);
+const provisioningModule = await readFile(new URL("../functions/_shared/provisioning.js", import.meta.url), "utf8");
+const provisioningAuth = await readFile(new URL("../functions/_shared/auth.js", import.meta.url), "utf8");
+const registerEndpoint = await readFile(new URL("../functions/api/webhook-endpoints/register.js", import.meta.url), "utf8");
+const verifyEndpoint = await readFile(new URL("../functions/api/webhook-endpoints/verify.js", import.meta.url), "utf8");
+
+assert.match(provisioningMigration, /revoke insert, update on public\.webhook_endpoints from authenticated/i, "browser sessions must not create or update webhook endpoints directly");
+assert.match(provisioningMigration, /verification_status text not null default 'Pending'/i, "endpoint verification state must be durable");
+assert.match(provisioningMigration, /verification_status = 'Verified'/i, "verified RPC must persist verified state");
+assert.match(provisioningMigration, /status = 'Active'/i, "successful verification must be the gate that activates the endpoint");
+assert.match(provisioningMigration, /verification_status = 'Failed'/i, "failed verification must persist failed state");
+assert.match(provisioningMigration, /grant execute on function public\.mark_webhook_endpoint_verified\(uuid, text\) to service_role/i, "only service role may mark endpoints verified");
+assert.match(provisioningMigration, /grant execute on function public\.mark_webhook_endpoint_verification_failed\(uuid, text\) to service_role/i, "only service role may persist verification failure");
+assert.match(provisioningMigration, /endpoint\.verification_status = 'Verified'/i, "outbox and dispatcher claims must require explicit Verified state");
+assert.match(provisioningAuth, /owner_role_required/i, "endpoint provisioning must require Owner membership");
+assert.match(provisioningModule, /DERIVED_V1_/i, "endpoint credentials must use non-secret derived references");
+assert.match(provisioningModule, /staypilot:webhook:/i, "per-endpoint credentials must derive from the server master secret");
+assert.match(registerEndpoint, /requireHotelOwner/i, "registration endpoint must enforce Owner authorization");
+assert.match(registerEndpoint, /status:"Paused"/i, "new endpoints must start Paused");
+assert.match(registerEndpoint, /verification_status:"Pending"/i, "new endpoints must start Pending");
+assert.match(registerEndpoint, /signing_secret:signingSecret/i, "registration returns the derived credential to the Owner");
+assert.match(verifyEndpoint, /redirect:"manual"/i, "verification must not follow redirects");
+assert.match(verifyEndpoint, /verifyChallengeProof/i, "verification must require HMAC proof from the destination");
+assert.match(verifyEndpoint, /mark_webhook_endpoint_verified/i, "successful challenge must persist trusted state through server RPC");
+assert.match(verifyEndpoint, /mark_webhook_endpoint_verification_failed/i, "failed challenge must persist failure through server RPC");
+assert.match(sharedConfig, /OUTBOUND_SIGNING_MASTER_SECRET/i, "server config must read the outbound signing master");
+assert.match(dispatcherEndpoint, /config\.outboundSigningMasterSecret/i, "dispatcher must fail closed without the outbound signing master");
 
 console.log("StayPilot backend contract verification passed.");

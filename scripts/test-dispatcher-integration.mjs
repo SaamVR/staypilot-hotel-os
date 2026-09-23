@@ -20,6 +20,7 @@ const config = {
 
 const env = {
   WEBHOOK_SECRET_DEMO_OUTBOUND:"per-endpoint-secret",
+  OUTBOUND_SIGNING_MASTER_SECRET:"dispatcher-test-master-secret-that-is-long-enough",
 };
 
 function response(body, status = 200, headers = {}) {
@@ -106,15 +107,17 @@ async function withGlobalFetch(fetchMock, fn) {
 
 // 3. Endpoint secret resolution never exposes or guesses missing secret material.
 {
-  assert.equal(resolveWebhookSecret(env, "DEMO_OUTBOUND"), "per-endpoint-secret");
-  assert.throws(
+  assert.equal(await resolveWebhookSecret(env, "DEMO_OUTBOUND"), "per-endpoint-secret");
+  await assert.rejects(
     () => resolveWebhookSecret(env, "MISSING"),
     error => error instanceof DispatcherError && error.code === "webhook_secret_missing",
   );
-  assert.throws(
+  await assert.rejects(
     () => resolveWebhookSecret(env, "../../bad"),
     error => error instanceof DispatcherError && error.code === "invalid_secret_ref",
   );
+  const derived = await resolveWebhookSecret(env, "DERIVED_V1_AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA");
+  assert.match(derived, /^spwh_[a-f0-9]{64}$/);
 }
 
 // 4. Payload envelope preserves the domain Event ID/type/hotel and event data.

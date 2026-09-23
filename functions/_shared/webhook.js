@@ -73,5 +73,6 @@ export function getBackendConfig(env = {}) {
     workerSecret: String(env.WORKER_SECRET || ""),
     dispatcherSecret: String(env.DISPATCHER_SECRET || ""),
     webhookAllowedHosts: String(env.WEBHOOK_ALLOWED_HOSTS || ""),
+    outboundSigningMasterSecret: String(env.OUTBOUND_SIGNING_MASTER_SECRET || ""),
   };
 }
