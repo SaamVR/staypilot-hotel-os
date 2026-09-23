@@ -289,3 +289,53 @@ GitHub Actions runs this on every PR/push alongside the Vite production build.
 The presence of these files does **not** mean StayPilot is already a production PMS or control plane.
 
 Until a dedicated database, secrets, worker, authentication migration and provider certifications are completed, the canonical product remains a high-fidelity automation portfolio prototype with an intentionally dormant server foundation.
+
+
+## Durable outbound integration outbox
+
+Migration `20260924_003_webhook_outbox.sql` adds the server-side handoff from completed hotel events to optional external systems.
+
+The outbox does **not** make external HTTP calls yet. It only persists delivery intent safely.
+
+Current behavior:
+
+- active webhook endpoints subscribe to explicit event types
+- a processing inbound Event ID queues at most one delivery per endpoint
+- uniqueness is enforced by `hotel_id + endpoint_id + event_id`
+- queued deliveries retain the source `inbound_event_id`
+- worker completion waits until subscribed deliveries are durably queued
+- transient outbox failure retries the event
+- terminal hotel automation results are preserved across an outbox-only retry
+- duplicate/replayed Event IDs cannot create duplicate downstream deliveries
+- inactive endpoints receive nothing
+- enqueue RPC is service-role only
+
+This is the correct boundary for optional n8n / Make / Zapier / custom webhook consumers:
+
+```
+StayPilot event
+  -> hotel automation
+  -> durable audit/run
+  -> durable webhook outbox
+  -> future delivery dispatcher
+  -> optional external consumer
+```
+
+n8n, Make and Zapier remain optional downstream integration targets, not dependencies of the StayPilot core runtime.
+
+### Next outbound phase
+
+A separate dispatcher should later:
+
+- atomically claim queued/retrying deliveries
+- allow only pre-approved HTTPS destinations
+- resolve signing material from server-side secret storage
+- HMAC-sign the exact request body
+- apply connect/read timeouts
+- record HTTP status and duration
+- retry only transient failures with backoff
+- dead-letter exhausted deliveries
+- never treat a successful 2xx delivery as retryable
+- avoid SSRF by enforcing destination allowlists / verified hosts
+
+Do not add arbitrary external fetches directly to the hotel automation worker.
