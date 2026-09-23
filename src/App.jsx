@@ -82,10 +82,10 @@ const makeRooms = () => Array.from({ length: 24 }, (_, i) => {
 });
 
 const initialActivities = [
-  { id: 1, tone: "blue", title: "Booking.com reservation synced", meta: "SP-1048 · Deluxe King · $684", time: "2 min ago" },
-  { id: 2, tone: "green", title: "Direct payment captured", meta: "Visa •••• 4482 · $1,180", time: "6 min ago" },
-  { id: 3, tone: "violet", title: "Meta Ads conversion attributed", meta: "Weekend Escape · ROAS 6.2x", time: "11 min ago" },
-  { id: 4, tone: "amber", title: "Room 103 moved to cleaning", meta: "Housekeeping · priority normal", time: "18 min ago" }
+  { id: 1, tone: "blue", title: "Booking.com reservation synced", meta: "SP-1048 · Deluxe King · $684", time: "2 min ago", actor: "StayPilot system", category: "System" },
+  { id: 2, tone: "green", title: "Direct payment captured", meta: "Visa •••• 4482 · $1,180", time: "6 min ago", actor: "StayPilot system", category: "Operations" },
+  { id: 3, tone: "violet", title: "Meta Ads conversion attributed", meta: "Weekend Escape · ROAS 6.2x", time: "11 min ago", actor: "StayPilot automation", category: "Automation" },
+  { id: 4, tone: "amber", title: "Room 103 moved to cleaning", meta: "Housekeeping · priority normal", time: "18 min ago", actor: "Sam Rahman · Property Manager", category: "Operations" }
 ];
 
 const seedCampaigns = [
@@ -117,6 +117,7 @@ const ownerNav = [
   ["overview", "Owner dashboard", LayoutDashboard, "Property"],
   ["frontdesk", "Front desk calendar", CalendarDays, "Property"],
   ["reservations", "Reservations", ClipboardCheck, "Property"],
+  ["inbox", "Guest inbox", MessageSquare, "Property"],
   ["rooms", "Rooms & availability", BedDouble, "Property"],
   ["operations", "Operations", ClipboardCheck, "Property"],
   ["instructions", "Team instructions", ClipboardList, "Property"],
@@ -126,6 +127,8 @@ const ownerNav = [
   ["expenses", "Expenses", ReceiptText, "Business"],
   ["channels", "Channel manager", RefreshCw, "Business"],
   ["marketing", "Marketing", Megaphone, "Business"],
+  ["automations", "Automation center", Zap, "System"],
+  ["audit", "Audit log", Clock3, "System"],
   ["assistant", "Operations assistant", Bot, "System"],
   ["connections", "Connections & API", Settings2, "System"]
 ];
@@ -134,11 +137,14 @@ const managerNav = [
   ["overview", "Manager dashboard", LayoutDashboard, "Property"],
   ["frontdesk", "Front desk calendar", CalendarDays, "Property"],
   ["reservations", "Reservations", ClipboardCheck, "Property"],
+  ["inbox", "Guest inbox", MessageSquare, "Property"],
   ["rooms", "Rooms & availability", BedDouble, "Property"],
   ["operations", "Room prep & maintenance", ClipboardCheck, "Property"],
   ["instructions", "Team instructions", ClipboardList, "Property"],
   ["inventory", "Supplies & inventory", Boxes, "Resources"],
   ["approvals", "My requests", ShieldCheck, "Resources"],
+  ["automations", "Automation center", Zap, "System"],
+  ["audit", "Audit log", Clock3, "System"],
   ["assistant", "Operations assistant", Bot, "System"]
 ];
 
@@ -253,7 +259,7 @@ function App() {
     const timer = setInterval(() => {
       const item = pool[liveIndex.current % pool.length];
       liveIndex.current += 1;
-      setActivities(prev => [{ id: Date.now(), tone: item[0], title: item[1], meta: item[2], time: "just now" }, ...prev].slice(0, 8));
+      setActivities(prev => [{ id: Date.now(), tone: item[0], title: item[1], meta: item[2], time: "just now", actor: "StayPilot automation", category: "System" }, ...prev].slice(0, 40));
     }, 11000);
     return () => clearInterval(timer);
   }, []);
@@ -272,8 +278,9 @@ function App() {
     };
   }, [rooms, bookings, rateMultiplier]);
 
-  const pushActivity = (tone, title, meta) => {
-    setActivities(prev => [{ id: Date.now(), tone, title, meta, time: "just now" }, ...prev].slice(0, 8));
+  const pushActivity = (tone, title, meta, category = "Operations", actorOverride = null) => {
+    const actor = actorOverride || (role === "owner" ? "Maya Rahman · Owner" : "Sam Rahman · Property Manager");
+    setActivities(prev => [{ id: Date.now(), tone, title, meta, time: "just now", actor, category }, ...prev].slice(0, 40));
   };
 
   const flash = text => {
@@ -308,6 +315,9 @@ function App() {
     localStorage.removeItem("sp-instructions");
     localStorage.removeItem("sp-approvals");
     localStorage.removeItem("sp-tasks");
+    localStorage.removeItem("sp-guest-threads");
+    localStorage.removeItem("sp-automations");
+    localStorage.removeItem("sp-automation-log");
     setApprovals(seedApprovals);
     setTasks(seedTasks);
     setActive("overview");
@@ -368,6 +378,7 @@ function App() {
         {active === "frontdesk" && <FrontDesk {...pageProps} />}
         {active === "newreservation" && <NewReservation {...pageProps} />}
         {active === "reservations" && <Reservations {...pageProps} />}
+        {active === "inbox" && <GuestInbox {...pageProps} />}
         {active === "rooms" && <Rooms {...pageProps} />}
         {active === "inventory" && <Inventory {...pageProps} />}
         {active === "approvals" && <ApprovalCenter {...pageProps} />}
@@ -377,6 +388,8 @@ function App() {
         {active === "operations" && <Operations {...pageProps} />}
         {active === "instructions" && <Instructions {...pageProps} />}
         {active === "booking" && <BookingEngine {...pageProps} />}
+        {active === "automations" && <AutomationCenter {...pageProps} />}
+        {active === "audit" && <AuditLog {...pageProps} />}
         {active === "assistant" && <Assistant {...pageProps} />}
         {active === "connections" && <Connections {...pageProps} />}
       </div>
@@ -1069,6 +1082,81 @@ function Instructions({ role, pushActivity, flash }) {
   </>;
 }
 
+function GuestInbox({ bookings, pushActivity, flash, setActive }) {
+  const seedThreads = [
+    { id: "TH-1048", guest: "Olivia Martin", reservation: "SP-1048", source: "Booking.com", unread: 2, last: "Could we arrive around 13:30?", time: "4 min", messages: [
+      { from: "hotel", text: "Hi Olivia, your Deluxe King is confirmed for Sep 23–26. We look forward to welcoming you.", time: "Yesterday · 18:20" },
+      { from: "guest", text: "Thank you! Could we arrive around 13:30?", time: "4 min ago" }
+    ]},
+    { id: "TH-1046", guest: "Ava Garcia", reservation: "SP-1046", source: "Direct Website", unread: 0, last: "Perfect, thank you.", time: "22 min", messages: [
+      { from: "hotel", text: "Your Sky Suite is confirmed. We have also noted the VIP welcome setup.", time: "Today · 10:12" },
+      { from: "guest", text: "Perfect, thank you.", time: "22 min ago" }
+    ]},
+    { id: "TH-1047", guest: "Noah Williams", reservation: "SP-1047", source: "Airbnb", unread: 1, last: "Can I get two extra towels?", time: "31 min", messages: [
+      { from: "guest", text: "Can I get two extra towels?", time: "31 min ago" }
+    ]},
+    { id: "TH-1045", guest: "Liam Chen", reservation: "SP-1045", source: "Expedia", unread: 0, last: "Check-in instructions received.", time: "1 hr", messages: [
+      { from: "hotel", text: "Your check-in instructions are ready. Front desk is staffed 24 hours.", time: "1 hr ago" }
+    ]}
+  ];
+  const [threads, setThreads] = useState(() => load("sp-guest-threads", seedThreads));
+  const [selectedId, setSelectedId] = useState(() => threads[0]?.id || "");
+  const [draft, setDraft] = useState("");
+  useEffect(() => localStorage.setItem("sp-guest-threads", JSON.stringify(threads)), [threads]);
+  const selected = threads.find(t => t.id === selectedId) || threads[0];
+  const reservation = bookings.find(b => b.id === selected?.reservation);
+
+  const selectThread = id => {
+    setSelectedId(id);
+    setThreads(prev => prev.map(t => t.id === id ? { ...t, unread: 0 } : t));
+  };
+  const send = text => {
+    const clean = text.trim();
+    if (!clean || !selected) return;
+    setThreads(prev => prev.map(t => t.id === selected.id ? {
+      ...t,
+      unread: 0,
+      last: clean,
+      time: "now",
+      messages: [...t.messages, { from: "hotel", text: clean, time: "now" }]
+    } : t));
+    setDraft("");
+    pushActivity("green", "Guest message sent", selected.guest + " · " + selected.reservation, "Guest messaging");
+    flash("Message sent to " + selected.guest);
+  };
+  const templates = ["Your room is ready for arrival.", "What time do you expect to arrive?", "We’ve noted your request."];
+
+  return <>
+    <PageHeader eyebrow="Guest communication" title="Unified guest inbox" text="Keep reservation context beside every conversation so front desk and managers can respond without switching systems." action={<button className="ghost-btn" onClick={() => setActive("reservations")}><ClipboardCheck size={16} /> Reservations</button>} />
+    <section className="inbox-layout panel">
+      <aside className="thread-list">
+        <div className="thread-list-head"><div><span className="panel-kicker">Conversations</span><h3>Guest messages</h3></div><span className="instruction-count">{threads.reduce((n,t)=>n+t.unread,0)} unread</span></div>
+        <div className="thread-search"><Search size={15} /><span>Recent conversations</span></div>
+        {threads.map(t => <button key={t.id} className={"thread-row " + (selected?.id === t.id ? "active" : "")} onClick={() => selectThread(t.id)}>
+          <span className="guest-mini">{t.guest.split(" ").map(x=>x[0]).slice(0,2).join("")}</span>
+          <div><div><b>{t.guest}</b><time>{t.time}</time></div><small>{t.source} · {t.reservation}</small><p>{t.last}</p></div>
+          {t.unread > 0 && <em>{t.unread}</em>}
+        </button>)}
+      </aside>
+      {selected && <section className="conversation-pane">
+        <div className="conversation-head">
+          <div><span className="guest-mini large">{selected.guest.split(" ").map(x=>x[0]).slice(0,2).join("")}</span><div><b>{selected.guest}</b><small>{selected.source} · {selected.reservation}</small></div></div>
+          <button className="ghost-btn" onClick={() => setActive("reservations")}>Open reservation <ArrowUpRight size={14} /></button>
+        </div>
+        {reservation && <div className="guest-context">
+          <div><span>Stay</span><b>{reservation.checkIn} → {reservation.checkOut}</b></div>
+          <div><span>Room</span><b>{reservation.room || "Unassigned"}</b></div>
+          <div><span>Status</span><b>{reservation.status}</b></div>
+          <div><span>Value</span><b>{fmt(reservation.total)}</b></div>
+        </div>}
+        <div className="conversation-messages">{selected.messages.map((m,i) => <div key={i} className={"guest-message " + m.from}><div>{m.text}</div><time>{m.time}</time></div>)}</div>
+        <div className="message-templates">{templates.map(x => <button key={x} onClick={() => setDraft(x)}>{x}</button>)}</div>
+        <form className="guest-composer" onSubmit={e => { e.preventDefault(); send(draft); }}><textarea value={draft} onChange={e => setDraft(e.target.value)} placeholder="Write a reply..." /><button className="primary-btn" type="submit"><Send size={16} /> Send</button></form>
+      </section>}
+    </section>
+  </>;
+}
+
 function Channels({ pushActivity, flash }) {
   const syncAll = () => {
     pushActivity("blue", "All channel inventories synced", "Booking.com · Airbnb · Expedia · Agoda · Direct");
@@ -1497,6 +1585,83 @@ function Assistant({ rooms, setRooms, bookings, stats, rateMultiplier, setRateMu
       </aside>
     </div>
   </div>;
+}
+
+function AutomationCenter({ role, pushActivity, flash }) {
+  const seedRules = [
+    { id: "AUTO-01", name: "Reservation intake", scope: "Operations", trigger: "Reservation received", action: "Hold room-type inventory → sync channels → confirmation", status: "Active", last: "2 min ago", runs: 184, failures: 0 },
+    { id: "AUTO-02", name: "Checkout turnover", scope: "Operations", trigger: "Guest checked out", action: "Room → Dirty → housekeeping task", status: "Active", last: "18 min ago", runs: 42, failures: 0 },
+    { id: "AUTO-03", name: "Pre-arrival message", scope: "Operations", trigger: "24h before arrival", action: "Send arrival instructions → track reply", status: "Active", last: "42 min ago", runs: 67, failures: 1 },
+    { id: "AUTO-04", name: "Occupancy rate guard", scope: "Revenue", trigger: "Occupancy > 80%", action: "Suggest BAR +8% → Owner approval if >10%", status: "Active", last: "1 hr ago", runs: 12, failures: 0 },
+    { id: "AUTO-05", name: "Failed payment recovery", scope: "Finance", trigger: "Payment authorization fails", action: "Retry once → notify front desk", status: "Paused", last: "Yesterday", runs: 9, failures: 1 },
+    { id: "AUTO-06", name: "Low-stock alert", scope: "Operations", trigger: "Item falls below par", action: "Create purchase request → notify manager", status: "Active", last: "Yesterday", runs: 8, failures: 0 }
+  ];
+  const [rules, setRules] = useState(() => load("sp-automations", seedRules));
+  const [logs, setLogs] = useState(() => load("sp-automation-log", [
+    { id:1, rule:"Reservation intake", result:"Success", detail:"SP-1048 · Booking.com", time:"2 min ago" },
+    { id:2, rule:"Pre-arrival message", result:"Success", detail:"Olivia Martin · delivered", time:"42 min ago" },
+    { id:3, rule:"Occupancy rate guard", result:"Approval", detail:"APR-102 · BAR +18%", time:"1 hr ago" },
+    { id:4, rule:"Failed payment recovery", result:"Failed", detail:"Retry exhausted · operator alerted", time:"Yesterday" }
+  ]));
+  useEffect(() => localStorage.setItem("sp-automations", JSON.stringify(rules)), [rules]);
+  useEffect(() => localStorage.setItem("sp-automation-log", JSON.stringify(logs)), [logs]);
+
+  const visibleRules = role === "owner" ? rules : rules.filter(r => r.scope === "Operations");
+  const toggle = rule => {
+    if (role === "manager" && rule.scope !== "Operations") return flash("Owner permission required");
+    const next = rule.status === "Active" ? "Paused" : "Active";
+    setRules(prev => prev.map(r => r.id === rule.id ? { ...r, status: next } : r));
+    pushActivity(next === "Active" ? "green" : "amber", rule.name + " " + next.toLowerCase(), rule.id + " · automation control", "Automation");
+    flash(rule.name + " " + next.toLowerCase());
+  };
+  const runNow = rule => {
+    if (rule.status !== "Active") return flash("Enable the automation before running it");
+    const entry = { id: Date.now(), rule: rule.name, result: "Success", detail: "Manual demo run · " + (role === "owner" ? "Owner" : "Manager"), time: "now" };
+    setLogs(prev => [entry, ...prev].slice(0,30));
+    setRules(prev => prev.map(r => r.id === rule.id ? { ...r, last: "now", runs: r.runs + 1 } : r));
+    pushActivity("green", rule.name + " executed", "Manual demo run completed", "Automation");
+    flash(rule.name + " completed");
+  };
+
+  return <>
+    <PageHeader eyebrow="Automation" title="Property automation center" text={role === "owner" ? "Control operational, revenue and finance workflows with a visible execution history." : "Manage day-to-day operational automations within the Manager role."} />
+    <section className="automation-summary">
+      <div><span>Active rules</span><b>{visibleRules.filter(r=>r.status==="Active").length}</b><small>within your scope</small></div>
+      <div><span>Runs</span><b>{visibleRules.reduce((n,r)=>n+r.runs,0)}</b><small>recorded executions</small></div>
+      <div><span>Failures</span><b>{visibleRules.reduce((n,r)=>n+r.failures,0)}</b><small>require review</small></div>
+      <div><span>Permission model</span><b>{role === "owner" ? "Full" : "Operations"}</b><small>{role === "owner" ? "all scopes" : "role limited"}</small></div>
+    </section>
+    <section className="automation-layout">
+      <div className="automation-rule-list">
+        {visibleRules.map(rule => <article className="panel automation-rule" key={rule.id}>
+          <div className="automation-rule-head"><div><span className="rule-scope">{rule.scope}</span><h3>{rule.name}</h3><small>{rule.id}</small></div><button className={"toggle-switch " + (rule.status === "Active" ? "on" : "")} onClick={() => toggle(rule)}><i /></button></div>
+          <div className="automation-flow"><div><span>IF</span><b>{rule.trigger}</b></div><ArrowUpRight size={16} /><div><span>THEN</span><b>{rule.action}</b></div></div>
+          <div className="automation-rule-foot"><span>Last run <b>{rule.last}</b></span><span>{rule.runs} runs · {rule.failures} failures</span><button className="row-action" onClick={() => runNow(rule)}>Run now</button></div>
+        </article>)}
+      </div>
+      <aside className="panel automation-log-panel">
+        <div className="panel-head"><div><span className="panel-kicker">Execution history</span><h3>Recent runs</h3></div></div>
+        <div className="automation-log">{logs.slice(0,8).map(log => <div key={log.id}><span className={"automation-result " + log.result.toLowerCase()}><i />{log.result}</span><div><b>{log.rule}</b><small>{log.detail}</small></div><time>{log.time}</time></div>)}</div>
+      </aside>
+    </section>
+  </>;
+}
+
+function AuditLog({ activities, role }) {
+  const [filter, setFilter] = useState("All");
+  const categories = ["All", "Operations", "Automation", "Guest messaging", "System"];
+  const rows = activities.filter(a => filter === "All" || (a.category || "Operations") === filter);
+  return <>
+    <PageHeader eyebrow="Governance" title="Audit log" text="Trace human, system and automation actions across the shared hotel state." />
+    <div className="audit-toolbar"><div className="segmented">{categories.map(x => <button key={x} className={filter===x?"active":""} onClick={()=>setFilter(x)}>{x}</button>)}</div><span className="audit-role"><ShieldCheck size={14} /> Viewing as {role === "owner" ? "Owner" : "Manager"}</span></div>
+    <article className="panel audit-panel">
+      <div className="audit-list">{rows.map(a => <div className="audit-row" key={a.id}>
+        <span className={"activity-icon " + a.tone}><Clock3 size={14} /></span>
+        <div><div><b>{a.title}</b><span className="audit-category">{a.category || "Operations"}</span></div><p>{a.meta}</p><small>{a.actor || "StayPilot system"}</small></div>
+        <time>{a.time}</time>
+      </div>)}</div>
+    </article>
+  </>;
 }
 
 function Connections({ pushActivity, flash }) {

@@ -1,58 +1,139 @@
 # StayPilot OS
 
-**Interactive hotel operations command center — Portfolio Work #2**
+**Role-aware hotel operating system prototype — Portfolio Work #2**
 
 **Live demo:** https://staypilot-hotel-os.pages.dev/
 
-StayPilot OS is a high-fidelity hotel business automation prototype that brings reservations, room inventory, OTA/channel sync, direct booking, marketing attribution, payments, housekeeping, maintenance, and AI-assisted operations into one interface.
+StayPilot OS is an interactive hotel-operations prototype for independent hotels. It demonstrates how reservations, physical rooms, housekeeping, maintenance, supplies, approvals, distribution, marketing, guest messaging, automations and an operator assistant can work from one shared property state.
 
-## What the prototype demonstrates
+## Product model
 
-- Real-time style hotel KPI dashboard with occupancy, ADR, RevPAR and revenue
-- Unified reservation ledger for Direct Website, Booking.com, Airbnb, Expedia and Agoda
-- Shared room inventory with Available, Occupied, Reserved, Cleaning and Maintenance states
-- Channel manager with synchronized rates and sellable-room inventory
-- Direct booking engine that creates a reservation and immediately updates room inventory
-- Meta Ads + Google campaign attribution tied to bookings and revenue
-- Operations center for housekeeping, maintenance, payments and system events
-- Conversational assistant that can execute prototype actions such as:
-  - `Show today's arrivals`
-  - `Block room 207`
-  - `Mark room 103 ready`
-  - `Raise rates 8%`
-  - `Sync all channels`
-  - `Pause Meta ads`
+The prototype has two demo roles:
 
-## Portfolio interaction model
+- **Owner** — business performance, finance, approval queue, inventory value, channel management, marketing, integrations, automation and property oversight.
+- **Property Manager** — front desk, reservations, room readiness, housekeeping, maintenance, supply counts, purchase/expense requests, guest communication and operational automations.
 
-The prototype is intentionally connected rather than a collection of static screens. A visitor can create a booking in the guest-facing booking engine, then move to Reservations or Rooms and see the same state reflected there. The AI assistant operates that same shared state.
+The Operations Assistant uses the same role rules. Manager commands outside policy are routed to Owner approval rather than silently executed.
 
-Demo state is stored in the browser with localStorage and can be restored with **Reset demo**.
+## Key interactive workflows
+
+### Front desk and reservations
+
+- 7-day room tape chart / reservation calendar
+- Reservation assignment queue
+- Reservation drawer with room assignment, check-in, check-out and cancellation
+- Internal walk-in / phone reservation entry
+- Guest-facing direct booking engine
+- Direct bookings reserve **room-type inventory first** and enter the assignment queue instead of immediately claiming a physical room
+
+### Room state
+
+Rooms use independent operational dimensions:
+
+- **Occupancy:** Vacant / Reserved / Occupied
+- **Housekeeping:** Clean / Dirty / Cleaning
+- **Maintenance:** Clear / Out of order
+- **Sellability:** derived from the dimensions above
+
+This prevents housekeeping or maintenance actions from overwriting reservation/occupancy state.
+
+### Owner ↔ Manager approval workflow
+
+- Manager purchase, expense, refund, rate and marketing requests
+- Owner approval / rejection
+- Manager rate changes above 10% are approval-gated
+- Manager marketing commands are approval-gated
+- Approved purchase orders become receivable stock; inventory does not increase until delivery is received
+
+### Operations
+
+- Persistent housekeeping and maintenance tasks
+- Room-readiness controls
+- Maintenance resolution updates the same room state used by Front Desk
+- Shared owner/manager instructions and handoff notes
+- Activity stream and audit history
+
+### Guest communication
+
+- Unified guest inbox
+- Reservation context beside each conversation
+- Quick response templates
+- Interactive replies stored in demo state
+
+### Automation Center
+
+Role-aware rules demonstrate:
+
+- Reservation intake
+- Checkout → housekeeping turnover
+- Pre-arrival messaging
+- Occupancy-driven rate suggestions
+- Failed-payment recovery
+- Low-stock purchase requests
+
+Rules can be enabled/paused and manually run in the prototype with an execution log.
+
+### Distribution and growth
+
+- Direct Website, Booking.com, Airbnb, Expedia and Agoda channel surfaces
+- Inventory/rate reconciliation controls
+- Google Hotel Ads, Google Search/PMax, Meta, TikTok and Microsoft Ads control surfaces
+- Campaign budgets, target ROAS, campaign state and booking attribution
+
+### Connections
+
+Provider credential forms demonstrate the configuration required for OTA, payment, marketing and messaging integrations.
+
+Connection tests and runtime health checks are **explicitly simulated** in this portfolio build. Credentials typed into the demo are not persisted.
+
+## Shared demo state
+
+Interactive state is stored in browser localStorage, including:
+
+- rooms
+- reservations
+- approval requests
+- tasks
+- supplies
+- expenses
+- instructions
+- guest messages
+- automation rules/logs
+- marketing/campaign controls
+- activity/audit history
+
+Use **Reset demo** to restore seeded data.
 
 ## Stack
 
-- React + Vite
+- React 19
+- Vite
 - Recharts
-- Lucide icons
+- Lucide React
 - Cloudflare Pages
+- Browser localStorage for prototype persistence
 
-## Integration architecture
+The Vite production build separates React, charts and icon libraries into vendor chunks to keep the application bundle manageable.
 
-The visible Booking.com, Airbnb, Expedia, Agoda, Meta Ads, Google Ads and payment connections are realistic prototype integration surfaces. Production deployment would require approved provider APIs/webhooks, secure credentials, payment processing and a persistent backend/database.
+## Production boundary
 
-A production architecture would typically place a normalized hotel inventory/reservation model behind channel adapters, idempotent webhook processing, payment events and an action-audited AI/operator layer.
+StayPilot OS is a high-fidelity prototype, not a live PMS.
 
-## Deployment
+A production implementation would require:
 
-Production build:
+- persistent multi-tenant backend/database
+- authentication and server-enforced RBAC
+- payment processor integration
+- approved OTA/channel partner APIs
+- secure secrets vault / KMS
+- webhook verification and idempotency
+- real guest messaging providers
+- rate/inventory adapter layer
+- immutable server-side audit log
+- production observability and retry queues
 
-```bash
-npm install
-npm run build
-```
-
-Cloudflare Pages output directory: `dist`
+The prototype intentionally labels simulated provider checks and does not claim external integrations are live.
 
 ---
 
-Built as a product-focused portfolio demonstration of hotel automation, dashboard UX and conversational operations.
+Built as a product-focused demonstration of hotel operations architecture, role-aware UX, automation and shared-state workflows.
