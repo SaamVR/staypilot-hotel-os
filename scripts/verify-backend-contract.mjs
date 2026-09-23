@@ -153,7 +153,7 @@ const dispatcherModule = await readFile(new URL("../functions/_shared/dispatcher
 const dispatcherEndpoint = await readFile(new URL("../functions/api/webhook-dispatch-run.js", import.meta.url), "utf8");
 assert.match(dispatcherMigration, /verified_at timestamptz/i, "webhook endpoints need server verification state");
 assert.match(dispatcherMigration, /revoke insert, update on public\.webhook_endpoints from authenticated/i, "clients must not be able to forge verification columns");
-assert.match(dispatcherMigration, /grant insert \(hotel_id, name, url, events, status, secret_ref\)/i, "endpoint client insert must be column-scoped");
+assert.match(dispatcherMigration, /grant\s+insert\s*\(hotel_id,\s*name,\s*url,\s*events,\s*status,\s*secret_ref\)/i, "endpoint client insert must be column-scoped");
 assert.match(dispatcherMigration, /endpoint\.verified_at is not null/i, "unverified endpoints must not enter the outbox/dispatcher");
 assert.match(dispatcherMigration, /for update of delivery skip locked/i, "dispatcher claims must use SKIP LOCKED");
 assert.match(dispatcherMigration, /interval '10 minutes'/i, "dispatcher must recover stale leases");
