@@ -2523,6 +2523,31 @@ function Connections({ pushActivity, flash, emitHotelEvent }) {
   const [testEvent, setTestEvent] = useState("guest.request_received");
   const [testEventId, setTestEventId] = useState(() => "evt_demo_" + String(Date.now()).slice(-8));
   const [lastInboundOutcome, setLastInboundOutcome] = useState(null);
+  const [backendHealth, setBackendHealth] = useState({ state:"checking", configured:false, database:false, signature:false, mode:"checking" });
+
+  const checkBackendHealth = async (notify = false) => {
+    setBackendHealth(prev => ({ ...prev, state:"checking" }));
+    try {
+      const response = await fetch("/api/backend-health", { cache:"no-store" });
+      const data = await response.json();
+      if (!response.ok || !data?.ok) throw new Error("health_unavailable");
+      const next = {
+        state: data.configured ? "ready" : "staged",
+        configured: Boolean(data.configured),
+        database: Boolean(data.dependencies?.database),
+        signature: Boolean(data.dependencies?.inbound_signature_verification),
+        mode: data.mode || (data.configured ? "configured" : "not_configured")
+      };
+      setBackendHealth(next);
+      if (notify) flash(next.configured ? "Production backend boundary is configured" : "Backend foundation is staged and fail-closed");
+    } catch {
+      setBackendHealth({ state:"unavailable", configured:false, database:false, signature:false, mode:"unavailable" });
+      if (notify) flash("Backend health endpoint is unavailable");
+    }
+  };
+
+  useEffect(() => { void checkBackendHealth(false); }, []);
+
   const provider = providers[selected];
   const webhook = "https://api.staypilot.demo/webhooks/" + selected;
 
@@ -2610,6 +2635,19 @@ function Connections({ pushActivity, flash, emitHotelEvent }) {
       <div><span className="summary-icon safe"><ShieldCheck size={19} /></span><div><b>Encrypted secrets</b><span>KMS / environment vault</span></div></div>
       <div><span className="summary-icon"><Database size={19} /></span><div><b>Webhook intake</b><span>Signed + idempotent events</span></div></div>
       <div className="environment-switch"><span>Environment</span><div>{["Sandbox", "Production"].map(x => <button key={x} className={environment === x ? "active" : ""} onClick={() => setEnvironment(x)}>{x}</button>)}</div></div>
+    </section>
+
+    <section className={"panel backend-readiness-card " + backendHealth.state}>
+      <div className="backend-readiness-head">
+        <div><span className="panel-kicker">Commercial backend boundary</span><h3>{backendHealth.state === "ready" ? "Server foundation configured" : backendHealth.state === "unavailable" ? "Server boundary unavailable" : backendHealth.state === "checking" ? "Checking server boundary…" : "Foundation staged · fail-closed"}</h3><p>{backendHealth.state === "ready" ? "Dedicated database and HMAC verifier are configured. Durable worker execution remains a separate rollout phase." : backendHealth.state === "staged" ? "Pages Functions, RLS schema and signed Event-ID ingestion are deployed, but no dedicated StayPilot Supabase project/secrets are configured yet." : backendHealth.state === "unavailable" ? "The portfolio remains local-first; no server event ingestion is being claimed." : "Verifying the deployed Pages Function without exposing credentials."}</p></div>
+        <span className={"backend-state-pill " + backendHealth.state}>{backendHealth.state === "ready" ? "Configured" : backendHealth.state === "staged" ? "Fail-closed" : backendHealth.state === "checking" ? "Checking" : "Unavailable"}</span>
+      </div>
+      <div className="backend-readiness-grid">
+        <div><Database size={17}/><span>Dedicated database</span><b>{backendHealth.database ? "Configured" : "Not provisioned"}</b></div>
+        <div><ShieldCheck size={17}/><span>Inbound HMAC secret</span><b>{backendHealth.signature ? "Configured" : "Not configured"}</b></div>
+        <div><PlugZap size={17}/><span>Event ingestion</span><b>{backendHealth.configured ? "Ready for signed events" : "Rejects requests"}</b></div>
+      </div>
+      <div className="backend-readiness-foot"><small>Current frontend authority: browser-local demo state. Server authority is not enabled.</small><button className="ghost-btn" onClick={() => checkBackendHealth(true)}><RefreshCw size={15} className={backendHealth.state === "checking" ? "spin" : ""}/> Check server boundary</button></div>
     </section>
 
     <section className="owner-field-grid integration-marketplace">
