@@ -10,6 +10,7 @@ export async function onRequestGet({ env }) {
   const outboundSigningConfigured = Boolean(config.outboundSigningMasterSecret);
   const orchestratorAuthConfigured = Boolean(config.orchestratorSecret);
   const orchestratorEnabled = Boolean(config.orchestratorEnabled);
+  const tenantBootstrapEnabled = Boolean(config.tenantBootstrapEnabled);
   const configured = databaseConfigured && signingConfigured && workerConfigured;
 
   return jsonResponse({
@@ -26,6 +27,7 @@ export async function onRequestGet({ env }) {
       outbound_signing_master: outboundSigningConfigured,
       scheduler_orchestration_authentication: orchestratorAuthConfigured,
       scheduler_orchestration_enabled: orchestratorEnabled,
+      tenant_bootstrap_enabled: tenantBootstrapEnabled,
     },
     note: configured
       ? (dispatcherAuthConfigured && outboundAllowlistConfigured && outboundSigningConfigured
