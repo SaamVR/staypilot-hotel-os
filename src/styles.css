@@ -1218,3 +1218,24 @@ nav button,.primary-btn,.secondary-btn,.ghost-btn,.danger-btn,.icon-btn,.row-act
 .backend-readiness-card.unavailable{border-color:#e4caca}
 .backend-readiness-card.staged{border-color:#e4d5bd}
 @media(max-width:800px){.backend-readiness-grid{grid-template-columns:1fr}.backend-readiness-head,.backend-readiness-foot{align-items:stretch;flex-direction:column}.backend-state-pill{align-self:flex-start}.backend-readiness-foot button{width:100%}}
+
+
+/* Final Integration Hub responsive authority */
+.connections-layout,.provider-list,.credential-panel,.webhook-console,.table-scroll{min-width:0;max-width:100%}
+.webhook-box>div{min-width:0}
+.webhook-box b{overflow-wrap:anywhere;word-break:break-word}
+.webhook-console .table-scroll{width:100%;max-width:100%;overflow-x:auto;overflow-y:hidden}
+@media(max-width:900px){
+  .connections-layout{grid-template-columns:minmax(0,1fr)!important}
+  .provider-list{display:grid!important;grid-template-columns:1fr 1fr!important}
+  .provider-head{grid-column:1/-1}
+  .credential-panel{width:100%;min-width:0}
+}
+@media(max-width:680px){
+  .provider-list{grid-template-columns:1fr!important}
+  .credential-head{grid-template-columns:46px minmax(0,1fr)!important}
+  .credential-head>.status{grid-column:1/-1;justify-self:start}
+  .webhook-box{flex-direction:column!important;align-items:stretch!important}
+  .webhook-box>div,.webhook-box button{width:100%}
+  .webhook-console table{min-width:760px}
+}
