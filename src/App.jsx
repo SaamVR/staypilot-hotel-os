@@ -282,6 +282,7 @@ function App() {
   const [commandQuery, setCommandQuery] = useState("");
   const liveIndex = useRef(0);
   const lowStockSeen = useRef(new Set(load("sp-lowstock-auto", [])));
+  const inboundEventIds = useRef(new Set(load("sp-event-ids", [])));
 
   useEffect(() => localStorage.setItem("sp-rooms", JSON.stringify(rooms)), [rooms]);
   useEffect(() => localStorage.setItem("sp-bookings", JSON.stringify(bookings)), [bookings]);
@@ -393,6 +394,10 @@ function App() {
   const emitHotelEvent = (event, payload = {}) => {
     const rule = payload.ruleId ? automationRules.find(r => r.id === payload.ruleId) : automationRuleFor(event);
     if (!rule) return { ok: false, reason: "No automation is mapped to " + event };
+    const eventId = payload.eventId || null;
+    if (eventId && inboundEventIds.current.has(eventId)) {
+      return { ok: true, duplicate: true, eventId, reason: "Duplicate event suppressed" };
+    }
     if (rule.status !== "Active") {
       if (payload.manual) flash(rule.name + " is paused");
       return { ok: false, reason: "Automation paused" };
@@ -403,11 +408,17 @@ function App() {
         return { ok: false, reason: "Automation master pause is active" };
       }
       if (payload.stateTrigger) return { ok: false, deferred: true, reason: "Automation paused · state trigger deferred" };
-      const queueKey = event + ":" + (payload.booking?.id || payload.item?.id || payload.roomNumber || payload.request || payload.adjustment || payload.guest || "default");
-      setAutomationQueue(prev => prev.some(item => item.key === queueKey)
-        ? prev
-        : [...prev, { id:Date.now(), key:queueKey, event, payload:{ ...payload, manual:false }, time:"now" }].slice(-30));
-      return { ok: false, queued: true, reason: "Automation paused · event queued" };
+      const queueKey = eventId || (event + ":" + (payload.booking?.id || payload.item?.id || payload.roomNumber || payload.request || payload.adjustment || payload.guest || "default"));
+      const duplicateQueued = automationQueue.some(item => item.key === queueKey);
+      if (!duplicateQueued) {
+        setAutomationQueue(prev => [...prev, { id:Date.now(), key:queueKey, event, payload:{ ...payload, manual:false }, time:"now" }].slice(-30));
+      }
+      return { ok: false, queued: true, duplicate: duplicateQueued, eventId, reason: duplicateQueued ? "Duplicate event already queued" : "Automation paused · event queued" };
+    }
+
+    if (eventId) {
+      inboundEventIds.current.add(eventId);
+      localStorage.setItem("sp-event-ids", JSON.stringify(Array.from(inboundEventIds.current).slice(-120)));
     }
 
     if (event === "reservation.created") {
@@ -661,9 +672,11 @@ function App() {
     localStorage.removeItem("sp-routed-guest-requests");
     localStorage.removeItem("sp-policy");
     localStorage.removeItem("sp-lowstock-auto");
+    localStorage.removeItem("sp-event-ids");
     localStorage.removeItem("sp-occupancy-auto-fired");
     localStorage.removeItem("sp-prearrival-auto-fired");
     lowStockSeen.current = new Set();
+    inboundEventIds.current = new Set();
     setApprovals(seedApprovals);
     setTasks(seedTasks);
     setStock(seedStock);
