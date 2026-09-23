@@ -618,3 +618,305 @@ tbody tr:hover{background:#fafbf9}
 .chat-head div>span,.quick-prompts button,.form-note,.command-grid small,.command-tip{font-size:11.5px}
 .command-label{font-size:11px}
 .hotel-logo small{font-size:9px}.guest-nav>div:last-child,.guest-nav button{font-size:11px}
+
+/* =========================================================
+   VISUAL SYSTEM V5 — forest emerald / charcoal / cool white
+   20-rule UX pass: hierarchy, contrast, consistency, focus,
+   grouping, target size, feedback, density, accessibility.
+   ========================================================= */
+:root{
+  --forest-950:#0b2119;
+  --forest-900:#103126;
+  --forest-800:#124333;
+  --forest-700:#14543f;
+  --forest-600:#1b624b;
+  --forest-500:#2d7a60;
+  --forest-100:#dfece7;
+  --forest-50:#eef5f2;
+  --charcoal-950:#151a18;
+  --charcoal-900:#1b211f;
+  --charcoal-800:#252c29;
+  --gray-700:#4f5b56;
+  --gray-600:#606d67;
+  --gray-500:#78827e;
+  --gray-400:#9aa39f;
+  --gray-300:#c7ceca;
+  --gray-200:#dde3e0;
+  --gray-100:#edf1ef;
+  --cool-white:#f7f9f8;
+  --surface:#fcfdfc;
+  --surface-2:#f2f5f3;
+  --ink:#1c2421;
+  --muted:#65716c;
+  --line:#dce3df;
+  --blue:var(--forest-700);
+  --blue2:var(--forest-600);
+  --green:var(--forest-500);
+  --amber:#9d6a2c;
+  --red:#ad4d53;
+  --violet:#5d665f;
+  --card:var(--surface);
+  --page:var(--cool-white);
+  --soft:var(--surface-2);
+  --shadow:0 1px 2px rgba(21,26,24,.04),0 6px 16px rgba(21,26,24,.035);
+  color:var(--ink);
+}
+html{background:var(--cool-white)}
+body{background:var(--cool-white);color:var(--ink)}
+::selection{background:#cfe3da;color:#11251d}
+button,input,select,textarea{accent-color:var(--forest-700)}
+button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible,[tabindex]:focus-visible{
+  outline:3px solid rgba(20,84,63,.22);
+  outline-offset:2px;
+}
+button:disabled{cursor:not-allowed;opacity:.55}
+
+/* 1. Strong persistent navigation hierarchy */
+.sidebar{
+  background:var(--charcoal-950);
+  border-right:1px solid #0f1412;
+}
+.brand-mark{background:var(--forest-700);color:#f5faf7}
+.brand span{color:#9ca8a2}
+.property-card{background:#1f2925;border-color:#2c3833}
+.property-thumb{background:#26352f;color:#dce9e3}
+.property-card span{color:#a7b2ad}
+.sidebar nav{gap:0;padding-right:4px}
+.nav-group{display:flex;flex-direction:column;gap:3px;margin-bottom:15px}
+.nav-group:last-child{margin-bottom:0}
+.nav-label{color:#76847e;margin:0 12px 6px;font-size:10px}
+nav button{color:#b2bcb7}
+nav button:hover{background:#202b27;color:#f7faf8}
+nav button.active{
+  background:var(--forest-900);
+  color:#fff;
+  box-shadow:inset 3px 0 #5b9b80;
+}
+nav button em{background:#315846;color:#dce9e3}
+.sidebar nav::-webkit-scrollbar-thumb{background:#36433e}
+.reset-btn{background:#1d2723;border-color:#303c37;color:#aeb8b3}
+.reset-btn:hover{background:#25312c}
+.system-health{border-color:#2b3531}
+.live-dot,.live-pill span,.live-label i,.assistant-online span{background:#4d9b79;box-shadow:none}
+
+/* 2. Cool white content canvas and restrained surfaces */
+.app-shell,.main,.content{background:var(--cool-white)}
+.topbar{background:rgba(252,253,252,.98);border-color:var(--line)}
+.search{color:var(--gray-600)}
+.search kbd{background:#f1f4f2;border-color:#d9e0dc;color:#65716c}
+.icon-btn,.ghost-btn{background:var(--surface);border-color:#d8dfdb;color:#4f5d57}
+.icon-btn:hover,.ghost-btn:hover{background:#f0f4f2;border-color:#c7d2cc}
+.role-switch{background:#edf1ef;border-color:#d9e0dc}
+.role-switch button{color:#65716c}
+.role-switch button.active{background:#fff;color:#17382b;border-color:#bdcbc4}
+.avatar{background:var(--forest-900)}
+.live-pill{background:#eef5f2;border-color:#d9e8e1;color:#2e6650}
+
+/* 3. Typography + information hierarchy */
+.page-head h1{color:#18201d;font-size:36px;letter-spacing:-.8px}
+.page-head p{color:#63706a;font-size:14.5px;max-width:780px}
+.eyebrow,.panel-kicker{color:#5f6b66;font-weight:700}
+.panel-head h3{color:#202a26;font-size:18px}
+.kpi-top{color:#596660}
+.kpi-value{color:#17201c;font-size:32px}
+.kpi-meta span{color:#74807b}
+.kpi-meta b{color:var(--forest-700)}
+
+/* 4. Cards communicate grouping, not decoration */
+.panel,.kpi-card{
+  background:var(--surface);
+  border-color:var(--line);
+  box-shadow:var(--shadow);
+}
+.kpi-card{min-height:156px}
+.snapshot-grid>div,.integration-metrics>div,.ad-channel-performance>div{
+  background:#f4f6f5;
+  border-color:#e4e9e6;
+}
+.owner-field{background:var(--surface);border-color:var(--line)}
+.owner-field:hover{background:#f8faf9;border-color:#c9d4cf}
+.field-icon,.kpi-icon,.attr-icon,.summary-icon,.shift-actions button>svg:first-child{
+  background:var(--forest-50);
+  color:var(--forest-700);
+}
+
+/* 5. One primary action language */
+.primary-btn{background:var(--forest-700);color:#fff}
+.primary-btn:hover{background:var(--forest-800)}
+.secondary-btn{background:var(--forest-50);color:var(--forest-800)}
+.text-btn,.ad-channel-foot button{color:var(--forest-700)}
+.row-action:hover{border-color:#aec6bb;color:var(--forest-800);background:#f2f7f4}
+
+/* 6. Clear operational pulse, not promotional card strip */
+.ops-pulse{
+  background:var(--surface);
+  border-color:var(--line);
+  overflow:hidden;
+}
+.ops-pulse-label{background:#f2f5f3;border-right:1px solid var(--line)}
+.ops-pulse>button{background:var(--surface);border-left:1px solid #e6ebe8;color:#4f5c57}
+.ops-pulse>button:hover{background:#f5f8f6}
+.ops-pulse button>b{color:#202a26}
+.ops-pulse .pulse-ai{background:#eef5f2;color:var(--forest-800)}
+.ops-pulse .pulse-ai:hover{background:#e3efe9}
+.ops-pulse .pulse-ai b{color:var(--forest-900)}
+
+/* 7. Tables optimize scanning */
+.table-panel{border-radius:10px}
+thead{position:sticky;top:0;z-index:2}
+th{background:#eef2f0;color:#55615c;border-color:#dfe5e2}
+td{color:#4d5954;border-color:#e7ebe9}
+td b{color:#202925}
+tbody tr:nth-child(even){background:#fbfcfb}
+tbody tr:hover{background:#f1f6f3}
+.guest-cell>span{background:#e9f1ed;color:#265b46}
+.status,.source{border-radius:5px}
+.source{background:#eef1ef!important;color:#4e5d56!important}
+.source-direct-website{background:#e2eee8!important;color:#1e6348!important}
+.source-bookingcom,.source-airbnb,.source-expedia,.source-agoda,.source-meta,.source-google,
+.source-google-search,.source-google-hotel-ads,.source-tiktok,.source-microsoft-ads{
+  background:#eef1ef!important;color:#4f5c57!important
+}
+
+/* 8. Semantic status uses color sparingly */
+.status-confirmed i,.status-live i,.status-active i,.status-captured i,.status-available i{background:#2d7a60}
+.status-checked-in i,.status-secured i,.status-reserved i,.status-occupied i{background:#69746f}
+.status-paused i,.status-cleaning i{background:#a66d2c}
+.status-maintenance i{background:#ad4d53}
+.room-dot.available{background:#2d7a60}.room-dot.occupied,.room-dot.reserved{background:#6e7974}.room-dot.cleaning{background:#a66d2c}.room-dot.maintenance{background:#ad4d53}
+.stock-health.good{background:#e7f1ec;color:#225f47}.stock-health.good i{background:#2d7a60}
+.stock-health.low{background:#f6ede2;color:#85591f}.stock-health.low i{background:#a66d2c}
+
+/* 9. Room board: standard PMS density and touch targets */
+.status-summary>div{background:var(--surface);border-color:var(--line)}
+.room-card{background:var(--surface);border-color:#dce3df}
+.room-card.available{box-shadow:inset 3px 0 #2d7a60}
+.room-card.occupied,.room-card.reserved{box-shadow:inset 3px 0 #6f7974}
+.room-card.cleaning{box-shadow:inset 3px 0 #a66d2c}
+.room-card.maintenance{box-shadow:inset 3px 0 #ad4d53}
+.room-actions button{min-height:38px;background:#f4f6f5;border-color:#d9dfdc;color:#4f5d57}
+.room-actions button:hover{background:#e9efec;border-color:#c7d2cd}
+
+/* 10. Forms use one predictable interaction system */
+input,select,textarea{color:#202a26}
+.expense-form input,.expense-form select,.instruction-compose input,.instruction-compose select,.instruction-compose textarea,
+.credential-input,.campaign-form-grid input,.campaign-form-grid select,.checkout input,.checkout select,.money-input{
+  background:#fff;
+  border-color:#d7dfdb;
+}
+.expense-form input:focus,.expense-form select:focus,.instruction-compose input:focus,.instruction-compose select:focus,
+.instruction-compose textarea:focus,.credential-input:focus-within,.campaign-form-grid input:focus,.campaign-form-grid select:focus{
+  border-color:#6e9c87;
+  box-shadow:0 0 0 3px rgba(20,84,63,.10);
+}
+.credential-input{color:#66736d}
+
+/* 11. Marketing & integration cards stay on-brand */
+.provider-logo,.channel-logo{background:var(--forest-700)!important;color:#fff}
+.provider-logo.blue,.provider-logo.coral,.provider-logo.violet,.provider-logo.yellow,.provider-logo.green,
+.channel-logo.green,.channel-logo.blue,.channel-logo.coral,.channel-logo.yellow,.channel-logo.violet{
+  background:var(--forest-700)!important;
+}
+.integration-hero,.connection-security,.security-notice{background:#f0f6f3;border-color:#d9e6df;color:#365c4c}
+.pulse-ring,.ai-orb,.mini-orb,.flow-icon{background:var(--forest-50);color:var(--forest-700)}
+.toggle-switch.on{background:var(--forest-600)}
+.architecture-badge{background:var(--forest-50);color:var(--forest-800)}
+.environment-switch button.active{color:var(--forest-900)}
+
+/* 12. Assistant visually belongs to the PMS */
+.assistant-online{background:#eef5f2!important;color:#2b654e!important;border-color:#d8e7e0!important}
+.message.user>div,.composer button{background:var(--forest-700)}
+.quick-prompts button{background:#f3f6f4;border-color:#dbe2de;color:#4e5b56}
+.quick-prompts button:hover{background:#e8efeb;border-color:#cbd8d1}
+.assistant-tip>span{background:var(--forest-50)!important;color:var(--forest-700)!important}
+
+/* 13. Role and manager views emphasize tasks */
+.manager-readiness,.manager-instructions,.shift-summary{border-color:var(--line)}
+.instruction-count{background:#e6f0eb;color:#276047;border-radius:6px}
+.priority-mark.high{background:#ad4d53}
+.instruction-meta em{border-radius:5px}
+.instruction-check.checked,.task-check.checked{background:var(--forest-600);border-color:var(--forest-600)}
+.maintenance-severity.normal{background:#edf1ef;color:#56635d}
+
+/* 14. Progress and charts use one accent */
+.progress i{background:var(--forest-600)}
+.chart-stat span{color:var(--forest-600)}
+
+/* 15. Modal/palette hierarchy */
+.command-backdrop,.marketing-modal-backdrop{background:rgba(15,20,18,.48)}
+.command-palette,.marketing-modal{background:var(--surface);border-color:var(--line)}
+.command-grid button:hover{background:#f0f5f2;border-color:#d5e1da}
+.command-grid button>span{background:var(--forest-50)!important;color:var(--forest-700)!important}
+.command-tip{background:#f4f7f5;color:#64716b}
+
+/* 16. Reduce decorative motion; preserve feedback */
+.kpi-card,.owner-field,.room-card,.integration-card,.ad-channel-card{transition:border-color .15s ease,background-color .15s ease,box-shadow .15s ease}
+.kpi-card:hover,.room-card:hover,.integration-card:hover,.ad-channel-card:hover{transform:none}
+@media(prefers-reduced-motion:reduce){
+  *,*:before,*:after{animation-duration:.001ms!important;animation-iteration-count:1!important;scroll-behavior:auto!important;transition-duration:.001ms!important}
+}
+
+/* 17. Readability floor and generous section rhythm */
+.content>section+section,.content>article+section,.content>section+article{margin-top:20px}
+.page-head+section{margin-top:0}
+.section-title-row{align-items:flex-end}
+.section-title-row h2{color:#202925;font-size:23px}
+.section-title-row p{font-size:12.5px;color:#69756f}
+
+/* 18. Consistent minimum targets */
+nav button,.primary-btn,.secondary-btn,.ghost-btn,.danger-btn,.icon-btn,.row-action,
+.segmented button,.role-switch button,.toggle-switch,.room-actions button,.stock-stepper button{
+  min-height:44px;
+}
+.icon-btn{min-width:44px}
+.stock-stepper button{min-width:38px}
+
+/* 19. Desktop density stays usable, not compressed */
+@media(min-width:1381px){
+  .content{padding-left:48px;padding-right:48px}
+  .kpi-grid{gap:18px}
+  .owner-field-grid{gap:18px}
+  .room-grid{gap:14px}
+}
+
+/* 20. Responsive order: hierarchy survives smaller screens */
+@media(max-width:1180px){
+  .topbar{padding:0 20px}
+  .search{min-width:260px}
+}
+@media(max-width:900px){
+  .page-head{flex-direction:column;align-items:flex-start}
+  .page-head .page-actions{width:100%}
+  .page-head .page-actions button{flex:1}
+}
+@media(max-width:680px){
+  .page-head h1{font-size:29px}
+  .page-head p{font-size:13px}
+  .ops-pulse{display:grid;grid-template-columns:1fr}
+  .ops-pulse-label,.ops-pulse>button{border:0;border-bottom:1px solid var(--line)}
+}
+
+/* remove legacy decorative blues/purples at the final cascade */
+.activity-icon.blue,.activity-icon.violet,.rule-icon.blue,.rule-icon.violet,
+.summary-icon,.summary-icon.safe,.health-icon.blue,.health-icon.violet,
+.pay-icon,.visual-card,.provider-logo.blue,.provider-logo.violet{
+  background:var(--forest-50);
+  color:var(--forest-700);
+}
+.activity-icon.green,.rule-icon.green,.health-icon.green{background:#e6f0eb;color:#286249}
+.activity-icon.amber,.health-icon.amber{background:#f5eee4;color:#8c6127}
+
+/* booking engine aligned to hotel brand, not dashboard-demo styling */
+.guest-site{background:#f8faf9;border-color:#dce3df}
+.guest-nav{border-color:#dfe5e2;background:#fcfdfc}
+.hotel-logo>span{border-color:#17382b;color:#17382b}
+.hotel-logo b{color:#1b2420}.hotel-logo small{color:#748079}
+.guest-nav>div:last-child{color:#56635d}
+.guest-nav button{background:#17382b;color:#fff}
+.hero-visual{background:#1b2420;color:#f7faf8}
+.hero-visual:before,.hero-visual:after{display:none}
+.hero-copy>span,.hero-copy p,.rating span{color:#d9e2dd}
+.visual-card{background:#23312b;border-color:#425149;color:#edf4f0;backdrop-filter:none;border-radius:64px 64px 14px 14px}
+.booking-strip{box-shadow:0 8px 22px rgba(21,26,24,.12);border:1px solid #e0e5e2}
+.booking-strip button{background:#14543f}
+.guest-proof{color:#59655f}

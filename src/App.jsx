@@ -86,29 +86,29 @@ const channels = [
 ];
 
 const ownerNav = [
-  ["overview", "Owner dashboard", LayoutDashboard],
-  ["reservations", "Reservations", CalendarDays],
-  ["rooms", "Rooms & availability", BedDouble],
-  ["inventory", "Supplies & inventory", Boxes],
-  ["expenses", "Expenses", ReceiptText],
-  ["channels", "Channel manager", RefreshCw],
-  ["marketing", "Marketing", Megaphone],
-  ["operations", "Operations", ClipboardCheck],
-  ["instructions", "Team instructions", ClipboardList],
-  ["booking", "Booking engine", Globe2],
-  ["assistant", "AI assistant", Bot],
-  ["connections", "Connections & API", Settings2]
+  ["overview", "Owner dashboard", LayoutDashboard, "Property"],
+  ["reservations", "Reservations", CalendarDays, "Property"],
+  ["rooms", "Rooms & availability", BedDouble, "Property"],
+  ["operations", "Operations", ClipboardCheck, "Property"],
+  ["instructions", "Team instructions", ClipboardList, "Property"],
+  ["booking", "Booking engine", Globe2, "Property"],
+  ["inventory", "Supplies & inventory", Boxes, "Business"],
+  ["expenses", "Expenses", ReceiptText, "Business"],
+  ["channels", "Channel manager", RefreshCw, "Business"],
+  ["marketing", "Marketing", Megaphone, "Business"],
+  ["assistant", "Operations assistant", Bot, "System"],
+  ["connections", "Connections & API", Settings2, "System"]
 ];
 
 const managerNav = [
-  ["overview", "Manager dashboard", LayoutDashboard],
-  ["reservations", "Reservations", CalendarDays],
-  ["rooms", "Rooms & availability", BedDouble],
-  ["inventory", "Supplies & inventory", Boxes],
-  ["operations", "Room prep & maintenance", ClipboardCheck],
-  ["instructions", "Team instructions", ClipboardList],
-  ["booking", "Booking engine", Globe2],
-  ["assistant", "AI assistant", Bot]
+  ["overview", "Manager dashboard", LayoutDashboard, "Property"],
+  ["reservations", "Reservations", CalendarDays, "Property"],
+  ["rooms", "Rooms & availability", BedDouble, "Property"],
+  ["operations", "Room prep & maintenance", ClipboardCheck, "Property"],
+  ["instructions", "Team instructions", ClipboardList, "Property"],
+  ["booking", "Booking engine", Globe2, "Property"],
+  ["inventory", "Supplies & inventory", Boxes, "Resources"],
+  ["assistant", "Operations assistant", Bot, "System"]
 ];
 
 const seedStock = [
@@ -276,10 +276,12 @@ function App() {
         <ChevronDown size={16} />
       </div>
       <nav>
-        <div className="nav-label">Workspace</div>
-        {nav.map(([id, label, Icon]) => <button key={id} className={active === id ? "active" : ""} onClick={() => { setActive(id); setMobileNav(false); }}>
-          <Icon size={18} /><span>{label}</span>{id === "assistant" && <em>AI</em>}
-        </button>)}
+        {Array.from(new Set(nav.map(item => item[3]))).map(group => <div className="nav-group" key={group}>
+          <div className="nav-label">{group}</div>
+          {nav.filter(item => item[3] === group).map(([id, label, Icon]) => <button key={id} className={active === id ? "active" : ""} onClick={() => { setActive(id); setMobileNav(false); }}>
+            <Icon size={18} /><span>{label}</span>{id === "assistant" && <em>OPS</em>}
+          </button>)}
+        </div>)}
       </nav>
       <div className="sidebar-foot">
         <div className="system-health"><span className="live-dot" /><div><b>All systems operational</b><span>5 channels synced</span></div></div>
@@ -377,7 +379,7 @@ function Overview({ stats, activities, setActive, role, rooms }) {
       <button onClick={() => setActive("reservations")}><span>Next arrival</span><b>14:30 · Olivia Martin</b><ArrowUpRight size={14} /></button>
       <button onClick={() => setActive("rooms")}><span>Room attention</span><b>{attentionRooms.length} active issues</b><ArrowUpRight size={14} /></button>
       <button onClick={() => setActive("inventory")}><span>Inventory</span><b>{lowStock} below par</b><ArrowUpRight size={14} /></button>
-      <button className="pulse-ai" onClick={() => setActive("assistant")}><Sparkles size={15} /><span><b>Ask StayPilot AI</b><small>Operate the property</small></span></button>
+      <button className="pulse-ai" onClick={() => setActive("assistant")}><Bot size={15} /><span><b>Operations assistant</b><small>Run approved actions</small></span></button>
     </section>
 
     <section className="kpi-grid">
@@ -403,10 +405,10 @@ function Overview({ stats, activities, setActive, role, rooms }) {
           <div className="chart-wrap">
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart data={revenueData}>
-                <defs><linearGradient id="rev" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#2f666c" stopOpacity={0.24} /><stop offset="100%" stopColor="#2f666c" stopOpacity={0} /></linearGradient></defs>
+                <defs><linearGradient id="rev" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#14543f" stopOpacity={0.22} /><stop offset="100%" stopColor="#14543f" stopOpacity={0} /></linearGradient></defs>
                 <CartesianGrid stroke="#e8edf5" vertical={false} /><XAxis dataKey="d" axisLine={false} tickLine={false} tick={{ fill: "#78859a", fontSize: 12 }} /><YAxis hide />
                 <Tooltip contentStyle={{ borderRadius: 12, border: "1px solid #e4eaf2", boxShadow: "0 10px 30px rgba(20,35,60,.12)" }} formatter={v => [fmt(v), "Revenue"]} />
-                <Area type="monotone" dataKey="revenue" stroke="#2f666c" strokeWidth={2.5} fill="url(#rev)" />
+                <Area type="monotone" dataKey="revenue" stroke="#14543f" strokeWidth={2.5} fill="url(#rev)" />
               </AreaChart>
             </ResponsiveContainer>
           </div>
@@ -417,7 +419,7 @@ function Overview({ stats, activities, setActive, role, rooms }) {
       <section className="bottom-grid">
         <article className="panel channel-panel">
           <div className="panel-head"><div><span className="panel-kicker">Distribution</span><h3>Booking channel mix</h3></div><button className="icon-btn flat"><MoreHorizontal size={18} /></button></div>
-          <div className="bar-wrap"><ResponsiveContainer width="100%" height="100%"><BarChart data={channelData} barSize={24}><CartesianGrid stroke="#edf1f7" vertical={false} /><XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: "#78859a", fontSize: 11 }} /><YAxis hide /><Tooltip cursor={{ fill: "#f5f7fb" }} contentStyle={{ borderRadius: 12, border: "1px solid #e4eaf2" }} formatter={v => [v + "%", "Share"]} /><Bar dataKey="value" fill="#3b777d" radius={[4, 4, 0, 0]} /></BarChart></ResponsiveContainer></div>
+          <div className="bar-wrap"><ResponsiveContainer width="100%" height="100%"><BarChart data={channelData} barSize={24}><CartesianGrid stroke="#edf1f7" vertical={false} /><XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: "#78859a", fontSize: 11 }} /><YAxis hide /><Tooltip cursor={{ fill: "#f5f7fb" }} contentStyle={{ borderRadius: 12, border: "1px solid #e4eaf2" }} formatter={v => [v + "%", "Share"]} /><Bar dataKey="value" fill="#1b624b" radius={[3, 3, 0, 0]} /></BarChart></ResponsiveContainer></div>
         </article>
         <article className="panel snapshot">
           <div className="panel-head"><div><span className="panel-kicker">Owner metrics</span><h3>Property snapshot</h3></div></div>
@@ -1026,11 +1028,11 @@ function Assistant({ rooms, setRooms, bookings, stats, rateMultiplier, setRateMu
   const quick = ["What needs attention?", "Show today’s arrivals", "Raise rates 8%", "Sync all channels", metaPaused ? "Resume Meta ads" : "Pause Meta ads", "Mark room 103 ready"];
 
   return <div className="assistant-page">
-    <PageHeader eyebrow="Operator AI" title="Run the hotel from a conversation." text="Natural-language actions are wired to the same prototype state as reservations, room inventory, channels and marketing." action={<div className="assistant-online"><span /> Connected to 6 tools</div>} />
+    <PageHeader eyebrow="Operations assistant" title="Operate the property with commands." text="Use natural language for approved room, reservation, channel and marketing actions while the dashboard reflects each change." action={<div className="assistant-online"><span /> 6 operational tools connected</div>} />
     <div className="assistant-layout">
       <section className="assistant-chat panel">
-        <div className="chat-head"><div className="ai-orb"><Sparkles size={19} /></div><div><b>StayPilot Assistant</b><span>Property operator · action enabled</span></div><span className="live-label"><i /> online</span></div>
-        <div className="messages">{messages.map((m, i) => <div className={"message " + m.role} key={i}>{m.role === "assistant" && <span className="mini-orb"><Sparkles size={13} /></span>}<div>{m.text}</div></div>)}</div>
+        <div className="chat-head"><div className="ai-orb"><Bot size={19} /></div><div><b>StayPilot Operations</b><span>Property controls · action enabled</span></div><span className="live-label"><i /> online</span></div>
+        <div className="messages">{messages.map((m, i) => <div className={"message " + m.role} key={i}>{m.role === "assistant" && <span className="mini-orb"><Bot size={13} /></span>}<div>{m.text}</div></div>)}</div>
         <div className="quick-prompts">{quick.map(q => <button key={q} onClick={() => act(q)}>{q}</button>)}</div>
         <form className="composer" onSubmit={e => { e.preventDefault(); act(input); }}><input value={input} onChange={e => setInput(e.target.value)} placeholder="Ask or tell StayPilot what to do..." /><button><Send size={17} /></button></form>
       </section>
