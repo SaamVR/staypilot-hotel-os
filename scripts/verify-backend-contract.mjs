@@ -220,4 +220,23 @@ assert.match(verifyEndpoint, /mark_webhook_endpoint_verification_failed/i, "fail
 assert.match(sharedConfig, /OUTBOUND_SIGNING_MASTER_SECRET/i, "server config must read the outbound signing master");
 assert.match(dispatcherEndpoint, /config\.outboundSigningMasterSecret/i, "dispatcher must fail closed without the outbound signing master");
 
+const orchestratorModule = await readFile(new URL("../functions/_shared/orchestrator.js", import.meta.url), "utf8");
+const orchestratorEndpoint = await readFile(new URL("../functions/api/orchestrate-run.js", import.meta.url), "utf8");
+const scheduledWorker = await readFile(new URL("../cloudflare/orchestrator-worker.js", import.meta.url), "utf8");
+const scheduledConfig = await readFile(new URL("../cloudflare/wrangler.orchestrator.jsonc.example", import.meta.url), "utf8");
+
+assert.match(sharedConfig, /ORCHESTRATOR_SECRET/i, "server config must read orchestrator secret");
+assert.match(sharedConfig, /ORCHESTRATOR_ENABLED/i, "server config must expose explicit orchestration rollout gate");
+assert.match(orchestratorEndpoint, /x-staypilot-orchestrator-secret/i, "orchestration endpoint must require separate server authentication");
+assert.match(orchestratorEndpoint, /orchestrator_disabled/i, "orchestration endpoint must fail closed while rollout gate is disabled");
+assert.match(orchestratorEndpoint, /Math\.min\(Number\(body\?\.cycles\) \|\| 2, 3\)/, "orchestration endpoint must cap cycles");
+assert.match(orchestratorModule, /claimInboundEvents/, "orchestrator must drive durable worker claims");
+assert.match(orchestratorModule, /claimWebhookDeliveries/, "orchestrator must drive durable dispatcher claims");
+assert.match(orchestratorModule, /events\.length === 0 && deliveries\.length === 0/, "orchestrator must stop when both queues drain");
+assert.match(scheduledWorker, /SCHEDULER_ENABLED/i, "scheduled Worker must have its own explicit enable gate");
+assert.match(scheduledWorker, /\/api\/orchestrate-run/i, "scheduled Worker must call the Pages control-plane orchestration endpoint");
+assert.match(scheduledWorker, /redirect:"manual"/i, "scheduled Worker must not follow redirects");
+assert.match(scheduledConfig, /"crons": \["\* \* \* \* \*"\]/, "scheduler template must define an explicit once-per-minute cron");
+assert.match(scheduledConfig, /"SCHEDULER_ENABLED": "false"/, "scheduler template must ship disabled by default");
+
 console.log("StayPilot backend contract verification passed.");
