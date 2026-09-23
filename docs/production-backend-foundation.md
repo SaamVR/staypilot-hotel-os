@@ -339,3 +339,51 @@ A separate dispatcher should later:
 - avoid SSRF by enforcing destination allowlists / verified hosts
 
 Do not add arbitrary external fetches directly to the hotel automation worker.
+
+
+## Verified outbound webhook dispatcher
+
+Migration `20260924_004_webhook_dispatcher.sql` and the server dispatcher modules add the delivery layer after the durable outbox.
+
+Security boundary:
+
+- only endpoints with server-set `verified_at` and `verified_host` can be claimed
+- authenticated clients cannot write verification fields or `secret_ref`
+- endpoint URL/secret changes automatically clear verification
+- claim/finish RPCs are service-role only
+- delivery claiming uses `FOR UPDATE ... SKIP LOCKED`
+- stale dispatcher leases recover after 10 minutes
+- dispatcher authentication uses a separate `DISPATCHER_SECRET`
+- outbound destinations must be exact hosts from `WEBHOOK_ALLOWED_HOSTS`
+- URL hostname must match the server-recorded verified host
+- HTTP, credentials-in-URL, localhost, internal names, IP literals and non-443 ports are rejected
+- redirects are not followed
+- each endpoint signing secret is resolved only from a server environment reference such as `WEBHOOK_SECRET_DEMO_OUTBOUND`
+- the exact JSON body is HMAC-SHA256 signed
+- 2xx marks delivery complete
+- 408 / 425 / 429 / 5xx / network failures retry with bounded backoff
+- permanent 4xx responses dead-letter
+- retries are capped by the database delivery lifecycle
+
+Server endpoint:
+
+```
+POST /api/webhook-dispatch-run
+X-StayPilot-Dispatcher-Secret: <server-only secret>
+```
+
+This endpoint is intended for a trusted scheduler/worker invocation. It is not a public webhook.
+
+n8n / Make / Zapier / custom systems remain **optional consumers**. StayPilot owns event policy, hotel state, idempotency, audit and delivery reliability; those external tools may consume selected outbound events after explicit verification and allowlisting.
+
+### Dispatcher environment
+
+```
+DISPATCHER_SECRET
+WEBHOOK_ALLOWED_HOSTS=hooks.example.com,workflow.example.com
+WEBHOOK_SECRET_<SECRET_REF>
+```
+
+The allowlist is exact-host based. Arbitrary customer-supplied destinations are not fetched.
+
+The dispatcher remains dormant in the current public deployment because no dedicated StayPilot Supabase project, dispatcher secret, allowlist or per-endpoint signing secrets are configured.
