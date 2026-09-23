@@ -233,7 +233,7 @@ async function withMockFetch(fetchMock, fn) {
     {
       SCHEDULER_ENABLED:"true",
       ORCHESTRATOR_SECRET:"scheduler-secret",
-      STAYPILOT_ORIGIN:"https://staypilot.example.com/",
+      STAYPILOT_ORIGIN:"https://staypilot-hotel-os.pages.dev/",
     },
     async (url, options = {}) => {
       captured = { url, options };
@@ -245,7 +245,7 @@ async function withMockFetch(fetchMock, fn) {
   );
 
   assert.equal(result.ok, true);
-  assert.equal(captured.url, "https://staypilot.example.com/api/orchestrate-run");
+  assert.equal(captured.url, "https://staypilot-hotel-os.pages.dev/api/orchestrate-run");
   assert.equal(captured.options.method, "POST");
   assert.equal(captured.options.redirect, "manual");
   assert.equal(captured.options.headers["x-staypilot-orchestrator-secret"], "scheduler-secret");
@@ -256,7 +256,24 @@ async function withMockFetch(fetchMock, fn) {
   });
 }
 
-// 11. Scheduled Worker surfaces control-plane failure so Cloudflare can mark the cron invocation failed.
+// 11. Scheduler refuses to send its secret to a foreign control-plane origin.
+{
+  let fetched = false;
+  await assert.rejects(
+    () => runScheduledTick(
+      {
+        SCHEDULER_ENABLED:"true",
+        ORCHESTRATOR_SECRET:"scheduler-secret",
+        STAYPILOT_ORIGIN:"https://evil.example.com",
+      },
+      async () => { fetched = true; return new Response("{}", { status:200 }); },
+    ),
+    error => error?.message === "untrusted_control_plane_origin",
+  );
+  assert.equal(fetched, false);
+}
+
+// 12. Scheduled Worker surfaces control-plane failure so Cloudflare can mark the cron invocation failed.
 {
   await assert.rejects(
     () => runScheduledTick(
