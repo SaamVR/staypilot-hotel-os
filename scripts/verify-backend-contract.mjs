@@ -77,8 +77,10 @@ assert.match(migration, /private\.has_hotel_role/i, "role-aware RLS helper must 
 assert.match(migration, /grant usage on schema private to authenticated/i, "authenticated users need helper schema usage");
 
 const endpoint = await readFile(new URL("../functions/api/events.js", import.meta.url), "utf8");
+const sharedConfig = await readFile(new URL("../functions/_shared/webhook.js", import.meta.url), "utf8");
 assert.match(endpoint, /resolution=ignore-duplicates/i, "event endpoint must use duplicate-safe insert");
-assert.match(endpoint, /WEBHOOK_SIGNING_SECRET/, "event endpoint must require server-side signing secret");
+assert.match(sharedConfig, /WEBHOOK_SIGNING_SECRET/, "shared server config must read webhook signing secret");
+assert.match(endpoint, /config\.webhookSigningSecret/, "event endpoint must verify with configured signing secret");
 assert.match(endpoint, /backend_not_configured/, "event endpoint must fail closed before secrets are configured");
 
 console.log("StayPilot backend contract verification passed.");
