@@ -1155,7 +1155,7 @@ nav button,.primary-btn,.secondary-btn,.ghost-btn,.danger-btn,.icon-btn,.row-act
 .inbound-outcome.queued{border-color:#e7cba6;background:#fffaf3}.inbound-outcome.queued b{color:#8b5f22}
 .inbound-outcome.duplicate{border-color:#cfd9e5;background:#f6f8fb}.inbound-outcome.duplicate b{color:#435d79}
 .inbound-outcome.failed{border-color:#e4c4c4;background:#fff7f7}.inbound-outcome.failed b{color:#914646}
-@media(max-width:1100px){.inbound-event-grid{grid-template-columns:1fr 1fr}.inbound-event-actions{align-self:end}.inbound-event-actions button{flex:1}}
+@media(max-width:1500px){.inbound-event-grid{grid-template-columns:1fr 1fr}.inbound-event-actions{align-self:end}.inbound-event-actions button{flex:1}}
 @media(max-width:900px){.automation-filter-bar{flex-direction:column}}
 @media(max-width:620px){.automation-filter-bar{padding:9px}.automation-filter-bar>div{width:100%}.automation-filter-bar button{flex:1}.inbound-event-grid{grid-template-columns:1fr;padding-inline:14px}.inbound-event-actions{flex-direction:column;align-items:stretch}.event-payload-preview code,.event-id-preview code{white-space:normal;line-height:1.4;padding-block:10px}}
 
