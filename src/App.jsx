@@ -2060,6 +2060,8 @@ function AutomationCenter({ role, pushActivity, flash, policy, automationRules, 
   const scopes = ["All", ...Array.from(new Set(roleRules.map(r => r.scope)))];
   const visibleRules = scopeFilter === "All" ? roleRules : roleRules.filter(r => r.scope === scopeFilter);
   const visibleLogs = roleLogs.filter(log => {
+    const rule = automationRules.find(r => r.id === log.ruleId);
+    if (scopeFilter !== "All" && rule?.scope !== scopeFilter) return false;
     if (runFilter === "Failures") return log.result === "Failed";
     if (runFilter === "Approvals") return log.result === "Approval";
     return true;
@@ -2561,7 +2563,7 @@ function Connections({ pushActivity, flash, emitHotelEvent }) {
 
         <div className="credential-actions">
           <button className="ghost-btn test-btn" onClick={testConnection} disabled={testing}><RefreshCw size={16} className={testing ? "spin" : ""} />{testing ? "Testing connection..." : "Test connection"}</button>
-          <button className="primary-btn" onClick={save}><ShieldCheck size={16} /> Save securely</button>
+          <button className="primary-btn" onClick={save}><ShieldCheck size={16} /> Stage configuration</button>
         </div>
       </section>
     </div>
