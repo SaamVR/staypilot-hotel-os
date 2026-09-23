@@ -10,6 +10,10 @@ import {
   onRequestPost as workerPost,
   onRequest as workerFallback,
 } from "../functions/api/worker-run.js";
+import {
+  onRequestPost as dispatcherPost,
+  onRequest as dispatcherFallback,
+} from "../functions/api/webhook-dispatch-run.js";
 
 async function readJson(response) {
   return JSON.parse(await response.text());
@@ -56,6 +60,8 @@ const fullEnv = {
   SUPABASE_SECRET_KEY:"server-key",
   WEBHOOK_SIGNING_SECRET:"integration-signing-secret",
   WORKER_SECRET:"integration-worker-secret",
+  DISPATCHER_SECRET:"integration-dispatcher-secret",
+  WEBHOOK_ALLOWED_HOSTS:"hooks.example.com,workflow.example.com",
 };
 
 // 1. Health reports fail-closed dependencies truthfully when unconfigured.
@@ -70,6 +76,8 @@ const fullEnv = {
     database:false,
     inbound_signature_verification:false,
     durable_worker_authentication:false,
+    outbound_dispatcher_authentication:false,
+    outbound_host_allowlist:false,
   });
 }
 
@@ -83,6 +91,8 @@ const fullEnv = {
     database:true,
     inbound_signature_verification:true,
     durable_worker_authentication:true,
+    outbound_dispatcher_authentication:true,
+    outbound_host_allowlist:true,
   });
 }
 
@@ -174,6 +184,10 @@ const fullEnv = {
   const worker = workerFallback();
   assert.equal(worker.status, 405);
   assert.equal(worker.headers.get("allow"), "POST");
+
+  const dispatcher = dispatcherFallback();
+  assert.equal(dispatcher.status, 405);
+  assert.equal(dispatcher.headers.get("allow"), "POST");
 }
 
 // 8. Worker endpoint fails closed before database/worker secret configuration.
@@ -243,6 +257,75 @@ const fullEnv = {
   assert.deepEqual(body.results, []);
   assert.equal(claimBody.batch_size, 10, "worker endpoint must cap requested batch size");
   assert.match(claimBody.worker_name, /^cf-[0-9a-f-]{36}$/i);
+}
+
+// 11. Dispatcher endpoint fails closed before database/auth/allowlist configuration.
+{
+  const request = new Request("https://staypilot.test/api/webhook-dispatch-run", {
+    method:"POST",
+    headers:{ "content-type":"application/json" },
+    body:JSON.stringify({ batch_size:3 }),
+  });
+  let fetched = false;
+  const response = await withMockFetch(async () => {
+    fetched = true;
+    throw new Error("database should not be called");
+  }, () => dispatcherPost({ request, env:{} }));
+  assert.equal(response.status, 503);
+  assert.equal((await readJson(response)).error, "dispatcher_not_configured");
+  assert.equal(fetched, false);
+}
+
+// 12. Wrong dispatcher secret is rejected before claiming deliveries.
+{
+  const request = new Request("https://staypilot.test/api/webhook-dispatch-run", {
+    method:"POST",
+    headers:{
+      "content-type":"application/json",
+      "x-staypilot-dispatcher-secret":"wrong-secret",
+    },
+    body:JSON.stringify({ batch_size:3 }),
+  });
+  let fetched = false;
+  const response = await withMockFetch(async () => {
+    fetched = true;
+    throw new Error("database should not be called");
+  }, () => dispatcherPost({ request, env:fullEnv }));
+  assert.equal(response.status, 401);
+  assert.equal((await readJson(response)).error, "dispatcher_unauthorized");
+  assert.equal(fetched, false);
+}
+
+// 13. Authorized dispatcher requests atomically claim a bounded batch.
+{
+  const request = new Request("https://staypilot.test/api/webhook-dispatch-run", {
+    method:"POST",
+    headers:{
+      "content-type":"application/json",
+      "x-staypilot-dispatcher-secret":"integration-dispatcher-secret",
+    },
+    body:JSON.stringify({ batch_size:99 }),
+  });
+
+  let claimBody = null;
+  const response = await withMockFetch(async (url, options = {}) => {
+    const parsed = new URL(String(url));
+    assert.equal(parsed.pathname, "/rest/v1/rpc/claim_webhook_deliveries");
+    claimBody = JSON.parse(options.body);
+    return new Response(JSON.stringify([]), {
+      status:200,
+      headers:{ "content-type":"application/json" },
+    });
+  }, () => dispatcherPost({ request, env:fullEnv }));
+
+  assert.equal(response.status, 200);
+  const body = await readJson(response);
+  assert.equal(body.ok, true);
+  assert.equal(body.claimed, 0);
+  assert.deepEqual(body.summary, {});
+  assert.deepEqual(body.results, []);
+  assert.equal(claimBody.batch_size, 10, "dispatcher endpoint must cap requested batch size");
+  assert.match(claimBody.worker_name, /^cf-webhook-[0-9a-f-]{36}$/i);
 }
 
 console.log("StayPilot server HTTP boundary tests passed.");
