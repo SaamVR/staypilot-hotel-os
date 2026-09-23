@@ -6,13 +6,12 @@ Canonical demo: https://staypilot-hotel-os.pages.dev/
 
 ## Durable source state
 
-- verified application release commit: `5acade4737a62352a8b9d62cb9c8f038e8c3845a`
-- StayPilot current `main` docs checkpoint: `1141659b9836fcf963e624aa78be29f40d196a31`
+- verified application release commit: `9b9b748d6e3e3dfa52a694e08ac9a54486a52414`
 - verified Cloudflare bundle branch: `cloudflare-deploy`
 - verified bundle commit: `43d0d606fe0e80a5090546945d6f60dd823625a7`
 - bundle commit message: `stage Cloudflare bundle for 9de867d90b407b377f435565324443a3857b9d7e`
-- latest deployment preview: https://56890e60.staypilot-hotel-os.pages.dev
-- canonical deployment: https://staypilot-hotel-os.pages.dev/?v=5acade47
+- latest deployment preview: https://98800461.staypilot-hotel-os.pages.dev
+- canonical deployment: https://staypilot-hotel-os.pages.dev/?v=9b9b748d
 - verification workflow: `.github/workflows/verify.yml`
 - Node 22 + npm ci + npm run build: PASS
 - production artifact upload: PASS
@@ -441,3 +440,27 @@ Integration Hub UI:
 - zero browser console/page errors.
 
 This verifies that the dormant server foundation is deployed while remaining fail-closed and truthful.
+
+
+## State coherence release QA — PASS
+
+Verified on canonical production for application release `9b9b748d`.
+
+Channel state:
+- initial six active reservations derive `67% OTA / 33% direct`.
+- adding one Direct Website reservation recalculates to `57% OTA / 43% direct`.
+- Owner snapshot updates from `2 of 6` to `3 of 7` direct bookings.
+- no seeded 62/38 channel split remains in the Owner decision card.
+
+Refund governance:
+- Manager Refund request exposes only reservations with captured/refundable value.
+- refund request requires a bound reservation and positive amount.
+- `SP-1047` was selected with modeled captured value `$418`.
+- submitted request persisted `reservationRef: SP-1047` and `amount: 50`.
+- Owner approval updated the exact booking to `paid: 368`, `lastRefund: 50`.
+- approval status changed to `Approved`.
+- zero browser console/page errors.
+
+The fail-closed backend contract remained unchanged during this release:
+- backend health = `not_configured`
+- `POST /api/events` = HTTP 503 `backend_not_configured`
