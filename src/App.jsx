@@ -624,6 +624,7 @@ function App() {
     localStorage.removeItem("sp-webhook-endpoints");
     localStorage.removeItem("sp-webhook-deliveries");
     localStorage.removeItem("sp-property-setup");
+    localStorage.removeItem("sp-routed-guest-requests");
     localStorage.removeItem("sp-policy");
     localStorage.removeItem("sp-lowstock-auto");
     localStorage.removeItem("sp-occupancy-auto-fired");
@@ -644,6 +645,14 @@ function App() {
     policy, setPolicy, activities, setActivities, rateMultiplier, setRateMultiplier, metaPaused, setMetaPaused,
     stats, pushActivity, flash, setActive, role
   };
+
+  const persistedIssues = load("sp-exceptions", seedSystemExceptions).filter(x => x.status === "Open" && (role === "owner" || x.type !== "Distribution"));
+  const exceptionCount =
+    rooms.filter(r => r.maintenance !== "Clear").length +
+    rooms.filter(r => r.occupancy === "Reserved" && r.housekeeping !== "Clean").length +
+    bookings.filter(b => b.room === "Unassigned" && !["Cancelled", "Checked out"].includes(b.status)).length +
+    (role === "owner" ? approvals.filter(a => a.status === "Pending").length : 0) +
+    persistedIssues.length;
 
   return <div className="app-shell">
     <aside className={"sidebar " + (mobileNav ? "sidebar-open" : "")}>
@@ -687,7 +696,7 @@ function App() {
             <button className={role === "owner" ? "active" : ""} onClick={() => switchRole("owner")}><WalletCards size={14} /> Owner</button>
             <button className={role === "manager" ? "active" : ""} onClick={() => switchRole("manager")}><UserCog size={14} /> Manager</button>
           </div></div>
-          <button className="icon-btn" onClick={() => setActive("exceptions")} aria-label="Open exceptions"><Bell size={18} /><i /></button>
+          <button className="icon-btn exception-button" onClick={() => setActive("exceptions")} aria-label={"Open exceptions · " + exceptionCount + " active"}><Bell size={18} />{exceptionCount > 0 && <span className="exception-badge">{exceptionCount > 99 ? "99+" : exceptionCount}</span>}</button>
           <div className="avatar">{role === "owner" ? "MR" : "SR"}</div>
           <div className="profile"><b>{role === "owner" ? "Maya Rahman" : "Sam Rahman"}</b><span>{role === "owner" ? "Owner" : "Property Manager"}</span></div>
           <ChevronDown size={16} />
@@ -725,7 +734,7 @@ function App() {
         <div className="command-label">Workspaces</div>
         <div className="command-grid">
           {nav.filter(([, label]) => label.toLowerCase().includes(commandQuery.toLowerCase())).map(([id, label, Icon]) => <button key={id} onClick={() => { setActive(id); setCommandOpen(false); setCommandQuery(""); }}>
-            <span><Icon size={17} /></span><div><b>{label}</b><small>{id === "assistant" ? "Operate hotel actions with natural language" : id === "booking" ? "Create a live demo reservation" : "Open " + label.toLowerCase()}</small></div><ArrowUpRight size={14} />
+            <span><Icon size={17} /></span><div><b>{label}</b><small>{id === "assistant" ? "Operate hotel actions with natural language" : id === "booking" ? "Create a stateful demo reservation" : "Open " + label.toLowerCase()}</small></div><ArrowUpRight size={14} />
           </button>)}
         </div>
         <div className="command-tip"><Sparkles size={14} /> Use the role switch to preview owner-level business controls or manager-level property operations.</div>
@@ -1484,7 +1493,7 @@ function Instructions({ role, pushActivity, flash }) {
   </>;
 }
 
-function GuestInbox({ bookings, pushActivity, flash, setActive, role, policy }) {
+function GuestInbox({ bookings, pushActivity, flash, setActive, role, policy, emitHotelEvent }) {
   const seedThreads = [
     { id: "TH-1048", guest: "Olivia Martin", reservation: "SP-1048", source: "Booking.com", unread: 2, last: "Could we arrive around 13:30?", time: "4 min", messages: [
       { from: "hotel", text: "Hi Olivia, your Deluxe King is confirmed for Sep 23–26. We look forward to welcoming you.", time: "Yesterday · 18:20" },
@@ -1505,6 +1514,33 @@ function GuestInbox({ bookings, pushActivity, flash, setActive, role, policy }) 
   const [selectedId, setSelectedId] = useState(() => threads[0]?.id || "");
   const [draft, setDraft] = useState("");
   useEffect(() => localStorage.setItem("sp-guest-threads", JSON.stringify(threads)), [threads]);
+  useEffect(() => {
+    const seen = new Set(load("sp-routed-guest-requests", []));
+    const candidates = threads.filter(t => t.messages?.some(m => m.from === "guest" && /(extra towels?|towels?|clean|pillow|blanket|amenit)/i.test(m.text || "")));
+    let changed = false;
+    candidates.forEach(t => {
+      if (seen.has(t.id)) return;
+      const booking = bookings.find(b => b.id === t.reservation);
+      const message = [...(t.messages || [])].reverse().find(m => m.from === "guest");
+      const rawRequest = message?.text || "Guest service request";
+      const request = /towels?/i.test(rawRequest) ? "Extra towels requested"
+        : /pillow/i.test(rawRequest) ? "Extra pillows requested"
+        : /blanket/i.test(rawRequest) ? "Extra blanket requested"
+        : /clean/i.test(rawRequest) ? "Room cleaning requested"
+        : rawRequest;
+      const result = emitHotelEvent("guest.request_received", {
+        booking,
+        roomNumber: booking?.room,
+        request
+      });
+      if (result?.ok) {
+        seen.add(t.id);
+        changed = true;
+      }
+    });
+    if (changed) localStorage.setItem("sp-routed-guest-requests", JSON.stringify(Array.from(seen)));
+  }, [threads, bookings]);
+
   const selected = threads.find(t => t.id === selectedId) || threads[0];
   const reservation = bookings.find(b => b.id === selected?.reservation);
 
@@ -1560,23 +1596,26 @@ function GuestInbox({ bookings, pushActivity, flash, setActive, role, policy }) 
   </>;
 }
 
-function Channels({ pushActivity, flash }) {
+function Channels({ rooms, stats, pushActivity, flash }) {
+  const sellable = rooms.filter(roomSellable).length;
+  const publishedRate = fmt(stats.adr);
+  const displayChannels = channels.map(channel => ({ ...channel, inventory: sellable, rate: publishedRate }));
   const syncAll = () => {
-    pushActivity("blue", "All channel inventories synced", "Booking.com · Airbnb · Expedia · Agoda · Direct");
-    flash("All channels synced successfully");
+    pushActivity("blue", "Channel reconciliation recorded", sellable + " sellable rooms · Booking.com · Airbnb · Expedia · Agoda · Direct", "Operations", "StayPilot distribution adapter");
+    flash("Demo channel reconciliation recorded");
   };
   return <>
-    <PageHeader eyebrow="Distribution" title="Channel Manager" text="Rates and availability stay synchronized across direct and OTA channels from one control plane." action={<button className="primary-btn" onClick={syncAll}><RefreshCw size={16} /> Sync all channels</button>} />
+    <PageHeader eyebrow="Distribution" title="Channel Manager" text="Model rates and availability from one hotel state, then publish through approved provider adapters in production." action={<button className="primary-btn" onClick={syncAll}><RefreshCw size={16} /> Sync all channels</button>} />
     <div className="integration-hero panel">
-      <div><span className="pulse-ring"><RefreshCw size={23} /></span><div><b>Universal inventory is healthy</b><p>Last full reconciliation: 38 seconds ago · no overbooking conflicts detected.</p></div></div>
-      <div className="sync-stat"><b>99.99%</b><span>sync success</span></div>
+      <div><span className="pulse-ring"><RefreshCw size={23} /></span><div><b>{sellable} rooms currently sellable</b><p>Availability is derived from occupancy, housekeeping and maintenance state. External OTA delivery is modeled in this portfolio build.</p></div></div>
+      <div className="sync-stat"><b>{publishedRate}</b><span>current ADR model</span></div>
     </div>
-    <section className="integration-grid">{channels.map(c => <article className="panel integration-card" key={c.name}>
+    <section className="integration-grid">{displayChannels.map(c => <article className="panel integration-card" key={c.name}>
       <div className="integration-top"><span className={"channel-logo " + c.color}>{c.short}</span><div><b>{c.name}</b><span>{c.fee}</span></div><StatusDot status={c.sync} /></div>
       <div className="integration-metrics"><div><span>Sellable tonight</span><b>{c.inventory} rooms</b></div><div><span>Published rate</span><b>{c.rate}</b></div></div>
       <div className="integration-foot"><span><CheckCircle2 size={14} /> Inventory + rates connected</span><em>Configured in Connections</em></div>
     </article>)}</section>
-    <div className="mini-note"><MessageSquare size={15} /> Provider access is configured under Connections & API. Inventory remains centralized here after credentials are approved.</div>
+    <div className="mini-note"><MessageSquare size={15} /> Provider access is configured under Integration Hub. This page uses shared hotel state; external OTA delivery remains simulated until partner APIs are connected.</div>
   </>;
 }
 

@@ -1096,3 +1096,36 @@ nav button,.primary-btn,.secondary-btn,.ghost-btn,.danger-btn,.icon-btn,.row-act
 .webhook-console .mini-note{margin:0 20px 18px}
 .automation-log>div>div small+small{margin-top:4px;color:#79857f;line-height:1.35}
 @media(max-width:680px){.scenario-switcher{grid-template-columns:1fr}.scenario-switcher>span{grid-column:1}.automation-authority{align-items:flex-start;flex-direction:column}.automation-authority select{width:100%}.permission-list>div:has(.setup-step-icon){grid-template-columns:34px 1fr}.permission-list>div:has(.setup-step-icon) .toggle-switch{grid-column:1/-1;justify-self:end}}
+
+
+/* Final sellable-product polish */
+.exception-button{position:relative}
+.exception-badge{position:absolute;right:-5px;top:-6px;min-width:18px;height:18px;padding:0 5px;border-radius:999px;background:var(--forest-800);color:#fff;border:2px solid var(--surface);display:grid;place-items:center;font-size:8.5px;font-weight:800;line-height:1}
+@media(max-width:980px){
+  .topbar{padding-inline:14px}
+  .top-actions{gap:8px}
+  .live-pill,.profile{display:none}
+  .role-demo small{display:none}
+  .role-switch button{padding-inline:9px}
+  .search.search-button span{max-width:230px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+}
+@media(max-width:720px){
+  .topbar{min-height:68px}
+  .search.search-button{min-width:0;flex:1}
+  .search.search-button span{display:none}
+  .search.search-button kbd{display:none}
+  .top-actions{margin-left:auto}
+  .role-switch button{min-height:38px;font-size:0;padding:0 10px}
+  .role-switch button svg{width:16px;height:16px}
+  .content{padding-inline:14px}
+  .page-header{gap:14px}
+  .page-header h1{font-size:clamp(26px,8vw,34px)}
+  .owner-command-summary,.automation-summary{grid-template-columns:1fr 1fr}
+  .manager-grid,.owner-field-grid,.kpi-grid{grid-template-columns:1fr}
+  .panel{border-radius:12px}
+}
+@media(max-width:500px){
+  .owner-command-summary,.automation-summary{grid-template-columns:1fr}
+  .top-actions>.avatar{display:none}
+  .exception-badge{right:-7px}
+}
