@@ -157,6 +157,8 @@ assert.match(dispatcherMigration, /grant\s+insert\s*\(hotel_id,\s*name,\s*url,\s
 assert.doesNotMatch(dispatcherMigration, /grant\s+(?:insert|update)[^;]*secret_ref/i, "authenticated clients must not control webhook secret references");
 assert.match(dispatcherMigration, /endpoint\.secret_ref is not null/i, "dispatcher must only claim endpoints with server-provisioned secret references");
 assert.match(dispatcherMigration, /endpoint\.verified_at is not null/i, "unverified endpoints must not enter the outbox/dispatcher");
+assert.match(dispatcherMigration, /endpoint\.verified_host is not null/i, "dispatcher must require a verified destination host");
+assert.match(dispatcherMigration, /join public\.inbound_events inbound on inbound\.id = claimed\.inbound_event_id/i, "dispatcher must require a durable source inbound event");
 assert.match(dispatcherMigration, /for update of delivery skip locked/i, "dispatcher claims must use SKIP LOCKED");
 assert.match(dispatcherMigration, /interval '10 minutes'/i, "dispatcher must recover stale leases");
 assert.match(dispatcherMigration, /grant execute on function public\.claim_webhook_deliveries\(text, integer\) to service_role/i, "delivery claim RPC must be service-role only");
