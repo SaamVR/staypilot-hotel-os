@@ -145,4 +145,28 @@ assert.match(workerModule, /enqueueOutboundDeliveries/, "worker must durably enq
 assert.match(workerModule, /completeWithOutbox/, "worker completion must include outbox persistence");
 assert.match(workerModule, /terminalRunRecorded/, "outbox retry must preserve terminal business results");
 
+const dispatcherMigration = await readFile(
+  new URL("../supabase/migrations/20260924_004_webhook_dispatcher.sql", import.meta.url),
+  "utf8",
+);
+const dispatcherModule = await readFile(new URL("../functions/_shared/dispatcher.js", import.meta.url), "utf8");
+const dispatcherEndpoint = await readFile(new URL("../functions/api/webhook-dispatch-run.js", import.meta.url), "utf8");
+assert.match(dispatcherMigration, /verified_at timestamptz/i, "webhook endpoints need server verification state");
+assert.match(dispatcherMigration, /revoke insert, update on public\.webhook_endpoints from authenticated/i, "clients must not be able to forge verification columns");
+assert.match(dispatcherMigration, /grant insert \(hotel_id, name, url, events, status, secret_ref\)/i, "endpoint client insert must be column-scoped");
+assert.match(dispatcherMigration, /endpoint\.verified_at is not null/i, "unverified endpoints must not enter the outbox/dispatcher");
+assert.match(dispatcherMigration, /for update of delivery skip locked/i, "dispatcher claims must use SKIP LOCKED");
+assert.match(dispatcherMigration, /interval '10 minutes'/i, "dispatcher must recover stale leases");
+assert.match(dispatcherMigration, /grant execute on function public\.claim_webhook_deliveries\(text, integer\) to service_role/i, "delivery claim RPC must be service-role only");
+assert.match(dispatcherMigration, /grant execute on function public\.finish_webhook_delivery\(uuid, text, integer, integer, text, integer\) to service_role/i, "delivery finish RPC must be service-role only");
+assert.match(sharedConfig, /DISPATCHER_SECRET/, "shared config must read dispatcher secret");
+assert.match(sharedConfig, /WEBHOOK_ALLOWED_HOSTS/, "shared config must read outbound host allowlist");
+assert.match(dispatcherEndpoint, /x-staypilot-dispatcher-secret/i, "dispatcher endpoint must require server dispatcher authentication");
+assert.match(dispatcherEndpoint, /dispatcher_not_configured/i, "dispatcher endpoint must fail closed before configuration");
+assert.match(dispatcherModule, /redirect:"manual"/i, "outbound fetches must not follow redirects");
+assert.match(dispatcherModule, /destination_not_allowlisted/i, "dispatcher must enforce exact host allowlisting");
+assert.match(dispatcherModule, /verified_host_mismatch/i, "dispatcher must bind URL host to verified host");
+assert.match(dispatcherModule, /private_or_local_destination_forbidden/i, "dispatcher must reject local/IP destinations");
+assert.match(dispatcherModule, /x-staypilot-signature/i, "dispatcher must HMAC-sign outbound bodies");
+
 console.log("StayPilot backend contract verification passed.");
