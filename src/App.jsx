@@ -2576,8 +2576,9 @@ function Connections({ pushActivity, flash, emitHotelEvent }) {
     { id:"WH-02", name:"Operations notifications", url:"https://example-ops.test/hooks", events:["room.maintenance_blocked","inventory.low_stock"], status:"Active", deliveries:19, last:"22 min ago", success:"94.7%" }
   ]));
   const [webhookDeliveries, setWebhookDeliveries] = useState(() => load("sp-webhook-deliveries", [
-    { id:"DLV-402", endpoint:"WH-01", event:"guest.checked_out", code:"200 OK", duration:"184 ms", time:"3 min ago" },
-    { id:"DLV-401", endpoint:"WH-02", event:"room.maintenance_blocked", code:"200 OK", duration:"241 ms", time:"22 min ago" }
+    { id:"DLV-402", endpoint:"WH-01", event:"guest.checked_out", status:"Delivered", code:"200 OK", duration:"184 ms", time:"3 min ago", attempts:1, redrives:0 },
+    { id:"DLV-401", endpoint:"WH-02", event:"room.maintenance_blocked", status:"Delivered", code:"200 OK", duration:"241 ms", time:"22 min ago", attempts:1, redrives:0 },
+    { id:"DLV-400", endpoint:"WH-02", event:"inventory.low_stock", status:"Dead-letter", code:"503 exhausted", duration:"5 attempts", time:"41 min ago", attempts:5, redrives:0 }
   ]));
   useEffect(() => localStorage.setItem("sp-webhook-endpoints", JSON.stringify(webhookEndpoints)), [webhookEndpoints]);
   useEffect(() => localStorage.setItem("sp-webhook-deliveries", JSON.stringify(webhookDeliveries)), [webhookDeliveries]);
@@ -2648,11 +2649,26 @@ function Connections({ pushActivity, flash, emitHotelEvent }) {
   };
 
   const replayWebhook = endpoint => {
-    const delivery = { id:"DLV-"+String(Date.now()).slice(-5), endpoint:endpoint.id, event:endpoint.events[0] || "reservation.created", code:"200 OK", duration:(160 + Date.now()%180) + " ms", time:"now" };
+    const delivery = { id:"DLV-"+String(Date.now()).slice(-5), endpoint:endpoint.id, event:endpoint.events[0] || "reservation.created", status:"Delivered", code:"200 OK", duration:(160 + Date.now()%180) + " ms", time:"now", attempts:1, redrives:0 };
     setWebhookDeliveries(prev => [delivery, ...prev].slice(0, 30));
     setWebhookEndpoints(prev => prev.map(x => x.id === endpoint.id ? { ...x, deliveries:Number(x.deliveries||0)+1, last:"now", success:"100%" } : x));
     pushActivity("green", "Webhook replay simulated", endpoint.name + " · " + delivery.event + " · " + delivery.code, "Automation", "StayPilot integration gateway");
     flash("Demo webhook replay recorded");
+  };
+
+  const redriveDelivery = delivery => {
+    if (delivery.status !== "Dead-letter") return;
+    setWebhookDeliveries(prev => prev.map(item => item.id === delivery.id ? {
+      ...item,
+      status:"Queued",
+      code:"Queued for retry",
+      duration:"delivery-only redrive",
+      time:"now",
+      attempts:0,
+      redrives:Number(item.redrives || 0) + 1
+    } : item));
+    pushActivity("amber", "Webhook delivery redriven", delivery.id + " · " + delivery.event + " · delivery only; source hotel action not replayed", "Automation", "StayPilot integration gateway");
+    flash("Delivery queued again · hotel action was not replayed");
   };
 
   const sendInboundTest = (reuseId = false) => {
@@ -2800,7 +2816,23 @@ function Connections({ pushActivity, flash, emitHotelEvent }) {
       <div className="table-scroll"><table><thead><tr><th>Endpoint</th><th>Subscribed events</th><th>Deliveries</th><th>Last delivery</th><th>Success</th><th /></tr></thead><tbody>
         {webhookEndpoints.map(endpoint => <tr key={endpoint.id}><td><b>{endpoint.name}</b><small>{endpoint.url}</small></td><td>{endpoint.events.join(", ")}</td><td><b>{endpoint.deliveries}</b></td><td>{endpoint.last}</td><td><StatusDot status={endpoint.status} /><small>{endpoint.success}</small></td><td><button className="row-action" onClick={() => replayWebhook(endpoint)}>Replay test</button></td></tr>)}
       </tbody></table></div>
-      <div className="mini-note"><Database size={15} /> Recent: {webhookDeliveries.slice(0,3).map(x => x.event+" → "+x.code+" ("+x.duration+")").join(" · ")}</div>
+
+      <div className="delivery-reliability-head">
+        <div><span className="panel-kicker">Delivery reliability demo</span><h4>Retry, dead-letter & redrive</h4><p>Redrive requeues only the exhausted outbound delivery. It never repeats the source hotel event or automation action.</p></div>
+        <span className="delivery-only-badge"><ShieldCheck size={14}/> Delivery-only recovery</span>
+      </div>
+      <div className="table-scroll delivery-table"><table><thead><tr><th>Delivery</th><th>Event</th><th>Endpoint</th><th>State</th><th>Result</th><th>Attempts</th><th /></tr></thead><tbody>
+        {webhookDeliveries.slice(0,6).map(delivery => <tr key={delivery.id}>
+          <td><b>{delivery.id}</b><small>{delivery.time}</small></td>
+          <td>{delivery.event}</td>
+          <td>{delivery.endpoint}</td>
+          <td><span className={"delivery-state " + String(delivery.status || "Delivered").toLowerCase().replace(/[^a-z]+/g,"-")}>{delivery.status || "Delivered"}</span></td>
+          <td><b>{delivery.code}</b><small>{delivery.duration}</small></td>
+          <td>{delivery.attempts ?? 1}{Number(delivery.redrives || 0) > 0 ? <small>{delivery.redrives} redrive</small> : null}</td>
+          <td>{delivery.status === "Dead-letter" ? <button className="row-action redrive-action" onClick={() => redriveDelivery(delivery)}><RefreshCw size={13}/> Redrive delivery</button> : <span className="delivery-safe">No action</span>}</td>
+        </tr>)}
+      </tbody></table></div>
+      <div className="mini-note"><Database size={15} /> Browser demo mirrors the server recovery contract; public server dispatch remains fail-closed until dedicated infrastructure is configured.</div>
     </section>
 
     <section className="connection-health panel">
