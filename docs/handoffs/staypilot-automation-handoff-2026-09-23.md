@@ -6,12 +6,12 @@ Canonical demo: https://staypilot-hotel-os.pages.dev/
 
 ## Durable source state
 
-- verified application release commit: `4f289274a76df824c8dfe8ad3f50f785842ff1b9`
+- verified application release commit: `e300fd38af719e34f57dee39dcae0df85f52251d`
 - verified Cloudflare bundle branch: `cloudflare-deploy`
 - verified bundle commit: `43d0d606fe0e80a5090546945d6f60dd823625a7`
 - bundle commit message: `stage Cloudflare bundle for 9de867d90b407b377f435565324443a3857b9d7e`
-- latest deployment preview: https://4bb43030.staypilot-hotel-os.pages.dev
-- canonical deployment: https://staypilot-hotel-os.pages.dev/?v=4f289274
+- latest deployment preview: https://3a917355.staypilot-hotel-os.pages.dev
+- canonical deployment: https://staypilot-hotel-os.pages.dev/?v=e300fd38
 - verification workflow: `.github/workflows/verify.yml`
 - Node 22 + npm ci + npm run build: PASS
 - production artifact upload: PASS
@@ -370,3 +370,33 @@ Repository homepage points to:
 https://staypilot-hotel-os.pages.dev/
 
 This replaces the obsolete “AI concierge dashboard” positioning.
+
+
+## Production backend foundation QA — PASS
+
+Verified on canonical production for application release `e300fd38`.
+
+Server contract:
+- `GET /api/backend-health` returns `ok: true`, `mode: not_configured`, database=false, signature=false.
+- `POST /api/events` returns HTTP 503 `backend_not_configured` while dedicated Supabase/signing secrets are absent.
+- both fresh preview and canonical alias expose the Pages Functions.
+- no unrelated Supabase project was reused.
+
+Integration Hub:
+- desktop shows **Foundation staged · fail-closed**.
+- 390px mobile opens Integration Hub successfully.
+- mobile document width = viewport width = 390px.
+- webhook table remains horizontally scrollable inside a 360px container instead of widening the page.
+- inbound endpoint URL wraps safely.
+- zero browser console/page errors.
+
+Backend source:
+- multi-tenant Supabase migration with RLS.
+- Owner / Manager / Staff membership model.
+- durable `hotel_id + event_id` uniqueness.
+- HMAC SHA-256 + timestamp verification.
+- duplicate-safe inbound event insert.
+- automation-run/audit/webhook persistence models.
+- CI backend security contract on every PR/push.
+
+The server foundation is deployed but intentionally dormant. The verified frontend remains browser-local authority until a dedicated StayPilot Supabase project and server secrets are explicitly provisioned.
