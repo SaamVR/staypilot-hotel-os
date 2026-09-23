@@ -48,7 +48,7 @@ assert.equal(constantTimeEqual("abcdef", "abcdeg"), false);
 assert.equal((await sha256Hex(body)).length, 64, "payload hash should be SHA-256 hex");
 
 const migration = await readFile(
-  new URL("../supabase/migrations/20260923_001_staypilot_core.sql", import.meta.url),
+  new URL("../supabase/migrations/20260923010000_staypilot_core.sql", import.meta.url),
   "utf8",
 );
 const exposedTables = [
@@ -85,7 +85,7 @@ assert.match(endpoint, /config\.webhookSigningSecret/, "event endpoint must veri
 assert.match(endpoint, /backend_not_configured/, "event endpoint must fail closed before secrets are configured");
 
 const workerMigration = await readFile(
-  new URL("../supabase/migrations/20260923_002_durable_worker.sql", import.meta.url),
+  new URL("../supabase/migrations/20260923020000_durable_worker.sql", import.meta.url),
   "utf8",
 );
 assert.match(workerMigration, /for update of e skip locked/i, "worker claim must use SKIP LOCKED");
@@ -133,7 +133,7 @@ assert.match(workerModule, /findExistingRun/, "worker must check for an existing
 assert.match(workerModule, /existing && existing\.result !== "Failed"/, "a prior Failed run must not suppress a retry");
 
 const outboxMigration = await readFile(
-  new URL("../supabase/migrations/20260924_003_webhook_outbox.sql", import.meta.url),
+  new URL("../supabase/migrations/20260924030000_webhook_outbox.sql", import.meta.url),
   "utf8",
 );
 assert.match(outboxMigration, /webhook_deliveries_endpoint_event_uidx/i, "outbound deliveries need endpoint + Event-ID uniqueness");
@@ -146,7 +146,7 @@ assert.match(workerModule, /completeWithOutbox/, "worker completion must include
 assert.match(workerModule, /terminalRunRecorded/, "outbox retry must preserve terminal business results");
 
 const dispatcherMigration = await readFile(
-  new URL("../supabase/migrations/20260924_004_webhook_dispatcher.sql", import.meta.url),
+  new URL("../supabase/migrations/20260924040000_webhook_dispatcher.sql", import.meta.url),
   "utf8",
 );
 const dispatcherModule = await readFile(new URL("../functions/_shared/dispatcher.js", import.meta.url), "utf8");
@@ -174,7 +174,7 @@ assert.match(dispatcherModule, /private_or_local_destination_forbidden/i, "dispa
 assert.match(dispatcherModule, /x-staypilot-signature/i, "dispatcher must HMAC-sign outbound bodies");
 
 const redriveMigration = await readFile(
-  new URL("../supabase/migrations/20260924_005_webhook_redrive.sql", import.meta.url),
+  new URL("../supabase/migrations/20260924050000_webhook_redrive.sql", import.meta.url),
   "utf8",
 );
 const redriveEndpoint = await readFile(new URL("../functions/api/webhook-redrive.js", import.meta.url), "utf8");
@@ -190,7 +190,7 @@ assert.match(redriveEndpoint, /dispatcher_not_configured/i, "redrive must fail c
 assert.match(redriveEndpoint, /invalid_delivery_id/i, "redrive endpoint must validate delivery UUIDs");
 
 const provisioningMigration = await readFile(
-  new URL("../supabase/migrations/20260924_005_webhook_endpoint_provisioning.sql", import.meta.url),
+  new URL("../supabase/migrations/20260924060000_webhook_endpoint_provisioning.sql", import.meta.url),
   "utf8",
 );
 const provisioningModule = await readFile(new URL("../functions/_shared/provisioning.js", import.meta.url), "utf8");
