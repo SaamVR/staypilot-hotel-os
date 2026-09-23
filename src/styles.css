@@ -1164,3 +1164,5 @@ nav button,.primary-btn,.secondary-btn,.ghost-btn,.danger-btn,.icon-btn,.row-act
 .system-health.paused .live-dot,.live-pill.paused>span{background:#c88a2d;box-shadow:0 0 0 4px rgba(200,138,45,.12)}
 .live-pill.paused{border-color:#e3c59d;background:#fff8ef;color:#81571d}
 @media(max-width:700px){.automation-master-banner{align-items:stretch;flex-direction:column}.automation-master-banner>button{width:100%}}
+
+.automation-queue-count{display:inline-flex;margin-top:7px;border:1px solid #e3c59d;border-radius:999px;background:#fff;padding:4px 8px;color:#84591f;font-size:9px;font-weight:750}
