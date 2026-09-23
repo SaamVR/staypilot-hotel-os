@@ -123,6 +123,8 @@ begin
   where endpoint.hotel_id = source_event.hotel_id
     and endpoint.status = 'Active'
     and endpoint.verified_at is not null
+    and endpoint.verified_host is not null
+    and endpoint.secret_ref is not null
     and source_event.event_type = any(endpoint.events)
   on conflict (hotel_id, endpoint_id, event_id) do nothing;
 
@@ -175,6 +177,8 @@ begin
     join public.webhook_endpoints endpoint on endpoint.id = delivery.endpoint_id
     where endpoint.status = 'Active'
       and endpoint.verified_at is not null
+      and endpoint.verified_host is not null
+      and endpoint.secret_ref is not null
       and (
         (
           delivery.status in ('queued','retrying')
