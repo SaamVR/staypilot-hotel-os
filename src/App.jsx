@@ -2492,7 +2492,7 @@ function Connections({ pushActivity, flash, emitHotelEvent }) {
         ["signingSecret", "HMAC signing secret", "Generated server-side in production", "secret"],
         ["events", "Subscribed events", "reservation.created, guest.checked_out", "text"]
       ],
-      scopes: ["Signed outbound events", "Inbound hotel events", "Retries", "Idempotency", "Delivery replay"]
+      scopes: ["Signed outbound events", "Owner-authenticated provisioning", "Verified destinations", "Retries", "Idempotency", "Delivery replay"]
     },
     meta: {
       name: "Meta Ads", icon: "M", tone: "violet", type: "Marketing", note: "Marketing API",
@@ -2599,7 +2599,7 @@ function Connections({ pushActivity, flash, emitHotelEvent }) {
         database: Boolean(data.dependencies?.database),
         signature: Boolean(data.dependencies?.inbound_signature_verification),
         worker: Boolean(data.dependencies?.durable_worker_authentication),
-        dispatcher: Boolean(data.dependencies?.outbound_dispatcher_authentication && data.dependencies?.outbound_host_allowlist),
+        dispatcher: Boolean(data.dependencies?.outbound_dispatcher_authentication && data.dependencies?.outbound_host_allowlist && data.dependencies?.outbound_signing_master),
         mode: data.mode || (data.configured ? "configured" : "not_configured")
       };
       setBackendHealth(next);
@@ -2718,14 +2718,14 @@ function Connections({ pushActivity, flash, emitHotelEvent }) {
 
     <section className={"panel backend-readiness-card " + backendHealth.state}>
       <div className="backend-readiness-head">
-        <div><span className="panel-kicker">Commercial backend boundary</span><h3>{backendHealth.state === "ready" ? "Server foundation configured" : backendHealth.state === "unavailable" ? "Server boundary unavailable" : backendHealth.state === "checking" ? "Checking server boundary…" : "Foundation staged · fail-closed"}</h3><p>{backendHealth.state === "ready" ? "Database, inbound HMAC and worker authentication are configured. Server authority still stays disabled until migrations and worker rollout are explicitly enabled." : backendHealth.state === "staged" ? "Pages Functions, RLS schema, durable Event-ID ingestion and worker contracts are deployed, but no dedicated StayPilot Supabase project/secrets are configured yet." : backendHealth.state === "unavailable" ? "The portfolio remains local-first; no server event ingestion is being claimed." : "Verifying the deployed Pages Function without exposing credentials."}</p></div>
+        <div><span className="panel-kicker">Commercial backend boundary</span><h3>{backendHealth.state === "ready" ? "Server foundation configured" : backendHealth.state === "unavailable" ? "Server boundary unavailable" : backendHealth.state === "checking" ? "Checking server boundary…" : "Foundation staged · fail-closed"}</h3><p>{backendHealth.state === "ready" ? "Database, inbound HMAC and worker authentication are configured. Server authority still stays disabled until migrations and worker rollout are explicitly enabled." : backendHealth.state === "staged" ? "Pages Functions, RLS schema, durable Event-ID ingestion, worker contracts and verified webhook provisioning are deployed, but no dedicated StayPilot Supabase project/secrets are configured yet." : backendHealth.state === "unavailable" ? "The portfolio remains local-first; no server event ingestion is being claimed." : "Verifying the deployed Pages Function without exposing credentials."}</p></div>
         <span className={"backend-state-pill " + backendHealth.state}>{backendHealth.state === "ready" ? "Configured" : backendHealth.state === "staged" ? "Fail-closed" : backendHealth.state === "checking" ? "Checking" : "Unavailable"}</span>
       </div>
       <div className="backend-readiness-grid">
         <div><Database size={17}/><span>Dedicated database</span><b>{backendHealth.database ? "Configured" : "Not provisioned"}</b></div>
         <div><ShieldCheck size={17}/><span>Inbound HMAC secret</span><b>{backendHealth.signature ? "Configured" : "Not configured"}</b></div>
         <div><UserCog size={17}/><span>Worker authentication</span><b>{backendHealth.worker ? "Configured" : "Not configured"}</b></div>
-        <div><PlugZap size={17}/><span>Outbound dispatcher</span><b>{backendHealth.dispatcher ? "Allowlisted + authenticated" : "Not configured"}</b></div>
+        <div><PlugZap size={17}/><span>Outbound dispatcher</span><b>{backendHealth.dispatcher ? "Verified + signed" : "Not configured"}</b></div>
         <div><PlugZap size={17}/><span>Event ingestion</span><b>{backendHealth.configured ? "Ready for signed events" : "Rejects requests"}</b></div>
       </div>
       <div className="backend-readiness-foot"><small>Current frontend authority: browser-local demo state. Server authority is not enabled.</small><button className="ghost-btn" onClick={() => checkBackendHealth(true)}><RefreshCw size={15} className={backendHealth.state === "checking" ? "spin" : ""}/> Check server boundary</button></div>
