@@ -28,8 +28,8 @@ create unique index if not exists audit_events_hotel_source_action_uidx
   on public.audit_events(hotel_id, source_event_id, action);
 
 create index if not exists inbound_events_claim_idx
-  on public.inbound_events(status, next_attempt_at, received_at)
-  where status in ('queued','failed');
+  on public.inbound_events(status, next_attempt_at, locked_at, received_at)
+  where status in ('queued','failed','processing');
 
 create or replace function public.claim_inbound_events(
   worker_name text,
@@ -52,8 +52,11 @@ begin
     select e.id
     from public.inbound_events e
     join public.hotels h on h.id = e.hotel_id
-    where e.status in ('queued','failed')
-      and e.next_attempt_at <= now()
+    where (
+        (e.status in ('queued','failed') and e.next_attempt_at <= now())
+        or
+        (e.status = 'processing' and e.locked_at < now() - interval '10 minutes')
+      )
       and e.attempt_count < 5
       and h.automation_paused = false
     order by e.received_at asc
@@ -132,6 +135,6 @@ grant execute on function public.claim_inbound_events(text, integer) to service_
 grant execute on function public.finish_inbound_event(uuid, text, text, integer) to service_role;
 
 comment on function public.claim_inbound_events(text, integer)
-  is 'Service-role only. Atomically claims due queued/failed events with SKIP LOCKED.';
+  is 'Service-role only. Atomically claims due queued/failed or stale processing events with SKIP LOCKED.';
 comment on function public.finish_inbound_event(uuid, text, text, integer)
   is 'Service-role only. Completes, retries, or dead-letters a processing event.';
