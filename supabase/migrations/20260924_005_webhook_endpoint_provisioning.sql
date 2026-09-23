@@ -53,7 +53,8 @@ begin
       verified_host = normalized_host,
       verification_status = 'Verified',
       verification_attempted_at = now(),
-      verification_error = null
+      verification_error = null,
+      status = 'Active'
   where endpoint.id = endpoint_uuid
   returning endpoint.* into updated;
 
