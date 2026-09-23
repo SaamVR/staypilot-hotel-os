@@ -48,11 +48,11 @@ This staged approach keeps the verified portfolio demo stable while backend auth
 
 ## Files
 
-- `supabase/migrations/20260923_001_staypilot_core.sql`
+- `supabase/migrations/20260923010000_staypilot_core.sql`
 - `functions/_shared/webhook.js`
 - `functions/api/events.js`
 - `functions/api/backend-health.js`
-- `supabase/migrations/20260923_002_durable_worker.sql`
+- `supabase/migrations/20260923020000_durable_worker.sql`
 - `functions/_shared/supabase.js`
 - `functions/_shared/worker.js`
 - `functions/api/worker-run.js`
@@ -174,7 +174,7 @@ Creation may have account-dependent cost. Before provisioning through the connec
 
 Once provisioned:
 
-1. apply `20260923_001_staypilot_core.sql`
+1. apply `20260923010000_staypilot_core.sql`
 2. run Supabase security advisors
 3. create a test Auth user
 4. bootstrap one hotel + Owner membership server-side
@@ -206,7 +206,7 @@ commit
 
 ### Atomic claim lifecycle
 
-Migration `20260923_002_durable_worker.sql` adds:
+Migration `20260923020000_durable_worker.sql` adds:
 
 - `next_attempt_at`
 - processing lease fields
@@ -293,7 +293,7 @@ Until a dedicated database, secrets, worker, authentication migration and provid
 
 ## Durable outbound integration outbox
 
-Migration `20260924_003_webhook_outbox.sql` adds the server-side handoff from completed hotel events to optional external systems.
+Migration `20260924030000_webhook_outbox.sql` adds the server-side handoff from completed hotel events to optional external systems.
 
 The outbox does **not** make external HTTP calls yet. It only persists delivery intent safely.
 
@@ -343,7 +343,7 @@ Do not add arbitrary external fetches directly to the hotel automation worker.
 
 ## Verified outbound webhook dispatcher
 
-Migration `20260924_004_webhook_dispatcher.sql` and the server dispatcher modules add the delivery layer after the durable outbox.
+Migration `20260924040000_webhook_dispatcher.sql` and the server dispatcher modules add the delivery layer after the durable outbox.
 
 Security boundary:
 
@@ -391,7 +391,7 @@ The dispatcher remains dormant in the current public deployment because no dedic
 
 ## Dead-letter delivery redrive
 
-Migration `20260924_005_webhook_redrive.sql` adds a controlled recovery path for exhausted outbound webhook deliveries.
+Migration `20260924050000_webhook_redrive.sql` adds a controlled recovery path for exhausted outbound webhook deliveries.
 
 The critical rule is:
 
