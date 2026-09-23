@@ -1,0 +1,7 @@
+# StayPilot Cloudflare Pages server environment
+# Copy to .dev.vars for local Functions development only.
+# Never commit .dev.vars or real credentials.
+
+SUPABASE_URL=https://YOUR_PROJECT_REF.supabase.co
+SUPABASE_SECRET_KEY=YOUR_SERVER_ONLY_SUPABASE_SECRET
+WEBHOOK_SIGNING_SECRET=GENERATE_A_LONG_RANDOM_SECRET

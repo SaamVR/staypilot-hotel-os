@@ -374,6 +374,22 @@ Use **Reset demo** to restore seeded state. Reset also clears automation sentine
 
 This provides a durable build guardrail independent of the development machine.
 
+## Production backend foundation
+
+The repository now contains a **dormant server-side foundation** for the next commercial phase:
+
+- Supabase multi-tenant schema with RLS
+- Owner / Manager / Staff membership model
+- durable inbound Event IDs and database-level idempotency
+- automation-run, audit and webhook-delivery persistence models
+- Cloudflare Pages Functions for signed inbound event ingestion and backend health
+- HMAC/timestamp replay protection
+- CI security-contract verification
+
+No dedicated StayPilot Supabase project has been provisioned yet, and no unrelated Supabase project is reused. Until server secrets and a dedicated database are explicitly configured, `/api/events` fails closed and the verified portfolio frontend remains local-first.
+
+See `docs/production-backend-foundation.md` for the staged rollout contract.
+
 ## Production boundary
 
 StayPilot Automation OS remains a portfolio prototype, not a production hotel control plane.
