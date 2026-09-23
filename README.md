@@ -388,6 +388,7 @@ The repository now contains a **dormant server-side foundation** for the next co
 - dormant durable worker with atomic SKIP LOCKED claims, retries/dead-lettering and stale-lease recovery
 - durable outbound webhook outbox with endpoint/Event-ID dedupe for optional n8n, Make, Zapier or custom consumers
 - Owner-authenticated webhook endpoint registration + signed challenge verification with server-derived per-endpoint credentials
+- Bounded scheduler orchestration for durable worker + optional dispatcher, protected by a dedicated server secret
 - verified-host outbound dispatcher with exact HTTPS allowlisting, server-managed signing secrets, HMAC delivery signatures and bounded retry/dead-letter handling
 - audited delivery-only dead-letter redrive that never replays the source hotel action
 
