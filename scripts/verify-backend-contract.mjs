@@ -6,6 +6,7 @@ import {
   sha256Hex,
   verifyWebhookSignature,
 } from "../functions/_shared/webhook.js";
+import { normalizeGuestRequest, planDomainEvent, WorkerExecutionError } from "../functions/_shared/worker.js";
 
 const secret = "staypilot-test-secret";
 const nowMs = Date.UTC(2026, 8, 23, 17, 45, 0);
@@ -82,5 +83,51 @@ assert.match(endpoint, /resolution=ignore-duplicates/i, "event endpoint must use
 assert.match(sharedConfig, /WEBHOOK_SIGNING_SECRET/, "shared server config must read webhook signing secret");
 assert.match(endpoint, /config\.webhookSigningSecret/, "event endpoint must verify with configured signing secret");
 assert.match(endpoint, /backend_not_configured/, "event endpoint must fail closed before secrets are configured");
+
+const workerMigration = await readFile(
+  new URL("../supabase/migrations/20260923_002_durable_worker.sql", import.meta.url),
+  "utf8",
+);
+assert.match(workerMigration, /for update of e skip locked/i, "worker claim must use SKIP LOCKED");
+assert.match(workerMigration, /interval '10 minutes'/i, "worker must reclaim stale processing leases");
+assert.match(workerMigration, /attempt_count\s*<\s*5/i, "worker claim must cap retry attempts");
+assert.match(workerMigration, /dead_letter/i, "worker lifecycle must support dead-letter state");
+assert.match(workerMigration, /grant execute on function public\.claim_inbound_events\(text, integer\) to service_role/i, "claim RPC must be service-role only");
+assert.match(workerMigration, /grant execute on function public\.finish_inbound_event\(uuid, text, text, integer\) to service_role/i, "finish RPC must be service-role only");
+assert.match(workerMigration, /tasks_hotel_source_event_uidx/i, "task side effects need Event-ID idempotency");
+assert.match(workerMigration, /approvals_hotel_source_event_uidx/i, "approval side effects need Event-ID idempotency");
+
+assert.equal(normalizeGuestRequest("Can I get two towels please?"), "Extra towels requested");
+assert.equal(normalizeGuestRequest("Need another pillow"), "Extra pillows requested");
+const guestPlan = planDomainEvent({
+  event_type:"guest.request_received",
+  payload:{ request:"Please send towels", room_number:"108" },
+});
+assert.equal(guestPlan.kind, "create_task");
+assert.equal(guestPlan.team, "Housekeeping");
+assert.equal(guestPlan.roomNumber, "108");
+const checkoutPlan = planDomainEvent({
+  event_type:"guest.checked_out",
+  payload:{ room_number:"204" },
+});
+assert.equal(checkoutPlan.kind, "checkout_turnover");
+const unsupportedPlan = planDomainEvent({ event_type:"payment.failed", payload:{} });
+assert.equal(unsupportedPlan.kind, "unsupported");
+assert.throws(
+  () => planDomainEvent({ event_type:"housekeeping.completed", payload:{} }),
+  error => error instanceof WorkerExecutionError && error.code === "invalid_payload",
+  "room-scoped worker events must require a room number",
+);
+
+const workerEndpoint = await readFile(new URL("../functions/api/worker-run.js", import.meta.url), "utf8");
+const workerModule = await readFile(new URL("../functions/_shared/worker.js", import.meta.url), "utf8");
+assert.match(sharedConfig, /WORKER_SECRET/, "shared config must read worker secret");
+assert.match(workerEndpoint, /x-staypilot-worker-secret/i, "worker endpoint must require server worker header");
+assert.match(workerEndpoint, /constantTimeEqual/, "worker endpoint must compare secret in constant time");
+assert.match(workerEndpoint, /worker_not_configured/, "worker endpoint must fail closed before backend configuration");
+assert.match(workerEndpoint, /claimInboundEvents/, "worker endpoint must atomically claim events");
+assert.match(workerEndpoint, /processClaimedEvent/, "worker endpoint must process claimed events");
+assert.match(workerModule, /resolution=ignore-duplicates/i, "worker side effects must use duplicate-safe inserts");
+assert.match(workerModule, /findExistingRun/, "worker must check for an existing Event-ID run before mutation");
 
 console.log("StayPilot backend contract verification passed.");
