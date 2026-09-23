@@ -236,6 +236,8 @@ assert.match(orchestratorModule, /events\.length === 0 && deliveries\.length ===
 assert.match(scheduledWorker, /SCHEDULER_ENABLED/i, "scheduled Worker must have its own explicit enable gate");
 assert.match(scheduledWorker, /\/api\/orchestrate-run/i, "scheduled Worker must call the Pages control-plane orchestration endpoint");
 assert.match(scheduledWorker, /redirect:"manual"/i, "scheduled Worker must not follow redirects");
+assert.match(scheduledWorker, /staypilot-hotel-os\.pages\.dev/i, "scheduler must pin the trusted Pages control-plane host");
+assert.match(scheduledWorker, /untrusted_control_plane_origin/i, "scheduler must fail before sending secrets to foreign origins");
 assert.match(scheduledConfig, /"crons": \["\* \* \* \* \*"\]/, "scheduler template must define an explicit once-per-minute cron");
 assert.match(scheduledConfig, /"SCHEDULER_ENABLED": "false"/, "scheduler template must ship disabled by default");
 
