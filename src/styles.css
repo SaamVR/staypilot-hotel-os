@@ -1239,3 +1239,20 @@ nav button,.primary-btn,.secondary-btn,.ghost-btn,.danger-btn,.icon-btn,.row-act
   .webhook-box>div,.webhook-box button{width:100%}
   .webhook-console table{min-width:760px}
 }
+
+
+/* Outbound delivery reliability / redrive demo */
+.delivery-reliability-head{display:flex;align-items:flex-start;justify-content:space-between;gap:18px;margin:18px 0 10px;padding-top:16px;border-top:1px solid #e7ece9}
+.delivery-reliability-head h4{margin:4px 0 4px;font-size:15px;letter-spacing:-.02em;color:var(--ink)}
+.delivery-reliability-head p{margin:0;max-width:760px;font-size:10px;line-height:1.5;color:#74817b}
+.delivery-only-badge{display:inline-flex;align-items:center;gap:6px;flex:0 0 auto;border:1px solid #cfe1d8;border-radius:999px;background:#f3f8f5;color:var(--forest-700);padding:6px 9px;font-size:8.5px;font-weight:800;text-transform:uppercase;letter-spacing:.05em}
+.delivery-table{margin-top:0}
+.delivery-table table{min-width:820px}
+.delivery-table td small{display:block;margin-top:3px;color:#87928d;font-size:8.5px}
+.delivery-state{display:inline-flex;align-items:center;border:1px solid var(--line);border-radius:999px;padding:4px 7px;font-size:8.5px;font-weight:800}
+.delivery-state.delivered{background:#eef7f2;border-color:#cfe1d8;color:var(--forest-700)}
+.delivery-state.dead-letter{background:#fff5f4;border-color:#e8c8c5;color:#974c48}
+.delivery-state.queued{background:#fff8ee;border-color:#ead5b8;color:#8b6128}
+.row-action.redrive-action{display:inline-flex;align-items:center;gap:5px;white-space:nowrap}
+.delivery-safe{font-size:8.5px;color:#8a958f;white-space:nowrap}
+@media(max-width:760px){.delivery-reliability-head{flex-direction:column;align-items:stretch}.delivery-only-badge{align-self:flex-start}}
