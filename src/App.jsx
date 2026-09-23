@@ -128,11 +128,12 @@ const ownerNav = [
   ["expenses", "Expenses", ReceiptText, "Business"],
   ["channels", "Channel manager", RefreshCw, "Business"],
   ["marketing", "Marketing", Megaphone, "Business"],
-  ["automations", "Automation center", Zap, "System"],
-  ["audit", "Audit log", Clock3, "System"],
-  ["permissions", "Roles & permissions", ShieldCheck, "System"],
-  ["assistant", "Operations assistant", Bot, "System"],
-  ["connections", "Connections & API", Settings2, "System"]
+  ["automations", "Automation center", Zap, "Automation"],
+  ["audit", "Audit log", Clock3, "Automation"],
+  ["permissions", "Roles & permissions", ShieldCheck, "Automation"],
+  ["assistant", "Operations assistant", Bot, "Automation"],
+  ["connections", "Integration hub", Settings2, "Platform"],
+  ["setup", "Property setup", ClipboardList, "Platform"]
 ];
 
 const managerNav = [
@@ -146,9 +147,9 @@ const managerNav = [
   ["instructions", "Team instructions", ClipboardList, "Property"],
   ["inventory", "Supplies & inventory", Boxes, "Resources"],
   ["approvals", "My requests", ShieldCheck, "Resources"],
-  ["automations", "Automation center", Zap, "System"],
-  ["audit", "Audit log", Clock3, "System"],
-  ["assistant", "Operations assistant", Bot, "System"]
+  ["automations", "Automation center", Zap, "Automation"],
+  ["audit", "Audit log", Clock3, "Automation"],
+  ["assistant", "Operations assistant", Bot, "Automation"]
 ];
 
 const seedStock = [
@@ -189,6 +190,33 @@ const seedTasks = [
   { id: 4, place: "Room 108", title: "Extra towels requested", team: "Housekeeping", due: "Due 16:20", status: "New" }
 ];
 
+const seedSystemExceptions = [
+  { id:"EXC-03", type:"Payment", severity:"High", title:"Payment retry exhausted", detail:"SP-1042 · Visa authorization failed twice", route:"reservations", status:"Open" },
+  { id:"EXC-04", type:"Distribution", severity:"Normal", title:"Agoda acknowledgement delayed", detail:"Inventory push waiting 94 seconds", route:"channels", status:"Open" }
+];
+
+const seedAutomationRules = [
+  { id: "AUTO-01", name: "Reservation intake", scope: "Operations", event: "reservation.created", trigger: "Reservation received", action: "Hold inventory → reconcile channels → confirmation", status: "Active", autonomy: "Auto", last: "2 min ago", runs: 184, failures: 0, minutesSaved: 552 },
+  { id: "AUTO-02", name: "Checkout turnover", scope: "Operations", event: "guest.checked_out", trigger: "Guest checked out", action: "Room → Dirty → housekeeping task → sellability update", status: "Active", autonomy: "Auto", last: "18 min ago", runs: 42, failures: 0, minutesSaved: 168 },
+  { id: "AUTO-03", name: "Pre-arrival message", scope: "Operations", event: "prearrival.due", trigger: "24h before arrival", action: "Send arrival instructions → track delivery", status: "Active", autonomy: "Auto", last: "42 min ago", runs: 67, failures: 1, minutesSaved: 134 },
+  { id: "AUTO-04", name: "Occupancy rate guard", scope: "Revenue", event: "occupancy.threshold", trigger: "Occupancy > 80%", action: "BAR +8% → policy check → apply or approve", status: "Active", autonomy: "Policy", last: "1 hr ago", runs: 12, failures: 0, minutesSaved: 36 },
+  { id: "AUTO-05", name: "Failed payment recovery", scope: "Finance", event: "payment.failed", trigger: "Payment authorization fails", action: "Retry → flag folio → create exception", status: "Paused", autonomy: "Auto", last: "Yesterday", runs: 9, failures: 1, minutesSaved: 27 },
+  { id: "AUTO-06", name: "Low-stock replenishment", scope: "Operations", event: "inventory.low_stock", trigger: "Item falls below par", action: "Calculate reorder → policy check → PO / approval", status: "Active", autonomy: "Policy", last: "Yesterday", runs: 8, failures: 0, minutesSaved: 32 },
+  { id: "AUTO-07", name: "Cancellation recovery", scope: "Operations", event: "reservation.cancelled", trigger: "Reservation cancelled", action: "Release room/inventory → reconcile channels → resale", status: "Active", autonomy: "Auto", last: "Not run", runs: 0, failures: 0, minutesSaved: 0 },
+  { id: "AUTO-08", name: "Room-ready release", scope: "Operations", event: "housekeeping.completed", trigger: "Housekeeping marks room ready", action: "Set Clean → recalculate sellability → channel release", status: "Active", autonomy: "Auto", last: "Not run", runs: 0, failures: 0, minutesSaved: 0 },
+  { id: "AUTO-09", name: "Room conflict guard", scope: "Operations", event: "room.maintenance_blocked", trigger: "Assigned room goes out of order", action: "Find affected stay → alternatives → exception", status: "Active", autonomy: "Approval", last: "Not run", runs: 0, failures: 0, minutesSaved: 0 },
+  { id: "AUTO-10", name: "Guest request router", scope: "Operations", event: "guest.request_received", trigger: "Guest service request received", action: "Classify → create task → route team", status: "Active", autonomy: "Auto", last: "Not run", runs: 0, failures: 0, minutesSaved: 0 },
+  { id: "AUTO-11", name: "Approval executor", scope: "Governance", event: "approval.approved", trigger: "Owner approves an action", action: "Execute approved action → close handoff → audit", status: "Active", autonomy: "Auto", last: "Not run", runs: 0, failures: 0, minutesSaved: 0 },
+  { id: "AUTO-12", name: "Review recovery", scope: "Guest experience", event: "review.negative", trigger: "Low guest feedback detected", action: "Create service-recovery exception → notify manager", status: "Active", autonomy: "Approval", last: "Not run", runs: 0, failures: 0, minutesSaved: 0 }
+];
+
+const seedAutomationLogs = [
+  { id: 1, runId: "RUN-2818", ruleId: "AUTO-01", rule: "Reservation intake", event: "reservation.created", result: "Success", detail: "SP-1048 · Booking.com", steps: ["Inventory held", "Channel reconciliation recorded", "Confirmation recorded"], duration: 412, minutesSaved: 3, time: "2 min ago" },
+  { id: 2, runId: "RUN-2817", ruleId: "AUTO-03", rule: "Pre-arrival message", event: "prearrival.due", result: "Success", detail: "Olivia Martin · delivery recorded", steps: ["Arrival detected", "Instructions sent", "Delivery tracked"], duration: 286, minutesSaved: 2, time: "42 min ago" },
+  { id: 3, runId: "RUN-2816", ruleId: "AUTO-04", rule: "Occupancy rate guard", event: "occupancy.threshold", result: "Approval", detail: "APR-102 · BAR +18%", steps: ["Threshold crossed", "Policy checked", "Owner approval requested"], duration: 191, minutesSaved: 3, time: "1 hr ago" },
+  { id: 4, runId: "RUN-2815", ruleId: "AUTO-05", rule: "Failed payment recovery", event: "payment.failed", result: "Failed", detail: "Retry exhausted · operator alerted", steps: ["Authorization failed", "Retry attempted", "Exception raised"], duration: 734, minutesSaved: 3, time: "Yesterday" }
+];
+
 const defaultPolicy = {
   managerCanManageRooms: true,
   managerCanSyncChannels: true,
@@ -210,6 +238,11 @@ const load = (key, fallback) => {
     const v = localStorage.getItem(key);
     return v ? JSON.parse(v) : fallback;
   } catch { return fallback; }
+};
+
+const loadAutomationRules = () => {
+  const saved = load("sp-automations", []);
+  return seedAutomationRules.map(seed => ({ ...seed, ...(saved.find(rule => rule.id === seed.id) || {}) }));
 };
 
 function StatusDot({ status }) {
@@ -234,6 +267,9 @@ function App() {
   const [bookings, setBookings] = useState(() => load("sp-bookings", seedBookings));
   const [approvals, setApprovals] = useState(() => load("sp-approvals", seedApprovals));
   const [tasks, setTasks] = useState(() => load("sp-tasks", seedTasks));
+  const [stock, setStock] = useState(() => load("sp-stock", seedStock));
+  const [automationRules, setAutomationRules] = useState(loadAutomationRules);
+  const [automationLogs, setAutomationLogs] = useState(() => load("sp-automation-log", seedAutomationLogs));
   const [policy, setPolicy] = useState(() => load("sp-policy", defaultPolicy));
   const [activities, setActivities] = useState(() => load("sp-activities", initialActivities));
   const [rateMultiplier, setRateMultiplier] = useState(() => load("sp-rate", 1));
@@ -243,11 +279,15 @@ function App() {
   const [commandOpen, setCommandOpen] = useState(false);
   const [commandQuery, setCommandQuery] = useState("");
   const liveIndex = useRef(0);
+  const lowStockSeen = useRef(new Set(load("sp-lowstock-auto", [])));
 
   useEffect(() => localStorage.setItem("sp-rooms", JSON.stringify(rooms)), [rooms]);
   useEffect(() => localStorage.setItem("sp-bookings", JSON.stringify(bookings)), [bookings]);
   useEffect(() => localStorage.setItem("sp-approvals", JSON.stringify(approvals)), [approvals]);
   useEffect(() => localStorage.setItem("sp-tasks", JSON.stringify(tasks)), [tasks]);
+  useEffect(() => localStorage.setItem("sp-stock", JSON.stringify(stock)), [stock]);
+  useEffect(() => localStorage.setItem("sp-automations", JSON.stringify(automationRules)), [automationRules]);
+  useEffect(() => localStorage.setItem("sp-automation-log", JSON.stringify(automationLogs)), [automationLogs]);
   useEffect(() => localStorage.setItem("sp-policy", JSON.stringify(policy)), [policy]);
   useEffect(() => localStorage.setItem("sp-activities", JSON.stringify(activities)), [activities]);
   useEffect(() => localStorage.setItem("sp-rate", JSON.stringify(rateMultiplier)), [rateMultiplier]);
@@ -305,6 +345,226 @@ function App() {
     setTimeout(() => setNotice(""), 2600);
   };
 
+  const automationRuleFor = event => automationRules.find(rule => rule.event === event);
+
+  const recordAutomation = (ruleId, result, detail, steps = [], minutesSaved = 0) => {
+    const rule = automationRules.find(r => r.id === ruleId);
+    if (!rule) return;
+    const entry = {
+      id: Date.now(),
+      runId: "RUN-" + String(Date.now()).slice(-6),
+      ruleId,
+      rule: rule.name,
+      event: rule.event,
+      result,
+      detail,
+      steps,
+      duration: 140 + (Date.now() % 620),
+      minutesSaved,
+      time: "now"
+    };
+    setAutomationLogs(prev => [entry, ...prev].slice(0, 60));
+    setAutomationRules(prev => prev.map(r => r.id === ruleId ? {
+      ...r,
+      last: "now",
+      runs: Number(r.runs || 0) + 1,
+      failures: Number(r.failures || 0) + (result === "Failed" ? 1 : 0),
+      minutesSaved: Number(r.minutesSaved || 0) + Number(minutesSaved || 0)
+    } : r));
+    pushActivity(
+      result === "Failed" ? "amber" : result === "Approval" ? "blue" : "green",
+      rule.name + " · " + result.toLowerCase(),
+      detail,
+      "Automation",
+      "StayPilot automation"
+    );
+  };
+
+  const upsertSystemException = issue => {
+    const current = load("sp-exceptions", seedSystemExceptions);
+    if (current.some(x => x.id === issue.id && x.status === "Open")) return;
+    localStorage.setItem("sp-exceptions", JSON.stringify([issue, ...current].slice(0, 30)));
+  };
+
+  const emitHotelEvent = (event, payload = {}) => {
+    const rule = payload.ruleId ? automationRules.find(r => r.id === payload.ruleId) : automationRuleFor(event);
+    if (!rule) return { ok: false, reason: "No automation is mapped to " + event };
+    if (rule.status !== "Active") {
+      if (payload.manual) flash(rule.name + " is paused");
+      return { ok: false, reason: "Automation paused" };
+    }
+
+    if (event === "reservation.created") {
+      const booking = payload.booking || bookings[0];
+      if (!booking) return { ok: false, reason: "No reservation available" };
+      setBookings(prev => prev.map(b => b.id === booking.id ? { ...b, automationState: "Inventory held · confirmation recorded", channelSync: "Reconciled" } : b));
+      recordAutomation(rule.id, "Success", booking.id + " · " + booking.source, ["Room-type inventory held", "Channel inventory reconciliation recorded", "Guest confirmation recorded", "Arrival workflow created"], 3);
+      return { ok: true };
+    }
+
+    if (event === "guest.checked_out") {
+      const booking = payload.booking || bookings.find(b => b.status === "Checked out") || bookings.find(b => b.room && b.room !== "Unassigned");
+      const roomNumber = payload.roomNumber || booking?.room || rooms.find(r => r.occupancy === "Vacant" && r.housekeeping !== "Clean")?.number || "103";
+      setRooms(prev => prev.map(r => r.number === roomNumber ? { ...r, occupancy: "Vacant", housekeeping: "Dirty" } : r));
+      setTasks(prev => {
+        const exists = prev.some(t => t.place === "Room " + roomNumber && t.title === "Checkout turnover" && t.status !== "Done");
+        if (exists) return prev;
+        return [{ id: Date.now(), place: "Room " + roomNumber, title: "Checkout turnover", team: "Housekeeping", due: "Before next arrival", status: "New", automated: true }, ...prev];
+      });
+      recordAutomation(rule.id, "Success", (booking?.id || "Turnover") + " · Room " + roomNumber, ["Occupancy set Vacant", "Housekeeping set Dirty", "Turnover task created", "Sellability recalculated"], 4);
+      return { ok: true };
+    }
+
+    if (event === "prearrival.due") {
+      const booking = payload.booking || bookings.find(b => b.status === "Confirmed") || bookings[0];
+      if (!booking) return { ok: false, reason: "No upcoming arrival available" };
+      setBookings(prev => prev.map(b => b.id === booking.id ? { ...b, preArrivalStatus: "Sent", preArrivalAt: "now" } : b));
+      recordAutomation(rule.id, "Success", booking.guest + " · " + booking.id, ["Upcoming arrival detected", "Arrival instructions generated", "Delivery recorded", "Reply tracking opened"], 2);
+      return { ok: true };
+    }
+
+    if (event === "occupancy.threshold") {
+      const adjustment = Number(payload.adjustment || 8);
+      const policyLimit = Number(policy.managerRateLimit || 0);
+      if (rule.autonomy === "Suggest") {
+        recordAutomation(rule.id, "Success", "BAR +" + adjustment + "% suggested", ["Occupancy threshold evaluated", "Rate recommendation generated"], 2);
+        return { ok: true };
+      }
+      if (rule.autonomy === "Approval" || (rule.autonomy === "Policy" && adjustment > policyLimit)) {
+        const title = "Automation BAR +" + adjustment + "%";
+        const existing = approvals.find(a => a.status === "Pending" && a.type === "Rate change" && a.title === title);
+        if (!existing) {
+          const item = { id: "APR-" + (105 + approvals.length), type: "Rate change", title, detail: "Occupancy threshold · automation policy", amount: null, requestedBy: "StayPilot automation", status: "Pending", time: "just now" };
+          setApprovals(prev => [item, ...prev]);
+          recordAutomation(rule.id, "Approval", item.id + " · BAR +" + adjustment + "%", ["Occupancy threshold crossed", "Rate recommendation generated", "Authority policy checked", "Owner approval requested"], 3);
+        } else {
+          recordAutomation(rule.id, "Approval", existing.id + " · already awaiting Owner", ["Threshold crossed", "Existing approval reused"], 1);
+        }
+      } else {
+        setRateMultiplier(v => Number((v * (1 + adjustment / 100)).toFixed(3)));
+        recordAutomation(rule.id, "Success", "BAR +" + adjustment + "% applied within policy", ["Occupancy threshold crossed", "Policy checked", "Rate adjustment applied", "Channel rate synchronization recorded"], 3);
+      }
+      return { ok: true };
+    }
+
+    if (event === "payment.failed") {
+      const booking = payload.booking || bookings.find(b => b.status === "Confirmed") || bookings[0];
+      if (!booking) return { ok: false, reason: "No reservation available" };
+      setBookings(prev => prev.map(b => b.id === booking.id ? { ...b, paymentRisk: "Retry exhausted" } : b));
+      upsertSystemException({ id: "PAY-" + booking.id, type: "Payment", severity: "High", title: "Payment retry exhausted", detail: booking.id + " · " + booking.guest + " · authorization failed twice", route: "reservations", status: "Open" });
+      recordAutomation(rule.id, "Failed", booking.id + " · retry exhausted · exception raised", ["Authorization failure received", "Retry attempted", "Folio flagged payment-at-risk", "Front desk exception created"], 3);
+      return { ok: true };
+    }
+
+    if (event === "inventory.low_stock") {
+      const item = payload.item || stock.find(i => i.stock < i.par && !approvals.some(a => a.type === "Purchase order" && a.itemRef === i.id && ["Pending", "Approved"].includes(a.status)));
+      if (!item) {
+        recordAutomation(rule.id, "Success", "No unhandled low-stock item", ["Par levels checked", "No new purchase action required"], 1);
+        return { ok: true };
+      }
+      const qty = Math.max(item.par - item.stock, Math.ceil(item.par * .35));
+      const amount = Number((qty * item.cost).toFixed(2));
+      const requiresApproval = rule.autonomy === "Approval" || (rule.autonomy === "Policy" && amount > Number(policy.managerPurchaseLimit || 0));
+      const status = requiresApproval ? "Pending" : "Approved";
+      const order = {
+        id: "APR-AUTO-" + item.id + "-" + String(Date.now()).slice(-4),
+        type: "Purchase order",
+        title: item.item + " automated restock",
+        detail: qty + " " + item.unit + " · " + item.supplier,
+        amount, itemRef: item.id, qty,
+        requestedBy: "StayPilot automation",
+        status,
+        time: "just now"
+      };
+      setApprovals(prev => [order, ...prev]);
+      recordAutomation(rule.id, requiresApproval ? "Approval" : "Success", order.id + " · " + item.item + " · " + fmt(amount), ["Below-par condition detected", "Reorder quantity calculated", "Spend policy checked", requiresApproval ? "Owner approval requested" : "Purchase order approved within policy"], 4);
+      return { ok: true };
+    }
+
+    if (event === "reservation.cancelled") {
+      const booking = payload.booking || bookings.find(b => b.status === "Cancelled") || bookings[0];
+      if (!booking) return { ok: false, reason: "No reservation available" };
+      if (booking.room && booking.room !== "Unassigned") setRooms(prev => prev.map(r => r.number === booking.room ? { ...r, occupancy: "Vacant" } : r));
+      setBookings(prev => prev.map(b => b.id === booking.id ? { ...b, channelSync: "Inventory released" } : b));
+      recordAutomation(rule.id, "Success", booking.id + " · inventory released", ["Cancellation received", "Room hold released", "Room-type inventory recalculated", "Channel reconciliation recorded", "Resale availability restored"], 4);
+      return { ok: true };
+    }
+
+    if (event === "housekeeping.completed") {
+      const roomNumber = payload.roomNumber || rooms.find(r => r.housekeeping !== "Clean" && r.maintenance === "Clear")?.number || "103";
+      setRooms(prev => prev.map(r => r.number === roomNumber ? { ...r, housekeeping: "Clean" } : r));
+      setTasks(prev => prev.map(t => t.place === "Room " + roomNumber && t.team === "Housekeeping" && t.status !== "Done" ? { ...t, status: "Done" } : t));
+      const target = rooms.find(r => r.number === roomNumber);
+      const sellable = target ? target.occupancy === "Vacant" && target.maintenance === "Clear" : true;
+      recordAutomation(rule.id, "Success", "Room " + roomNumber + (sellable ? " · returned to sellable inventory" : " · readiness updated"), ["Housekeeping completion received", "Room marked Clean", "Open housekeeping task closed", "Sellability recalculated", "Channel availability reconciliation recorded"], 3);
+      return { ok: true };
+    }
+
+    if (event === "room.maintenance_blocked") {
+      const roomNumber = payload.roomNumber || rooms.find(r => r.maintenance !== "Clear")?.number || "207";
+      const affected = payload.booking || bookings.find(b => b.room === roomNumber && !["Cancelled", "Checked out"].includes(b.status));
+      const targetRoom = rooms.find(r => r.number === roomNumber);
+      const alternatives = rooms.filter(r => r.number !== roomNumber && r.type === (affected?.type || targetRoom?.type) && roomSellable(r)).slice(0, 3);
+      const detail = affected
+        ? affected.id + " · " + affected.guest + " affected · alternatives: " + (alternatives.map(r => r.number).join(", ") || "none ready")
+        : "Room " + roomNumber + " blocked · no active reservation conflict";
+      if (affected) upsertSystemException({ id:"CONFLICT-"+affected.id, type:"Room conflict", severity:"High", title:"Room "+roomNumber+" conflict for "+affected.guest, detail, route:"frontdesk", status:"Open", suggestedRooms: alternatives.map(r => r.number) });
+      recordAutomation(rule.id, affected ? "Approval" : "Success", detail, ["Maintenance block received", "Reservation conflict checked", "Compatible rooms searched", affected ? "Manager exception created" : "No guest move required"], 5);
+      return { ok: true };
+    }
+
+    if (event === "guest.request_received") {
+      const booking = payload.booking || bookings.find(b => b.status === "Checked in") || bookings[0];
+      const roomNumber = payload.roomNumber || booking?.room || "108";
+      const request = payload.request || "Extra towels requested";
+      setTasks(prev => {
+        const exists = prev.some(t => t.place === "Room " + roomNumber && t.title === request && t.status !== "Done");
+        return exists ? prev : [{ id:Date.now(), place:"Room "+roomNumber, title:request, team:"Housekeeping", due:"Guest request · respond within 15 min", status:"New", automated:true }, ...prev];
+      });
+      recordAutomation(rule.id, "Success", (booking?.guest || "Guest") + " · Room " + roomNumber + " · " + request, ["Guest request classified", "Housekeeping route selected", "Service task created", "Response SLA started"], 3);
+      return { ok: true };
+    }
+
+    if (event === "approval.approved") {
+      const item = payload.item || approvals.find(a => a.status === "Approved");
+      if (!item) return { ok:false, reason:"No approved action available" };
+      recordAutomation(rule.id, "Success", item.id + " · " + item.title, ["Owner approval received", item.type + " action released", "Operational handoff closed", "Audit trail recorded"], 2);
+      return { ok:true };
+    }
+
+    if (event === "review.negative") {
+      const guest = payload.guest || "Recent guest";
+      const score = payload.score || 2;
+      upsertSystemException({ id:"REV-"+String(Date.now()).slice(-6), type:"Guest recovery", severity:"High", title:score+"★ feedback needs follow-up", detail:guest+" · cleanliness/service concern · manager response requested", route:"inbox", status:"Open" });
+      recordAutomation(rule.id, "Approval", guest + " · " + score + "★ review", ["Negative feedback detected", "Service-recovery case created", "Manager follow-up requested"], 4);
+      return { ok:true };
+    }
+
+    return { ok: false, reason: "Unsupported automation event" };
+  };
+
+  useEffect(() => {
+    const seen = lowStockSeen.current;
+    let changed = false;
+    stock.filter(item => item.stock < item.par).forEach(item => {
+      const openOrder = approvals.some(a => a.type === "Purchase order" && a.itemRef === item.id && ["Pending", "Approved"].includes(a.status));
+      if (openOrder || seen.has(item.id)) return;
+      const result = emitHotelEvent("inventory.low_stock", { item });
+      if (result?.ok) {
+        seen.add(item.id);
+        changed = true;
+      }
+    });
+    if (changed) localStorage.setItem("sp-lowstock-auto", JSON.stringify(Array.from(seen)));
+  }, [stock]);
+
+  useEffect(() => {
+    if (stats.occupancy < 80) return;
+    if (load("sp-occupancy-auto-fired", false)) return;
+    const result = emitHotelEvent("occupancy.threshold", { adjustment: 8 });
+    if (result?.ok) localStorage.setItem("sp-occupancy-auto-fired", JSON.stringify(true));
+  }, [stats.occupancy]);
+
   const nav = role === "owner" ? ownerNav : managerNav;
 
   const switchRole = nextRole => {
@@ -312,6 +572,31 @@ function App() {
     setActive("overview");
     setMobileNav(false);
     flash(nextRole === "owner" ? "Owner view enabled" : "Manager view enabled");
+  };
+
+  const applyScenario = scenario => {
+    if (scenario === "normal") {
+      const booking = { id:"SP-DEMO-01", guest:"Emma Brooks", paid:96, room:"Unassigned", type:"Deluxe King", source:"Booking.com", checkIn:"Today", checkOut:"Sep 26", guests:2, total:480, status:"Confirmed" };
+      setBookings(prev => [booking, ...prev.filter(b => b.id !== booking.id)]);
+      emitHotelEvent("reservation.created", { booking });
+      setActive("frontdesk");
+      flash("Normal-day scenario loaded · reservation automation executed");
+      return;
+    }
+    if (scenario === "problem") {
+      const booking = bookings.find(b => b.room === "204") || bookings[0];
+      setRooms(prev => prev.map(r => r.number === "204" ? { ...r, maintenance:"Out of order" } : r));
+      emitHotelEvent("room.maintenance_blocked", { roomNumber:"204", booking });
+      setActive("exceptions");
+      flash("Problem-day scenario loaded · room conflict automation executed");
+      return;
+    }
+    if (scenario === "approval") {
+      emitHotelEvent("occupancy.threshold", { adjustment:14 });
+      setRole("owner");
+      setActive("approvals");
+      flash("Approval scenario loaded · pricing request escalated to Owner");
+    }
   };
 
   const resetDemo = () => {
@@ -336,17 +621,27 @@ function App() {
     localStorage.removeItem("sp-automations");
     localStorage.removeItem("sp-automation-log");
     localStorage.removeItem("sp-exceptions");
+    localStorage.removeItem("sp-webhook-endpoints");
+    localStorage.removeItem("sp-webhook-deliveries");
+    localStorage.removeItem("sp-property-setup");
     localStorage.removeItem("sp-policy");
+    localStorage.removeItem("sp-lowstock-auto");
+    localStorage.removeItem("sp-occupancy-auto-fired");
+    lowStockSeen.current = new Set();
     setApprovals(seedApprovals);
     setTasks(seedTasks);
+    setStock(seedStock);
+    setAutomationRules(seedAutomationRules);
+    setAutomationLogs(seedAutomationLogs);
     setPolicy(defaultPolicy);
     setActive("overview");
     flash("Demo data reset");
   };
 
   const pageProps = {
-    rooms, setRooms, bookings, setBookings, approvals, setApprovals, tasks, setTasks, policy, setPolicy, activities, setActivities,
-    rateMultiplier, setRateMultiplier, metaPaused, setMetaPaused,
+    rooms, setRooms, bookings, setBookings, approvals, setApprovals, tasks, setTasks, stock, setStock,
+    automationRules, setAutomationRules, automationLogs, setAutomationLogs, emitHotelEvent,
+    policy, setPolicy, activities, setActivities, rateMultiplier, setRateMultiplier, metaPaused, setMetaPaused,
     stats, pushActivity, flash, setActive, role
   };
 
@@ -354,7 +649,7 @@ function App() {
     <aside className={"sidebar " + (mobileNav ? "sidebar-open" : "")}>
       <div className="brand">
         <div className="brand-mark"><Building2 size={20} /></div>
-        <div><strong>StayPilot</strong><span>Hotel OS</span></div>
+        <div><strong>StayPilot</strong><span>Automation OS</span></div>
       </div>
       <div className="property-card">
         <div className="property-thumb"><Moon size={18} /></div>
@@ -371,6 +666,12 @@ function App() {
       </nav>
       <div className="sidebar-foot">
         <div className="system-health"><span className="live-dot" /><div><b>Demo systems ready</b><span>shared local state active</span></div></div>
+        <div className="scenario-switcher">
+          <span>Demo scenarios</span>
+          <button onClick={() => applyScenario("normal")}><CheckCircle2 size={13}/> Normal</button>
+          <button onClick={() => applyScenario("problem")}><Wrench size={13}/> Problem</button>
+          <button onClick={() => applyScenario("approval")}><ShieldCheck size={13}/> Approval</button>
+        </div>
         <button className="reset-btn" onClick={resetDemo}><RotateCcw size={15} /> Reset demo</button>
         <div className="prototype-tag">Demo workspace · reset anytime</div>
       </div>
@@ -414,6 +715,7 @@ function App() {
         {active === "permissions" && role === "owner" && <RolePolicy {...pageProps} />}
         {active === "assistant" && <Assistant {...pageProps} />}
         {active === "connections" && role === "owner" && <Connections {...pageProps} />}
+        {active === "setup" && role === "owner" && <PropertySetup {...pageProps} />}
       </div>
     </main>
 
@@ -434,11 +736,11 @@ function App() {
   </div>;
 }
 
-function Overview({ stats, activities, setActive, role, rooms, approvals }) {
+function Overview({ stats, activities, setActive, role, rooms, approvals, stock, automationRules, automationLogs }) {
   const owner = role === "owner";
   const attentionRooms = rooms.filter(r => r.housekeeping !== "Clean" || r.maintenance !== "Clear");
   const readyRooms = rooms.filter(roomSellable).length;
-  const currentStock = load("sp-stock", seedStock);
+  const currentStock = stock || seedStock;
   const currentExpenses = load("sp-expenses", seedExpenses);
   const currentInstructions = load("sp-instructions", seedInstructions);
   const todayExpenses = currentExpenses.filter(e => e.date === "Sep 23");
@@ -452,6 +754,13 @@ function Overview({ stats, activities, setActive, role, rooms, approvals }) {
   const paidRoas = campaignSpend ? campaignRevenue / campaignSpend : 0;
   const pendingApprovals = approvals.filter(a => a.status === "Pending").length;
   const lowStock = currentStock.filter(i => i.stock < i.par).length;
+  const roleRules = (automationRules || []).filter(r => owner || r.scope === "Operations");
+  const automationRuns = roleRules.reduce((n,r) => n + Number(r.runs || 0), 0);
+  const automationMinutes = roleRules.reduce((n,r) => n + Number(r.minutesSaved || 0), 0);
+  const automationFailures = roleRules.reduce((n,r) => n + Number(r.failures || 0), 0);
+  const openSystemExceptions = load("sp-exceptions", seedSystemExceptions).filter(x => x.status === "Open" && (owner || x.type !== "Distribution")).length;
+  const humanAttention = attentionRooms.length + pendingApprovals + openSystemExceptions;
+
   const ownerKpis = [
     ["Occupancy", stats.occupancy + "%", "+6.8%", TrendingUp, "vs. last week"],
     ["Gross revenue", fmt(stats.revenue), "+12.4%", DollarSign, "today"],
@@ -469,13 +778,20 @@ function Overview({ stats, activities, setActive, role, rooms, approvals }) {
   return <>
     <PageHeader
       eyebrow={owner ? "Owner workspace · Wednesday, September 23" : "Manager workspace · Wednesday, September 23"}
-      title={owner ? "Business overview" : "Property operations"}
-      text={owner ? "Revenue, costs, inventory exposure and property performance in one owner-level view." : "Today’s arrivals, room readiness, maintenance and staff handoff priorities."}
+      title={owner ? "Property command center" : "Your shift"}
+      text={owner ? "Routine hotel work runs automatically. Start with the exceptions, approvals and outcomes that need an Owner decision." : "Work the exceptions StayPilot could not safely resolve on its own, then handle today’s arrivals and room readiness."}
       action={<div className="page-actions">
         {!owner && <button className="ghost-btn" onClick={() => setActive("instructions")}><ClipboardList size={16} /> Instructions</button>}
         <button className="primary-btn" onClick={() => setActive("newreservation")}><Plus size={16} /> New reservation</button>
       </div>}
     />
+
+    <section className="automation-summary owner-command-summary">
+      <div><span>Needs human attention</span><b>{humanAttention}</b><small>rooms, approvals & exceptions</small></div>
+      <div><span>Automation handled</span><b>{automationRuns}</b><small>recorded workflow executions</small></div>
+      <div><span>Estimated time saved</span><b>{(automationMinutes / 60).toFixed(1)}h</b><small>{automationMinutes} staff minutes</small></div>
+      <div><span>Automation failures</span><b>{automationFailures}</b><small>{automationFailures ? "visible for review" : "all clear"}</small></div>
+    </section>
 
     <section className="ops-pulse">
       <div className="ops-pulse-label"><span className="live-dot" /><div><b>{owner ? "Business pulse" : "Shift pulse"}</b><small>Live operational signals</small></div></div>
@@ -495,6 +811,8 @@ function Overview({ stats, activities, setActive, role, rooms, approvals }) {
 
     {owner ? <>
       <section className="owner-field-grid">
+        <button className="panel owner-field" onClick={() => setActive("automations")}><span className="field-icon"><Zap size={19} /></span><div><span>Automation engine</span><b>{automationRuns} actions</b><small>{(automationMinutes / 60).toFixed(1)}h estimated saved</small></div><ArrowUpRight size={15} /></button>
+        <button className="panel owner-field" onClick={() => setActive("exceptions")}><span className="field-icon"><Bell size={19} /></span><div><span>Exceptions</span><b>{openSystemExceptions} open</b><small>automation could not safely resolve</small></div><ArrowUpRight size={15} /></button>
         <button className="panel owner-field" onClick={() => setActive("approvals")}><span className="field-icon"><ShieldCheck size={19} /></span><div><span>Decision queue</span><b>{pendingApprovals} pending</b><small>rate, spend & refund approvals</small></div><ArrowUpRight size={15} /></button>
         <button className="panel owner-field" onClick={() => setActive("inventory")}><span className="field-icon"><Boxes size={19} /></span><div><span>Supply inventory value</span><b>{fmt(Math.round(stockValue))}</b><small>{lowStock} items need reorder</small></div><ArrowUpRight size={15} /></button>
         <button className="panel owner-field" onClick={() => setActive("channels")}><span className="field-icon"><RefreshCw size={19} /></span><div><span>OTA exposure</span><b>62%</b><small>38% direct share</small></div><ArrowUpRight size={15} /></button>
@@ -566,7 +884,7 @@ function ActivityPanel({ activities, setActive }) {
   </article>;
 }
 
-function FrontDesk({ bookings, setBookings, rooms, setRooms, role, approvals, setApprovals, policy, pushActivity, flash, setActive }) {
+function FrontDesk({ bookings, setBookings, rooms, setRooms, role, approvals, setApprovals, policy, pushActivity, flash, setActive, emitHotelEvent }) {
   const [selected, setSelected] = useState(null);
   const activeBookings = bookings.filter(b => !["Cancelled", "Checked out"].includes(b.status));
   const unassigned = activeBookings.filter(b => !b.room || b.room === "Unassigned");
@@ -626,11 +944,11 @@ function FrontDesk({ bookings, setBookings, rooms, setRooms, role, approvals, se
       </div>
     </article>
 
-    {selected && <ReservationDrawer booking={bookings.find(b => b.id === selected.id) || selected} bookings={bookings} setBookings={setBookings} rooms={rooms} setRooms={setRooms} role={role} approvals={approvals} setApprovals={setApprovals} policy={policy} pushActivity={pushActivity} flash={flash} onClose={() => setSelected(null)} />}
+    {selected && <ReservationDrawer booking={bookings.find(b => b.id === selected.id) || selected} bookings={bookings} setBookings={setBookings} rooms={rooms} setRooms={setRooms} role={role} approvals={approvals} setApprovals={setApprovals} policy={policy} pushActivity={pushActivity} flash={flash} emitHotelEvent={emitHotelEvent} onClose={() => setSelected(null)} />}
   </>;
 }
 
-function ReservationDrawer({ booking, setBookings, rooms, setRooms, role, approvals, setApprovals, policy, pushActivity, flash, onClose }) {
+function ReservationDrawer({ booking, setBookings, rooms, setRooms, role, approvals, setApprovals, policy, pushActivity, flash, emitHotelEvent, onClose }) {
   const [roomNumber, setRoomNumber] = useState(booking.room && booking.room !== "Unassigned" ? booking.room : "");
   const candidateRooms = rooms.filter(r => r.type === booking.type && r.maintenance === "Clear" && (r.occupancy === "Vacant" || r.number === booking.room));
   const currentRoom = rooms.find(r => r.number === booking.room);
@@ -669,12 +987,13 @@ function ReservationDrawer({ booking, setBookings, rooms, setRooms, role, approv
 
   const checkOut = () => {
     if (balance > 0) return flash("Collect the remaining balance before checkout");
-    if (booking.room && booking.room !== "Unassigned") {
-      setRooms(prev => prev.map(r => r.number === booking.room ? { ...r, occupancy: "Vacant", housekeeping: "Dirty" } : r));
-    }
     updateBooking({ status: "Checked out" });
-    pushActivity("blue", booking.guest + " checked out", booking.id + " · housekeeping task created");
-    flash("Checkout complete · room marked dirty");
+    const result = emitHotelEvent("guest.checked_out", { booking: { ...booking, status: "Checked out" }, roomNumber: booking.room });
+    if (!result?.ok) {
+      if (booking.room && booking.room !== "Unassigned") setRooms(prev => prev.map(r => r.number === booking.room ? { ...r, occupancy: "Vacant", housekeeping: "Dirty" } : r));
+      pushActivity("blue", booking.guest + " checked out", booking.id + " · room marked dirty; automation unavailable");
+    }
+    flash(result?.ok ? "Checkout complete · turnover automation executed" : "Checkout complete · room marked dirty");
   };
 
   const captureBalance = () => {
@@ -700,12 +1019,13 @@ function ReservationDrawer({ booking, setBookings, rooms, setRooms, role, approv
   };
 
   const cancel = () => {
-    if (booking.room && booking.room !== "Unassigned") {
-      setRooms(prev => prev.map(r => r.number === booking.room ? { ...r, occupancy: "Vacant" } : r));
-    }
     updateBooking({ status: "Cancelled" });
-    pushActivity("amber", "Reservation cancelled", booking.id + " · " + booking.guest);
-    flash("Reservation cancelled");
+    const result = emitHotelEvent("reservation.cancelled", { booking: { ...booking, status: "Cancelled" } });
+    if (!result?.ok && booking.room && booking.room !== "Unassigned") {
+      setRooms(prev => prev.map(r => r.number === booking.room ? { ...r, occupancy: "Vacant" } : r));
+      pushActivity("amber", "Reservation cancelled", booking.id + " · inventory released without automation");
+    }
+    flash(result?.ok ? "Reservation cancelled · recovery automation executed" : "Reservation cancelled");
     onClose();
   };
 
@@ -740,7 +1060,7 @@ function ReservationDrawer({ booking, setBookings, rooms, setRooms, role, approv
   </div>;
 }
 
-function NewReservation({ rooms, setRooms, bookings, setBookings, rateMultiplier, pushActivity, flash, setActive }) {
+function NewReservation({ rooms, setRooms, bookings, setBookings, rateMultiplier, pushActivity, flash, setActive, emitHotelEvent }) {
   const [form, setForm] = useState({ guest: "", type: "Deluxe King", source: "Walk-in", checkIn: "Sep 23", checkOut: "Sep 25", guests: 2, room: "" });
   const rates = { "City Queen": 149, "Deluxe King": 189, "Sky Suite": 279 };
   const start = Math.max(0, dateIndex(form.checkIn));
@@ -773,6 +1093,7 @@ function NewReservation({ rooms, setRooms, bookings, setBookings, rateMultiplier
       status: "Confirmed"
     };
     setBookings(prev => [booking, ...prev]);
+    emitHotelEvent("reservation.created", { booking });
     if (form.room) setRooms(prev => prev.map(r => r.number === form.room ? { ...r, occupancy: "Reserved" } : r));
     pushActivity("green", "Front desk reservation created", id + " · " + form.guest.trim() + " · " + (form.room ? "Room " + form.room : "room unassigned"));
     flash("Reservation " + id + " created");
@@ -808,7 +1129,7 @@ function NewReservation({ rooms, setRooms, bookings, setBookings, rateMultiplier
   </>;
 }
 
-function Reservations({ bookings, setBookings, rooms, setRooms, role, approvals, setApprovals, policy, pushActivity, flash, setActive }) {
+function Reservations({ bookings, setBookings, rooms, setRooms, role, approvals, setApprovals, policy, pushActivity, flash, setActive, emitHotelEvent }) {
   const [filter, setFilter] = useState("All");
   const [selected, setSelected] = useState(null);
   const list = filter === "All" ? bookings : bookings.filter(b => b.status === filter);
@@ -836,11 +1157,11 @@ function Reservations({ bookings, setBookings, rooms, setRooms, role, approvals,
       </div>
     </article>
     <div className="mini-note"><CalendarDays size={15} /> Select a reservation to assign rooms, check guests in or out, or cancel the stay.</div>
-    {selected && <ReservationDrawer booking={bookings.find(b => b.id === selected.id) || selected} bookings={bookings} setBookings={setBookings} rooms={rooms} setRooms={setRooms} role={role} approvals={approvals} setApprovals={setApprovals} policy={policy} pushActivity={pushActivity} flash={flash} onClose={() => setSelected(null)} />}
+    {selected && <ReservationDrawer booking={bookings.find(b => b.id === selected.id) || selected} bookings={bookings} setBookings={setBookings} rooms={rooms} setRooms={setRooms} role={role} approvals={approvals} setApprovals={setApprovals} policy={policy} pushActivity={pushActivity} flash={flash} emitHotelEvent={emitHotelEvent} onClose={() => setSelected(null)} />}
   </>;
 }
 
-function Rooms({ rooms, setRooms, pushActivity, flash, role, policy }) {
+function Rooms({ rooms, setRooms, pushActivity, flash, role, policy, emitHotelEvent }) {
   const grouped = ["Available", "Occupied", "Reserved", "Cleaning", "Maintenance"];
   const canManage = role === "owner" || policy.managerCanManageRooms;
   const counts = Object.fromEntries(grouped.map(s => [s, rooms.filter(r => roomPrimaryStatus(r) === s).length]));
@@ -848,17 +1169,20 @@ function Rooms({ rooms, setRooms, pushActivity, flash, role, policy }) {
   const setHousekeeping = (number, housekeeping) => {
     if (!canManage) return flash("Manager room controls are restricted by Owner policy");
     setRooms(prev => prev.map(r => r.number === number ? { ...r, housekeeping } : r));
-    pushActivity(housekeeping === "Clean" ? "green" : "amber", "Room " + number + " housekeeping updated", housekeeping);
+    if (housekeeping === "Clean") emitHotelEvent("housekeeping.completed", { roomNumber: number });
+    else pushActivity("amber", "Room " + number + " housekeeping updated", housekeeping);
     flash("Room " + number + " housekeeping: " + housekeeping);
   };
   const toggleMaintenance = room => {
     if (!canManage) return flash("Manager room controls are restricted by Owner policy");
     const maintenance = room.maintenance === "Clear" ? "Out of order" : "Clear";
     setRooms(prev => prev.map(r => r.number === room.number ? { ...r, maintenance } : r));
-    pushActivity(maintenance === "Clear" ? "green" : "amber", "Room " + room.number + " maintenance updated", maintenance);
+    if (maintenance === "Out of order") emitHotelEvent("room.maintenance_blocked", { roomNumber: room.number });
+    else pushActivity("green", "Room " + room.number + " maintenance cleared", "Returned to operational pool");
     flash("Room " + room.number + ": " + maintenance);
   };
   const syncInventory = () => {
+    if (role === "manager" && !policy.managerCanSyncChannels) return flash("Channel reconciliation is restricted by Owner policy");
     const sellable = rooms.filter(roomSellable).length;
     pushActivity("green", "Room inventory synchronized", sellable + " sellable rooms · 5 channels");
     flash("Inventory synced across connected channels");
@@ -886,16 +1210,17 @@ function Rooms({ rooms, setRooms, pushActivity, flash, role, policy }) {
   </>;
 }
 
-function Inventory({ role, approvals, setApprovals, pushActivity, flash, setActive, policy }) {
-  const [stock, setStock] = useState(() => load("sp-stock", seedStock));
-  useEffect(() => localStorage.setItem("sp-stock", JSON.stringify(stock)), [stock]);
-
+function Inventory({ role, approvals, setApprovals, pushActivity, flash, setActive, policy, stock, setStock, emitHotelEvent }) {
   const low = stock.filter(i => i.stock < i.par);
   const value = stock.reduce((a, i) => a + i.stock * i.cost, 0);
   const canManage = role === "owner" || policy.managerCanManageInventory;
   const adjust = (id, delta) => {
     if (!canManage) return flash("Manager inventory controls are restricted by Owner policy");
-    setStock(prev => prev.map(i => i.id === id ? { ...i, stock: Math.max(0, i.stock + delta) } : i));
+    const item = stock.find(i => i.id === id);
+    if (!item) return;
+    const nextStock = Math.max(0, item.stock + delta);
+    setStock(prev => prev.map(i => i.id === id ? { ...i, stock: nextStock } : i));
+    if (item.stock >= item.par && nextStock < item.par) emitHotelEvent("inventory.low_stock", { item: { ...item, stock: nextStock } });
   };
   const requestOrder = item => {
     const existing = approvals.find(a => a.type === "Purchase order" && a.itemRef === item.id && ["Pending", "Approved"].includes(a.status));
@@ -965,7 +1290,7 @@ function Inventory({ role, approvals, setApprovals, pushActivity, flash, setActi
   </>;
 }
 
-function ApprovalCenter({ role, approvals, setApprovals, rateMultiplier, setRateMultiplier, metaPaused, setMetaPaused, pushActivity, flash }) {
+function ApprovalCenter({ role, approvals, setApprovals, rateMultiplier, setRateMultiplier, metaPaused, setMetaPaused, pushActivity, flash, bookings, setBookings, emitHotelEvent }) {
   const [draft, setDraft] = useState({ type: "Purchase order", title: "", detail: "", amount: "" });
   const pending = approvals.filter(a => a.status === "Pending");
   const myRequests = approvals.filter(a => a.requestedBy === "Sam Rahman" || role === "owner");
@@ -980,7 +1305,15 @@ function ApprovalCenter({ role, approvals, setApprovals, rateMultiplier, setRate
       if (item.title.toLowerCase().includes("pause meta")) setMetaPaused(true);
       if (item.title.toLowerCase().includes("resume meta")) setMetaPaused(false);
     }
+    if (status === "Approved" && item.type === "Refund" && item.reservationRef) {
+      setBookings(prev => prev.map(b => {
+        if (b.id !== item.reservationRef) return b;
+        const captured = Number(b.paid ?? (b.status === "Checked in" ? b.total : Math.round(Number(b.total || 0) * 0.2)));
+        return { ...b, paid: Math.max(0, captured - Number(item.amount || 0)), lastRefund: Number(item.amount || 0) };
+      }));
+    }
     pushActivity(status === "Approved" ? "green" : "amber", item.title + " " + status.toLowerCase(), item.id + " · " + item.requestedBy);
+    if (status === "Approved") emitHotelEvent("approval.approved", { item: { ...item, status: "Approved" } });
     flash(item.id + " " + status.toLowerCase());
   };
 
@@ -1463,7 +1796,7 @@ function Operations({ activities, role, pushActivity, flash, setActive, tasks, s
   </>;
 }
 
-function BookingEngine({ rooms, setRooms, bookings, setBookings, rateMultiplier, pushActivity, flash, setActive }) {
+function BookingEngine({ rooms, setRooms, bookings, setBookings, rateMultiplier, pushActivity, flash, setActive, emitHotelEvent }) {
   const [form, setForm] = useState({ guest: "", email: "", type: "Deluxe King", nights: 2, guests: 2 });
   const [success, setSuccess] = useState(null);
   const rates = { "City Queen": 149, "Deluxe King": 189, "Sky Suite": 279 };
@@ -1482,6 +1815,7 @@ function BookingEngine({ rooms, setRooms, bookings, setBookings, rateMultiplier,
     const nights = Number(form.nights || 1);
     const booking = { id, guest: form.guest, paid: Math.round(total * 0.2), room: "Unassigned", type: form.type, source: "Direct Website", checkIn: "Today", checkOut: frontDeskDays[nights] || "After Sep 29", guests: Number(form.guests), total, status: "Confirmed" };
     setBookings(prev => [booking, ...prev]);
+    emitHotelEvent("reservation.created", { booking });
     pushActivity("green", "New direct booking confirmed", id + " · " + form.type + " · room assignment pending · " + fmt(total));
     setSuccess(booking);
     flash("Reservation " + id + " created");
@@ -1666,62 +2000,61 @@ function Assistant({ rooms, setRooms, bookings, stats, rateMultiplier, setRateMu
   </div>;
 }
 
-function AutomationCenter({ role, pushActivity, flash, policy }) {
-  const seedRules = [
-    { id: "AUTO-01", name: "Reservation intake", scope: "Operations", trigger: "Reservation received", action: "Hold room-type inventory → sync channels → confirmation", status: "Active", last: "2 min ago", runs: 184, failures: 0 },
-    { id: "AUTO-02", name: "Checkout turnover", scope: "Operations", trigger: "Guest checked out", action: "Room → Dirty → housekeeping task", status: "Active", last: "18 min ago", runs: 42, failures: 0 },
-    { id: "AUTO-03", name: "Pre-arrival message", scope: "Operations", trigger: "24h before arrival", action: "Send arrival instructions → track reply", status: "Active", last: "42 min ago", runs: 67, failures: 1 },
-    { id: "AUTO-04", name: "Occupancy rate guard", scope: "Revenue", trigger: "Occupancy > 80%", action: "Suggest BAR +8% → Owner approval if >10%", status: "Active", last: "1 hr ago", runs: 12, failures: 0 },
-    { id: "AUTO-05", name: "Failed payment recovery", scope: "Finance", trigger: "Payment authorization fails", action: "Retry once → notify front desk", status: "Paused", last: "Yesterday", runs: 9, failures: 1 },
-    { id: "AUTO-06", name: "Low-stock alert", scope: "Operations", trigger: "Item falls below par", action: "Create purchase request → notify manager", status: "Active", last: "Yesterday", runs: 8, failures: 0 }
-  ];
-  const [rules, setRules] = useState(() => load("sp-automations", seedRules));
-  const [logs, setLogs] = useState(() => load("sp-automation-log", [
-    { id:1, rule:"Reservation intake", result:"Success", detail:"SP-1048 · Booking.com", time:"2 min ago" },
-    { id:2, rule:"Pre-arrival message", result:"Success", detail:"Olivia Martin · delivered", time:"42 min ago" },
-    { id:3, rule:"Occupancy rate guard", result:"Approval", detail:"APR-102 · BAR +18%", time:"1 hr ago" },
-    { id:4, rule:"Failed payment recovery", result:"Failed", detail:"Retry exhausted · operator alerted", time:"Yesterday" }
-  ]));
-  useEffect(() => localStorage.setItem("sp-automations", JSON.stringify(rules)), [rules]);
-  useEffect(() => localStorage.setItem("sp-automation-log", JSON.stringify(logs)), [logs]);
+function AutomationCenter({ role, pushActivity, flash, policy, automationRules, setAutomationRules, automationLogs, emitHotelEvent }) {
+  const visibleRules = role === "owner" ? automationRules : automationRules.filter(r => r.scope === "Operations");
+  const visibleLogs = role === "owner" ? automationLogs : automationLogs.filter(log => {
+    const rule = automationRules.find(r => r.id === log.ruleId);
+    return rule?.scope === "Operations";
+  });
+  const minutesSaved = visibleRules.reduce((n, r) => n + Number(r.minutesSaved || 0), 0);
 
-  const visibleRules = role === "owner" ? rules : rules.filter(r => r.scope === "Operations");
   const toggle = rule => {
     if (role === "manager" && (!policy.managerCanOperateAutomations || rule.scope !== "Operations")) return flash("Owner permission required");
     const next = rule.status === "Active" ? "Paused" : "Active";
-    setRules(prev => prev.map(r => r.id === rule.id ? { ...r, status: next } : r));
+    setAutomationRules(prev => prev.map(r => r.id === rule.id ? { ...r, status: next } : r));
     pushActivity(next === "Active" ? "green" : "amber", rule.name + " " + next.toLowerCase(), rule.id + " · automation control", "Automation");
     flash(rule.name + " " + next.toLowerCase());
   };
+
+  const setAutonomy = (rule, autonomy) => {
+    if (role !== "owner") return flash("Only the Owner can change automation authority");
+    setAutomationRules(prev => prev.map(r => r.id === rule.id ? { ...r, autonomy } : r));
+    pushActivity("blue", rule.name + " authority updated", rule.id + " · " + autonomy, "Governance");
+    flash(rule.name + " authority: " + autonomy);
+  };
+
   const runNow = rule => {
     if (role === "manager" && !policy.managerCanOperateAutomations) return flash("Operational automation control is restricted by Owner policy");
     if (rule.status !== "Active") return flash("Enable the automation before running it");
-    const entry = { id: Date.now(), rule: rule.name, result: "Success", detail: "Manual demo run · " + (role === "owner" ? "Owner" : "Manager"), time: "now" };
-    setLogs(prev => [entry, ...prev].slice(0,30));
-    setRules(prev => prev.map(r => r.id === rule.id ? { ...r, last: "now", runs: r.runs + 1 } : r));
-    pushActivity("green", rule.name + " executed", "Manual demo run completed", "Automation");
-    flash(rule.name + " completed");
+    const result = emitHotelEvent(rule.event, { manual: true, ruleId: rule.id });
+    if (result?.ok) flash(rule.name + " executed against shared hotel state");
+    else if (result?.reason) flash(result.reason);
   };
 
   return <>
-    <PageHeader eyebrow="Automation" title="Property automation center" text={role === "owner" ? "Control operational, revenue and finance workflows with a visible execution history." : "Manage day-to-day operational automations within the Manager role."} />
+    <PageHeader eyebrow="Automation" title="Property automation center" text={role === "owner" ? "Run policy-aware hotel workflows against shared property state, with execution traces and human approvals where required." : "Operate day-to-day hotel automations within the authority configured by the Owner."} />
     <section className="automation-summary">
-      <div><span>Active rules</span><b>{visibleRules.filter(r=>r.status==="Active").length}</b><small>within your scope</small></div>
-      <div><span>Runs</span><b>{visibleRules.reduce((n,r)=>n+r.runs,0)}</b><small>recorded executions</small></div>
-      <div><span>Failures</span><b>{visibleRules.reduce((n,r)=>n+r.failures,0)}</b><small>require review</small></div>
-      <div><span>Permission model</span><b>{role === "owner" ? "Full" : "Operations"}</b><small>{role === "owner" ? "all scopes" : "role limited"}</small></div>
+      <div><span>Active rules</span><b>{visibleRules.filter(r=>r.status==="Active").length}</b><small>event-driven workflows</small></div>
+      <div><span>Runs</span><b>{visibleRules.reduce((n,r)=>n+Number(r.runs||0),0)}</b><small>recorded executions</small></div>
+      <div><span>Estimated time saved</span><b>{(minutesSaved / 60).toFixed(1)}h</b><small>{minutesSaved} staff minutes avoided</small></div>
+      <div><span>Failures</span><b>{visibleRules.reduce((n,r)=>n+Number(r.failures||0),0)}</b><small>surfaced for review</small></div>
     </section>
     <section className="automation-layout">
       <div className="automation-rule-list">
         {visibleRules.map(rule => <article className="panel automation-rule" key={rule.id}>
-          <div className="automation-rule-head"><div><span className="rule-scope">{rule.scope}</span><h3>{rule.name}</h3><small>{rule.id}</small></div><button className={"toggle-switch " + (rule.status === "Active" ? "on" : "")} onClick={() => toggle(rule)}><i /></button></div>
+          <div className="automation-rule-head"><div><span className="rule-scope">{rule.scope}</span><h3>{rule.name}</h3><small>{rule.id} · {rule.event}</small></div><button className={"toggle-switch " + (rule.status === "Active" ? "on" : "")} onClick={() => toggle(rule)}><i /></button></div>
           <div className="automation-flow"><div><span>IF</span><b>{rule.trigger}</b></div><ArrowUpRight size={16} /><div><span>THEN</span><b>{rule.action}</b></div></div>
-          <div className="automation-rule-foot"><span>Last run <b>{rule.last}</b></span><span>{rule.runs} runs · {rule.failures} failures</span><button className="row-action" onClick={() => runNow(rule)}>Run now</button></div>
+          <div className="automation-authority"><span>Autonomy</span>{role === "owner" ? <select value={rule.autonomy || "Auto"} onChange={e => setAutonomy(rule, e.target.value)}><option>Auto</option><option>Policy</option><option>Approval</option><option>Suggest</option></select> : <b>{rule.autonomy || "Auto"}</b>}</div>
+          <div className="automation-rule-foot"><span>Last run <b>{rule.last}</b></span><span>{rule.runs} runs · {rule.failures} failures</span><button className="row-action" onClick={() => runNow(rule)}>Run workflow</button></div>
         </article>)}
       </div>
       <aside className="panel automation-log-panel">
-        <div className="panel-head"><div><span className="panel-kicker">Execution history</span><h3>Recent runs</h3></div></div>
-        <div className="automation-log">{logs.slice(0,8).map(log => <div key={log.id}><span className={"automation-result " + log.result.toLowerCase()}><i />{log.result}</span><div><b>{log.rule}</b><small>{log.detail}</small></div><time>{log.time}</time></div>)}</div>
+        <div className="panel-head"><div><span className="panel-kicker">Execution history</span><h3>Real workflow traces</h3></div></div>
+        <div className="automation-log">{visibleLogs.slice(0,10).map(log => <div key={log.id}>
+          <span className={"automation-result " + String(log.result).toLowerCase()}><i />{log.result}</span>
+          <div><b>{log.rule}</b><small>{log.detail}</small>{log.steps?.length ? <small>{log.steps.join(" → ")}</small> : null}</div>
+          <time>{log.duration ? log.duration + " ms" : log.time}</time>
+        </div>)}</div>
       </aside>
     </section>
   </>;
@@ -1729,7 +2062,7 @@ function AutomationCenter({ role, pushActivity, flash, policy }) {
 
 function AuditLog({ activities, role }) {
   const [filter, setFilter] = useState("All");
-  const categories = ["All", "Operations", "Automation", "Guest messaging", "System"];
+  const categories = ["All", "Operations", "Automation", "Guest messaging", "Governance", "System"];
   const rows = activities.filter(a => filter === "All" || (a.category || "Operations") === filter);
   return <>
     <PageHeader eyebrow="Governance" title="Audit log" text="Trace human, system and automation actions across the shared hotel state." />
@@ -1782,10 +2115,7 @@ function RolePolicy({ policy, setPolicy, flash, pushActivity }) {
 }
 
 function ExceptionCenter({ rooms, bookings, approvals, role, setActive, flash, pushActivity }) {
-  const [systemIssues, setSystemIssues] = useState(() => load("sp-exceptions", [
-    { id:"EXC-03", type:"Payment", severity:"High", title:"Payment retry exhausted", detail:"SP-1042 · Visa authorization failed twice", route:"reservations", status:"Open" },
-    { id:"EXC-04", type:"Distribution", severity:"Normal", title:"Agoda acknowledgement delayed", detail:"Inventory push waiting 94 seconds", route:"channels", status:"Open" }
-  ]));
+  const [systemIssues, setSystemIssues] = useState(() => load("sp-exceptions", seedSystemExceptions));
   useEffect(() => localStorage.setItem("sp-exceptions", JSON.stringify(systemIssues)), [systemIssues]);
 
   const dynamic = [
@@ -1819,6 +2149,65 @@ function ExceptionCenter({ rooms, bookings, approvals, role, setActive, flash, p
   </>;
 }
 
+function PropertySetup({ policy, setPolicy, setActive, pushActivity, flash }) {
+  const defaults = {
+    property: true,
+    pms: false,
+    messaging: false,
+    finance: false,
+    team: true,
+    automation: false
+  };
+  const [setup, setSetup] = useState(() => load("sp-property-setup", defaults));
+  useEffect(() => localStorage.setItem("sp-property-setup", JSON.stringify(setup)), [setup]);
+  const steps = [
+    ["property", "Property profile", "Northstar Grand · 24 rooms · Chattogram", Building2],
+    ["pms", "Connect existing PMS / channel source", "Import reservations, rooms, availability and guest state", Database],
+    ["messaging", "Connect guest messaging", "WhatsApp Business or email provider", MessageSquare],
+    ["finance", "Connect finance", "Payments + accounting journal / settlement destination", ReceiptText],
+    ["team", "Invite operating team", "Owner and Manager authority model configured", UserCog],
+    ["automation", "Choose automation authority", "Auto, policy-limited, approval or suggest-only per workflow", Zap]
+  ];
+  const completed = steps.filter(([key]) => setup[key]).length;
+  const toggle = (key, label) => {
+    const next = !setup[key];
+    setSetup(prev => ({ ...prev, [key]: next }));
+    pushActivity(next ? "green" : "amber", label + (next ? " completed" : " reopened"), "Property onboarding · " + label, "Governance");
+    flash(next ? label + " marked complete" : label + " reopened");
+  };
+  const applySafeDefaults = () => {
+    setPolicy(prev => ({ ...prev, managerRateLimit: 10, managerRefundLimit: 100, managerPurchaseLimit: 150 }));
+    setSetup(prev => ({ ...prev, automation: true }));
+    pushActivity("green", "Automation safety defaults applied", "± policy thresholds · approvals above limits", "Governance");
+    flash("Safe automation defaults applied");
+  };
+  return <>
+    <PageHeader eyebrow="Owner onboarding" title="Get value without replacing your hotel stack" text="Connect the systems the property already uses, import operating context, choose authority limits, and let StayPilot automate the work between them." action={<button className="ghost-btn" onClick={() => setActive("connections")}><PlugZap size={16} /> Open integration hub</button>} />
+    <section className="automation-summary">
+      <div><span>Setup progress</span><b>{completed}/{steps.length}</b><small>{Math.round(completed/steps.length*100)}% configured</small></div>
+      <div><span>Property</span><b>24 rooms</b><small>Northstar Grand demo</small></div>
+      <div><span>Manager rate authority</span><b>±{policy.managerRateLimit}%</b><small>above limit → approval</small></div>
+      <div><span>Automation mode</span><b>{setup.automation ? "Ready" : "Review"}</b><small>human-in-the-loop controls</small></div>
+    </section>
+    <section className="policy-layout">
+      <article className="panel role-policy-card">
+        <div className="panel-head"><div><span className="panel-kicker">Guided setup</span><h3>Property readiness</h3></div></div>
+        <div className="permission-list">{steps.map(([key,label,desc,Icon]) => <div key={key}>
+          <div className="setup-step-icon"><Icon size={17} /></div>
+          <div><b>{label}</b><small>{desc}</small></div>
+          <button className={"toggle-switch " + (setup[key] ? "on" : "")} onClick={() => toggle(key,label)}><i /></button>
+        </div>)}</div>
+      </article>
+      <aside className="panel threshold-card">
+        <span className="panel-kicker">Recommended start</span><h3>Controlled automation</h3><p>Start with routine actions on Auto. Keep financial, pricing and guest-impacting actions inside explicit limits or Owner approval.</p>
+        <div className="scope-block"><span>Suggested first automations</span><div><em><Check size={13}/>Reservation intake</em><em><Check size={13}/>Checkout turnover</em><em><Check size={13}/>Room ready</em><em><Check size={13}/>Low-stock policy</em></div></div>
+        <button className="primary-btn full" onClick={applySafeDefaults}><ShieldCheck size={16}/> Apply safe defaults</button>
+        <button className="ghost-btn full" onClick={() => setActive("automations")}><Zap size={16}/> Review automation authority</button>
+      </aside>
+    </section>
+  </>;
+}
+
 function Connections({ pushActivity, flash }) {
   const providers = {
     booking: {
@@ -1838,6 +2227,43 @@ function Connections({ pushActivity, flash }) {
         ["accountId", "Account / listing group", "Account identifier", "text"]
       ],
       scopes: ["Listings", "Availability", "Reservations"]
+    },
+    pms: {
+      name: "Existing PMS bridge", icon: "PMS", tone: "green", type: "Property system", note: "Connect the hotel system you already use; StayPilot acts as the automation layer above it.",
+      fields: [
+        ["baseUrl", "PMS API base URL", "https://pms.example.com/api", "text"],
+        ["propertyId", "Property ID", "property_123", "text"],
+        ["apiKey", "API / OAuth credential", "Enter connector credential", "secret"]
+      ],
+      scopes: ["Reservations", "Rooms & availability", "Guest profiles", "Folio events"]
+    },
+    quickbooks: {
+      name: "QuickBooks / Accounting", icon: "QB", tone: "green", type: "Finance", note: "Journal, revenue, tax, expense and settlement export adapter.",
+      fields: [
+        ["companyId", "Company / tenant ID", "company_123", "text"],
+        ["clientId", "OAuth Client ID", "Accounting app client ID", "text"],
+        ["clientSecret", "OAuth Client Secret", "Enter OAuth secret", "secret"]
+      ],
+      scopes: ["Journal entries", "Expenses", "Taxes", "Settlement reconciliation"]
+    },
+    whatsapp: {
+      name: "WhatsApp Business", icon: "WA", tone: "green", type: "Communications", note: "Guest confirmations, arrival instructions, service updates and approved recovery messages.",
+      fields: [
+        ["phoneId", "Phone Number ID", "123456789", "text"],
+        ["businessId", "Business Account ID", "987654321", "text"],
+        ["accessToken", "Access Token", "Enter system-user token", "secret"],
+        ["verifyToken", "Webhook Verify Token", "Enter webhook verification token", "secret"]
+      ],
+      scopes: ["Guest messages", "Delivery receipts", "Inbound replies"]
+    },
+    webhooks: {
+      name: "Webhooks & REST API", icon: "</>", tone: "blue", type: "Developer tools", note: "StayPilot-native integration surface. n8n, Make, Zapier or custom systems can consume it, but none are required.",
+      fields: [
+        ["endpoint", "Outbound destination", "https://your-system.example/staypilot", "text"],
+        ["signingSecret", "HMAC signing secret", "Generated server-side in production", "secret"],
+        ["events", "Subscribed events", "reservation.created, guest.checked_out", "text"]
+      ],
+      scopes: ["Signed outbound events", "Inbound hotel events", "Retries", "Idempotency", "Delivery replay"]
     },
     meta: {
       name: "Meta Ads", icon: "M", tone: "violet", type: "Marketing", note: "Marketing API",
@@ -1916,6 +2342,16 @@ function Connections({ pushActivity, flash }) {
   const [testing, setTesting] = useState(false);
   const [testingAll, setTestingAll] = useState(false);
   const [lastDemoCheck, setLastDemoCheck] = useState("Not run");
+  const [webhookEndpoints, setWebhookEndpoints] = useState(() => load("sp-webhook-endpoints", [
+    { id:"WH-01", name:"Accounting event sink", url:"https://example-accounting.test/staypilot", events:["payment.captured","guest.checked_out"], status:"Active", deliveries:48, last:"3 min ago", success:"100%" },
+    { id:"WH-02", name:"Operations notifications", url:"https://example-ops.test/hooks", events:["room.maintenance_blocked","inventory.low_stock"], status:"Active", deliveries:19, last:"22 min ago", success:"94.7%" }
+  ]));
+  const [webhookDeliveries, setWebhookDeliveries] = useState(() => load("sp-webhook-deliveries", [
+    { id:"DLV-402", endpoint:"WH-01", event:"guest.checked_out", code:"200 OK", duration:"184 ms", time:"3 min ago" },
+    { id:"DLV-401", endpoint:"WH-02", event:"room.maintenance_blocked", code:"200 OK", duration:"241 ms", time:"22 min ago" }
+  ]));
+  useEffect(() => localStorage.setItem("sp-webhook-endpoints", JSON.stringify(webhookEndpoints)), [webhookEndpoints]);
+  useEffect(() => localStorage.setItem("sp-webhook-deliveries", JSON.stringify(webhookDeliveries)), [webhookDeliveries]);
   const provider = providers[selected];
   const webhook = "https://api.staypilot.demo/webhooks/" + selected;
 
@@ -1952,11 +2388,19 @@ function Connections({ pushActivity, flash }) {
     catch { flash("Webhook URL ready to copy"); }
   };
 
+  const replayWebhook = endpoint => {
+    const delivery = { id:"DLV-"+String(Date.now()).slice(-5), endpoint:endpoint.id, event:endpoint.events[0] || "reservation.created", code:"200 OK", duration:(160 + Date.now()%180) + " ms", time:"now" };
+    setWebhookDeliveries(prev => [delivery, ...prev].slice(0, 30));
+    setWebhookEndpoints(prev => prev.map(x => x.id === endpoint.id ? { ...x, deliveries:Number(x.deliveries||0)+1, last:"now", success:"100%" } : x));
+    pushActivity("green", "Signed webhook delivered", endpoint.name + " · " + delivery.event + " · " + delivery.code, "Automation", "StayPilot integration gateway");
+    flash("Webhook delivery replayed successfully");
+  };
+
   return <>
     <PageHeader
       eyebrow="System administration"
-      title="Connections & API credentials"
-      text="Configure the external systems that power inventory sync, reservations, payments, marketing attribution and guest communications."
+      title="Integration hub"
+      text="Connect the hotel systems you already use. StayPilot normalizes their events, runs policy-aware automations, and exposes signed webhooks/API for everything else."
       action={<div className="connection-security"><ShieldCheck size={17} /><div><b>Secrets vault</b><span>Server-side in production</span></div></div>}
     />
 
@@ -1965,6 +2409,13 @@ function Connections({ pushActivity, flash }) {
       <div><span className="summary-icon safe"><ShieldCheck size={19} /></span><div><b>Encrypted secrets</b><span>KMS / environment vault</span></div></div>
       <div><span className="summary-icon"><Database size={19} /></span><div><b>Webhook intake</b><span>Signed + idempotent events</span></div></div>
       <div className="environment-switch"><span>Environment</span><div>{["Sandbox", "Production"].map(x => <button key={x} className={environment === x ? "active" : ""} onClick={() => setEnvironment(x)}>{x}</button>)}</div></div>
+    </section>
+
+    <section className="owner-field-grid integration-marketplace">
+      <button className="panel owner-field" onClick={() => setSelected("pms")}><span className="field-icon"><Database size={19} /></span><div><span>Existing PMS</span><b>Bridge, don’t replace</b><small>reservations, rooms, folios & guests</small></div><ArrowUpRight size={15} /></button>
+      <button className="panel owner-field" onClick={() => setSelected("quickbooks")}><span className="field-icon"><ReceiptText size={19} /></span><div><span>Accounting</span><b>QuickBooks / ledger</b><small>journals, tax, expenses & settlement</small></div><ArrowUpRight size={15} /></button>
+      <button className="panel owner-field" onClick={() => setSelected("whatsapp")}><span className="field-icon"><MessageSquare size={19} /></span><div><span>Guest messaging</span><b>WhatsApp Business</b><small>confirmations, arrival & service flows</small></div><ArrowUpRight size={15} /></button>
+      <button className="panel owner-field" onClick={() => setSelected("webhooks")}><span className="field-icon"><PlugZap size={19} /></span><div><span>Universal integration</span><b>Webhooks + REST</b><small>n8n / Make / Zapier optional</small></div><ArrowUpRight size={15} /></button>
     </section>
 
     <div className="connections-layout">
@@ -2018,6 +2469,14 @@ function Connections({ pushActivity, flash }) {
         </div>
       </section>
     </div>
+
+    <section className="panel table-panel webhook-console">
+      <div className="panel-head"><div><span className="panel-kicker">Built-in integration gateway</span><h3>Signed webhook endpoints</h3><p>Outgoing events use event IDs, HMAC signatures, idempotency keys and retry/replay semantics in the production architecture.</p></div><button className="ghost-btn" onClick={() => setSelected("webhooks")}><PlugZap size={15} /> Configure webhooks</button></div>
+      <div className="table-scroll"><table><thead><tr><th>Endpoint</th><th>Subscribed events</th><th>Deliveries</th><th>Last delivery</th><th>Success</th><th /></tr></thead><tbody>
+        {webhookEndpoints.map(endpoint => <tr key={endpoint.id}><td><b>{endpoint.name}</b><small>{endpoint.url}</small></td><td>{endpoint.events.join(", ")}</td><td><b>{endpoint.deliveries}</b></td><td>{endpoint.last}</td><td><StatusDot status={endpoint.status} /><small>{endpoint.success}</small></td><td><button className="row-action" onClick={() => replayWebhook(endpoint)}>Replay test</button></td></tr>)}
+      </tbody></table></div>
+      <div className="mini-note"><Database size={15} /> Recent: {webhookDeliveries.slice(0,3).map(x => x.event+" → "+x.code+" ("+x.duration+")").join(" · ")}</div>
+    </section>
 
     <section className="connection-health panel">
       <div className="panel-head"><div><span className="panel-kicker">Integration runtime design</span><h3>Credential & event delivery</h3></div><button className="ghost-btn" onClick={testAll} disabled={testingAll}><RefreshCw size={15} className={testingAll ? "spin" : ""} /> {testingAll ? "Running checks..." : "Run demo checks"}</button></div>

@@ -1075,3 +1075,24 @@ nav button,.primary-btn,.secondary-btn,.ghost-btn,.danger-btn,.icon-btn,.row-act
 
 @media(max-width:980px){.policy-layout{grid-template-columns:1fr}.exception-summary{grid-template-columns:1fr 1fr}}
 @media(max-width:680px){.folio-actions{flex-direction:column}.folio-actions button{width:100%}.exception-summary{grid-template-columns:1fr}.exception-row{grid-template-columns:1fr;gap:8px}.exception-actions{justify-content:flex-start}.permission-list{padding:8px 18px 18px}}
+
+
+/* Automation product layer */
+.owner-command-summary{margin-bottom:18px}
+.automation-authority{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 0 2px;border-top:1px solid #e8ecea;margin-top:12px}
+.automation-authority>span{font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:#748079;font-weight:700}
+.automation-authority select{min-height:36px;border:1px solid var(--line);border-radius:8px;background:var(--surface);color:var(--ink);font-size:11px;font-weight:700;padding:0 28px 0 10px}
+.scenario-switcher{display:grid;grid-template-columns:repeat(3,1fr);gap:5px;padding:9px 0 10px;border-top:1px solid rgba(255,255,255,.09)}
+.scenario-switcher>span{grid-column:1/-1;font-size:9px;text-transform:uppercase;letter-spacing:.08em;color:rgba(255,255,255,.5);font-weight:700;margin-bottom:2px}
+.scenario-switcher button{display:flex;align-items:center;justify-content:center;gap:4px;min-height:34px;border:1px solid rgba(255,255,255,.11);border-radius:7px;background:rgba(255,255,255,.045);color:rgba(255,255,255,.78);font-size:9.5px;font-weight:650;cursor:pointer}
+.scenario-switcher button:hover{background:rgba(255,255,255,.09);color:#fff}
+.setup-step-icon{width:34px;height:34px;display:grid;place-items:center;flex:0 0 34px;border-radius:8px;background:var(--forest-50);color:var(--forest-700)}
+.permission-list>div:has(.setup-step-icon){display:grid;grid-template-columns:34px 1fr auto}
+.integration-marketplace{margin:0 0 18px}
+.webhook-console{margin-top:18px}
+.webhook-console .panel-head{align-items:flex-start}
+.webhook-console .panel-head p{max-width:680px;font-size:10.5px;color:#748079;line-height:1.5;margin:4px 0 0}
+.webhook-console td small{display:block;color:#7a8680;font-size:9.5px;margin-top:3px}
+.webhook-console .mini-note{margin:0 20px 18px}
+.automation-log>div>div small+small{margin-top:4px;color:#79857f;line-height:1.35}
+@media(max-width:680px){.scenario-switcher{grid-template-columns:1fr}.scenario-switcher>span{grid-column:1}.automation-authority{align-items:flex-start;flex-direction:column}.automation-authority select{width:100%}.permission-list>div:has(.setup-step-icon){grid-template-columns:34px 1fr}.permission-list>div:has(.setup-step-icon) .toggle-switch{grid-column:1/-1;justify-self:end}}

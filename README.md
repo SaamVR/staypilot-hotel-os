@@ -1,72 +1,230 @@
-# StayPilot OS
+# StayPilot Automation OS
 
-**Role-aware hotel operating system prototype — Portfolio Work #2**
+**Policy-aware hotel automation and operations layer — Portfolio Work #2**
 
 **Live demo:** https://staypilot-hotel-os.pages.dev/
 
-StayPilot OS is an interactive hotel-operations prototype for independent hotels. It demonstrates how reservations, physical rooms, housekeeping, maintenance, supplies, approvals, distribution, marketing, guest messaging, automations and an operator assistant can work from one shared property state.
+StayPilot is a high-fidelity prototype for independent hotels that connects operational context, automates repetitive hotel work, escalates exceptions, and keeps Owners in control of sensitive actions.
+
+The commercial wedge is intentionally **not “replace every hotel system.”** StayPilot can sit above an existing PMS/channel stack, normalize its events, execute hotel workflows, and route only the decisions that require a human.
+
+> One hotel state. Every person, integration and automation works from it.
 
 ## Product model
 
+StayPilot is built around this execution loop:
+
+```
+Domain event
+  → hotel context
+  → automation rule
+  → authority / policy check
+  → action(s)
+  → result
+  → audit + execution trace
+```
+
 The prototype has two demo roles:
 
-- **Owner** — business performance, finance, approval queue, inventory value, channel management, marketing, integrations, automation and property oversight.
-- **Property Manager** — front desk, reservations, room readiness, housekeeping, maintenance, supply counts, purchase/expense requests, guest communication and operational automations.
+- **Owner** — property health, exception queue, approvals, automation authority, finance, integrations, revenue controls and audit.
+- **Property Manager** — front desk, room readiness, guest requests, supplies, operational automations and Owner-routed requests.
 
-The Operations Assistant uses the same role rules. Manager commands outside policy are routed to Owner approval rather than silently executed.
+The Operations Assistant uses the same permissions and thresholds as the rest of the product. Restricted Manager actions are escalated rather than silently executed.
 
-## Key interactive workflows
+## Automation Engine
 
-### Front desk and reservations
+The Automation Center operates on the same shared hotel state as reservations, rooms, tasks, approvals, inventory and rate controls. “Run workflow” therefore changes product state; it is not a counter-only demo.
 
-- 7-day room tape chart / reservation calendar
-- Reservation assignment queue
-- Reservation drawer with room assignment, check-in, check-out and cancellation
-- Reservation folio with room charges, taxes/fees, deposits, balance capture and refunds
-- Checkout is blocked until the folio balance is settled
-- Manager refunds above the Owner-defined threshold become approval requests
-- Internal walk-in / phone reservation entry
-- Guest-facing direct booking engine
-- Direct bookings reserve **room-type inventory first** and enter the assignment queue instead of immediately claiming a physical room
+Each automation exposes:
 
-### Room state
+- event / trigger
+- actions
+- autonomy mode
+- run count and failures
+- estimated staff time saved
+- execution trace
+- duration
+- audit actor
 
-Rooms use independent operational dimensions:
+### Autonomy modes
+
+Owners can choose how far a workflow may act:
+
+- **Auto** — execute automatically
+- **Policy** — execute within configured limits; escalate above them
+- **Approval** — create a human decision before the sensitive action
+- **Suggest** — recommend only
+
+Manager financial authority is independently configurable for rate changes, refunds and purchasing.
+
+## 12 commercial workflow templates
+
+### 1. Reservation intake — `reservation.created`
+
+Stateful in the prototype.
+
+- holds room-type inventory
+- records distribution reconciliation
+- records guest confirmation
+- opens the arrival workflow
+- writes automation trace and audit event
+
+New direct and front-desk reservations emit this event.
+
+### 2. Checkout turnover — `guest.checked_out`
+
+Stateful in the prototype.
+
+- occupancy → Vacant
+- housekeeping → Dirty
+- creates a persistent checkout-turnover task
+- recalculates sellability
+- writes automation trace and audit event
+
+### 3. Pre-arrival messaging — `prearrival.due`
+
+Stateful internal action; the portfolio build does **not** include a production scheduler or live messaging provider.
+
+- marks the guest pre-arrival workflow sent
+- records delivery/tracking state
+- writes execution history
+
+### 4. Occupancy rate guard — `occupancy.threshold`
+
+Stateful in the prototype.
+
+- detects the configured occupancy threshold
+- creates a rate recommendation
+- checks Owner policy
+- applies an in-policy adjustment or creates an Owner approval
+- records downstream rate reconciliation
+
+The demo also includes a one-time state-triggered occupancy check.
+
+### 5. Failed payment recovery — `payment.failed`
+
+Stateful exception workflow; no real processor retry occurs in the portfolio build.
+
+- marks the reservation payment-at-risk
+- models a retry attempt
+- creates a persistent payment exception
+- routes attention to the front desk
+
+### 6. Low-stock replenishment — `inventory.low_stock`
+
+Stateful and automatically detected from shared stock state.
+
+- detects below-par inventory
+- calculates reorder quantity and cost
+- checks purchasing authority
+- creates an approved PO inside policy or an Owner approval above policy
+- prevents duplicate open purchase actions
+
+### 7. Cancellation recovery — `reservation.cancelled`
+
+Stateful in the prototype.
+
+- releases the assigned room
+- releases room-type inventory
+- records channel reconciliation
+- restores resale availability
+
+### 8. Room-ready release — `housekeeping.completed`
+
+Stateful in the prototype.
+
+- marks housekeeping Clean
+- closes matching housekeeping work
+- recalculates sellability
+- records availability reconciliation
+
+### 9. Room conflict guard — `room.maintenance_blocked`
+
+Stateful in the prototype.
+
+- checks whether an active stay depends on the blocked room
+- searches compatible sellable alternatives
+- creates a high-priority conflict exception
+- records suggested replacement rooms
+
+### 10. Guest request router — `guest.request_received`
+
+Stateful internal workflow; live message classification/provider intake is not connected.
+
+- classifies the demo request
+- selects the operating team
+- creates a service task
+- starts an SLA-style response record
+
+### 11. Approval executor — `approval.approved`
+
+Stateful in the prototype.
+
+- releases the approved action
+- closes the human-in-the-loop handoff
+- writes an automation trace
+
+Existing approval handlers also execute supported rate, marketing and refund state changes.
+
+### 12. Review recovery — `review.negative`
+
+Stateful internal exception workflow; no live review provider is connected.
+
+- creates a service-recovery exception
+- routes follow-up to the Manager
+- records the escalation
+
+## Exception-first Owner experience
+
+The Owner dashboard is now a **Property command center**, led by:
+
+- human attention required
+- automation actions handled
+- estimated staff time saved
+- automation failures
+
+Traditional revenue, expense, occupancy and distribution analytics remain available underneath. The design goal is:
+
+> Routine work disappears into automation; exceptions remain visible.
+
+## Manager shift experience
+
+The Manager sees operating priorities instead of an Owner analytics clone:
+
+- arrivals
+- rooms not ready
+- maintenance
+- guest requests
+- low stock
+- Owner instructions
+- operational automation state
+
+## Shared hotel operating state
+
+Rooms keep independent dimensions:
 
 - **Occupancy:** Vacant / Reserved / Occupied
 - **Housekeeping:** Clean / Dirty / Cleaning
 - **Maintenance:** Clear / Out of order
-- **Sellability:** derived from the dimensions above
+- **Sellability:** derived
 
-This prevents housekeeping or maintenance actions from overwriting reservation/occupancy state.
+Other shared state includes:
 
-### Owner ↔ Manager approval workflow
+- reservations and folios
+- approvals
+- housekeeping / maintenance / guest-service tasks
+- supplies
+- expenses
+- guest conversations
+- automation rules and run history
+- policy
+- activity / audit events
 
-- Manager purchase, expense, refund, rate and marketing requests
-- Owner approval / rejection
-- Manager rate changes above the Owner-configured threshold are approval-gated
-- Manager marketing commands are approval-gated
-- Approved purchase orders become receivable stock; inventory does not increase until delivery is received
+This separation is important: a housekeeping or maintenance automation cannot accidentally overwrite reservation occupancy.
 
-### Operations
+## Human-in-the-loop governance
 
-- Persistent housekeeping and maintenance tasks
-- Room-readiness controls
-- Maintenance resolution updates the same room state used by Front Desk
-- Shared owner/manager instructions and handoff notes
-- Exception Center for payment, distribution, room-readiness, room-assignment and approval blockers
-- Activity stream and audit history
-
-### Guest communication
-
-- Unified guest inbox
-- Reservation context beside each conversation
-- Quick response templates
-- Interactive replies stored in demo state
-
-### Roles & permissions
-
-The Owner can configure Manager authority for:
+The Owner can configure Manager permission for:
 
 - room / housekeeping / maintenance controls
 - channel reconciliation
@@ -75,51 +233,99 @@ The Owner can configure Manager authority for:
 - operational automations
 - marketing control
 
-The Owner can also set configurable thresholds for rate changes, refunds and unapproved purchases. The same policy is consumed by Manager controls and the Operations Assistant.
+The Owner can configure:
 
-### Automation Center
+- maximum Manager rate adjustment
+- Manager refund limit
+- unapproved purchase limit
 
-Role-aware rules demonstrate:
+Actions above limits become Owner approvals.
 
-- Reservation intake
-- Checkout → housekeeping turnover
-- Pre-arrival messaging
-- Occupancy-driven rate suggestions
-- Failed-payment recovery
-- Low-stock purchase requests
+## Integration Hub
 
-Rules can be enabled/paused and manually run in the prototype with an execution log.
+StayPilot treats integrations as adapters around the automation engine rather than dependencies inside every workflow.
 
-### Distribution and growth
+Current portfolio surfaces include:
 
-- Direct Website, Booking.com, Airbnb, Expedia and Agoda channel surfaces
-- Inventory/rate reconciliation controls
-- Google Hotel Ads, Google Search/PMax, Meta, TikTok and Microsoft Ads control surfaces
-- Campaign budgets, target ROAS, campaign state and booking attribution
+- existing PMS bridge
+- Booking.com
+- Airbnb
+- Stripe
+- QuickBooks / accounting
+- WhatsApp Business
+- guest email/messaging
+- marketing platforms
+- **Webhooks & REST API**
 
-### Connections
+### Built-in webhook model
 
-Provider credential forms demonstrate the configuration required for OTA, payment, marketing and messaging integrations.
+The Integration Hub demonstrates:
 
-Connection tests and runtime health checks are **explicitly simulated** in this portfolio build. Credentials typed into the demo are not persisted.
+- subscribed events
+- delivery history
+- status / success rate
+- replay
+- event-oriented endpoint configuration
 
-## Shared demo state
+Production architecture is designed around:
 
-Interactive state is stored in browser localStorage, including:
+- HMAC signatures
+- event IDs
+- idempotency keys
+- retries
+- delivery replay
+- secure credential storage
 
-- rooms
-- reservations
-- approval requests
-- tasks
-- supplies
+**n8n, Make, Zapier and custom scripts are optional webhook/API consumers. They are not required for StayPilot’s internal automations.**
+
+Provider connection tests, webhook delivery and external API outcomes are explicitly modeled/simulated in this browser prototype. The application does not claim to be calling live OTA, accounting, payment, WhatsApp or ad APIs.
+
+## Property setup
+
+Owner onboarding is designed to minimize migration friction:
+
+1. property profile
+2. connect existing PMS / booking source
+3. connect guest messaging
+4. connect finance
+5. invite operating team
+6. choose automation authority
+
+The prototype includes safe default approval thresholds and setup progress.
+
+## Demo scenarios
+
+The sidebar contains three deterministic sales/demo scenarios:
+
+- **Normal** — creates a Booking.com-style reservation and runs Reservation Intake
+- **Problem** — blocks an assigned room and runs Room Conflict Guard
+- **Approval** — requests a +14% rate change, exceeds the default +10% Manager limit and escalates it to the Owner
+
+These scenarios are intended to demonstrate outcomes rather than require a prospect to manually manufacture hotel state.
+
+## Existing hotel operations
+
+StayPilot still includes the operational surfaces needed to give automations context:
+
+- front-desk tape chart
+- reservation drawer / assignment / check-in / check-out / cancellation
+- folio, balance capture and refund workflow
+- room board
+- guest inbox
+- supplies and purchasing
 - expenses
-- instructions
-- guest messages
-- automation rules/logs
-- marketing/campaign controls
-- activity/audit history
+- channel manager
+- marketing controls
+- team instructions
+- audit log
+- exception center
+- deterministic Operations Assistant
 
-Use **Reset demo** to restore seeded data.
+## Demo persistence
+
+Interactive state is stored in browser `localStorage`.
+
+Use **Reset demo** to restore seeded state. Reset also clears automation sentinels, webhook demo state and onboarding progress.
 
 ## Stack
 
@@ -128,29 +334,41 @@ Use **Reset demo** to restore seeded data.
 - Recharts
 - Lucide React
 - Cloudflare Pages
-- Browser localStorage for prototype persistence
+- browser localStorage for prototype persistence
+- GitHub Actions production-build verification
 
-The Vite production build separates React, charts and icon libraries into vendor chunks to keep the application bundle manageable.
+## Verification
+
+`.github/workflows/verify.yml` runs on pull requests and relevant pushes:
+
+- Node 22
+- `npm ci`
+- `npm run build`
+
+This provides a durable build guardrail independent of the development machine.
 
 ## Production boundary
 
-StayPilot OS is a high-fidelity prototype, not a live PMS.
+StayPilot Automation OS remains a portfolio prototype, not a production hotel control plane.
 
-A production implementation would require:
+A commercial implementation still requires:
 
-- persistent multi-tenant backend/database
+- multi-tenant backend/database
 - authentication and server-enforced RBAC
-- payment processor integration
-- approved OTA/channel partner APIs
+- durable event bus / queue
+- scheduled job service
+- transactional/idempotent action execution
+- live PMS / OTA partner adapters
+- real payment processor integration
+- real WhatsApp/email provider integration
 - secure secrets vault / KMS
-- webhook verification and idempotency
-- real guest messaging providers
-- rate/inventory adapter layer
+- verified inbound and signed outbound webhooks
 - immutable server-side audit log
-- production observability and retry queues
+- production observability, retry queues and dead-letter handling
+- tenant isolation, rate limiting and operational safeguards
 
-The prototype intentionally labels simulated provider checks and does not claim external integrations are live.
+The internal hotel workflows in this demo mutate real shared prototype state. External provider calls remain clearly modeled until approved APIs and backend infrastructure exist.
 
 ---
 
-Built as a product-focused demonstration of hotel operations architecture, role-aware UX, automation and shared-state workflows.
+Built as a product-focused demonstration of **hotel operations automation, policy-aware execution, human approvals, exception handling and integration architecture**.
