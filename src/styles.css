@@ -1148,3 +1148,21 @@ nav button,.primary-btn,.secondary-btn,.ghost-btn,.danger-btn,.icon-btn,.row-act
 .inbound-event-grid .primary-btn{min-height:42px;white-space:nowrap}
 @media(max-width:900px){.automation-filter-bar{flex-direction:column}.inbound-event-grid{grid-template-columns:1fr 1fr}.inbound-event-grid .primary-btn{grid-column:1/-1;width:100%}}
 @media(max-width:620px){.automation-filter-bar{padding:9px}.automation-filter-bar>div{width:100%}.automation-filter-bar button{flex:1}.inbound-event-grid{grid-template-columns:1fr;padding-inline:14px}.inbound-event-grid .primary-btn{grid-column:auto}.event-payload-preview code{white-space:normal;line-height:1.4;padding-block:10px}}
+
+
+/* Global automation safety */
+.automation-master-banner{display:flex;align-items:center;justify-content:space-between;gap:18px;margin:0 0 16px;padding:15px 16px;border:1px solid var(--line);border-radius:12px;background:var(--surface)}
+.automation-master-banner>div{display:flex;align-items:flex-start;gap:12px;min-width:0}
+.automation-master-banner h3{margin:2px 0 3px;font-size:15px;letter-spacing:-.02em}
+.automation-master-banner p{margin:0;color:#718078;font-size:10.5px;line-height:1.5}
+.master-status-dot{width:10px;height:10px;border-radius:50%;margin-top:7px;flex:0 0 10px;background:var(--forest-600);box-shadow:0 0 0 5px var(--forest-50)}
+.automation-master-banner.paused{border-color:#e7caa6;background:#fffaf3}
+.automation-master-banner.paused .master-status-dot{background:#b7791f;box-shadow:0 0 0 5px #faedd9}
+.danger-ghost-btn{display:inline-flex;align-items:center;justify-content:center;gap:7px;min-height:40px;padding:0 13px;border:1px solid #dfc39e;border-radius:8px;background:#fffaf3;color:#885a1b;font-size:10px;font-weight:750;cursor:pointer;white-space:nowrap}
+.danger-ghost-btn:hover{background:#f9edda}
+.master-readonly{border:1px solid var(--line);border-radius:999px;padding:6px 10px;color:#6f7c76;font-size:9px;font-weight:750;text-transform:uppercase;letter-spacing:.06em}
+.system-health.paused .live-dot,.live-pill.paused>span{background:#c88a2d;box-shadow:0 0 0 4px rgba(200,138,45,.12)}
+.live-pill.paused{border-color:#e3c59d;background:#fff8ef;color:#81571d}
+@media(max-width:700px){.automation-master-banner{align-items:stretch;flex-direction:column}.automation-master-banner>button{width:100%}}
+
+.automation-queue-count{display:inline-flex;margin-top:7px;border:1px solid #e3c59d;border-radius:999px;background:#fff;padding:4px 8px;color:#84591f;font-size:9px;font-weight:750}

@@ -57,6 +57,22 @@ Owners can choose how far a workflow may act:
 
 Manager financial authority is independently configurable for rate changes, refunds and purchasing.
 
+### Global automation safety pause
+
+The Owner can pause all automation execution without destroying hotel state or rule configuration.
+
+While paused:
+
+- discrete inbound and operational hotel events are queued for replay
+- state-driven triggers are deferred and re-evaluate when automation resumes
+- manual **Run workflow** actions are blocked rather than queued
+- checkout and cancellation do not bypass the safety boundary with fallback mutations
+- the UI exposes the queued-event count and the global paused state
+
+When the Owner resumes automation, queued events are replayed through the same rule, policy, autonomy and audit path as normal execution.
+
+The browser prototype keeps this queue in `localStorage` and caps it for demonstration. A production implementation requires a durable server-side queue, transactional/idempotent handlers, concurrency control and dead-letter/retry handling.
+
 ## 12 commercial workflow templates
 
 ### 1. Reservation intake — `reservation.created`
@@ -83,8 +99,9 @@ Stateful in the prototype.
 
 ### 3. Pre-arrival messaging — `prearrival.due`
 
-Stateful internal action; the portfolio build does **not** include a production scheduler or live messaging provider.
+Stateful internal action; the portfolio build includes a one-time state trigger for the seeded Sep 24 arrival, but does **not** include a production scheduler or live messaging provider.
 
+- detects the upcoming seeded arrival
 - marks the guest pre-arrival workflow sent
 - records delivery/tracking state
 - writes execution history
@@ -266,6 +283,8 @@ The Integration Hub demonstrates:
 - status / success rate
 - replay
 - event-oriented endpoint configuration
+- an inbound-event test console for PMS/payment/guest/reputation-style events
+- the same normalized inbound events executing through StayPilot's policy-aware automation engine
 
 Production architecture is designed around:
 
@@ -325,7 +344,7 @@ StayPilot still includes the operational surfaces needed to give automations con
 
 Interactive state is stored in browser `localStorage`.
 
-Use **Reset demo** to restore seeded state. Reset also clears automation sentinels, webhook demo state and onboarding progress.
+Use **Reset demo** to restore seeded state. Reset also clears automation sentinels, webhook demo state, onboarding progress, the global automation safety pause and any queued demo events.
 
 ## Stack
 
