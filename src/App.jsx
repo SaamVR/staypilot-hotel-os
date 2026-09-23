@@ -1522,10 +1522,16 @@ function GuestInbox({ bookings, pushActivity, flash, setActive, role, policy, em
       if (seen.has(t.id)) return;
       const booking = bookings.find(b => b.id === t.reservation);
       const message = [...(t.messages || [])].reverse().find(m => m.from === "guest");
+      const rawRequest = message?.text || "Guest service request";
+      const request = /towels?/i.test(rawRequest) ? "Extra towels requested"
+        : /pillow/i.test(rawRequest) ? "Extra pillows requested"
+        : /blanket/i.test(rawRequest) ? "Extra blanket requested"
+        : /clean/i.test(rawRequest) ? "Room cleaning requested"
+        : rawRequest;
       const result = emitHotelEvent("guest.request_received", {
         booking,
         roomNumber: booking?.room,
-        request: message?.text || "Guest service request"
+        request
       });
       if (result?.ok) {
         seen.add(t.id);
