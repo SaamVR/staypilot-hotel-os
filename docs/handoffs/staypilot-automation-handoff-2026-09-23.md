@@ -222,28 +222,31 @@ Live browser QA on the automation/integration release immediately before the saf
 - `review.negative` inbound event created Guest recovery exception and automation run
 - exception badge updated
 
-## Final safety-release QA still to finish
+## Final safety-release QA — PASS
 
-The final source `12cb4d22` is CI-green and deployed. Remote command relay timed out immediately after deploy while launching the final stateful QA script.
+The deployed application source `12cb4d22` was tested against canonical production with a fresh headless Chrome session.
 
-Resume with a fresh headless-browser session and verify:
+Verified sequence:
 
-1. open canonical `?v=12cb4d22`
-2. reset/fresh localStorage
-3. Owner → Automation Center → **Pause all automations**
-4. confirm `sp-automation-master === "Paused"`
-5. while paused, re-arm the Sep 24 pre-arrival trigger; reload
-6. confirm Liam is NOT marked Sent and no pre-arrival sentinel is written
-7. Integration Hub → send `review.negative`
-8. confirm `sp-automation-queue` contains review event and no Guest recovery exception exists yet
-9. Automation Center shows queued-event count
-10. **Resume automations**
-11. confirm queue becomes empty
-12. confirm Review recovery exception/log is created
-13. confirm deferred pre-arrival executes and Liam becomes Sent
-14. confirm zero browser errors and no horizontal overflow
+1. Owner opened Automation Center and clicked **Pause all automations**
+2. `sp-automation-master` became `"Paused"`
+3. Sep 24 pre-arrival state was re-armed while paused
+4. reload kept Liam unsent, wrote no pre-arrival sentinel, and queued no state-trigger event
+5. Integration Hub sent `review.negative`
+6. `sp-automation-queue` contained exactly that discrete event
+7. no Guest recovery exception existed before resume
+8. Automation Center displayed **1 queued event**
+9. Owner clicked **Resume automations**
+10. queue returned to zero
+11. Review recovery created its Guest recovery exception
+12. `review.negative` appeared in automation history
+13. deferred `prearrival.due` re-evaluated and executed
+14. Liam became `preArrivalStatus: "Sent"`
+15. automation master returned to `"Active"`
+16. browser reported zero console/page errors
+17. no horizontal overflow was detected
 
-Do not claim this final pause/replay path is browser-verified until those assertions pass.
+This confirms the browser prototype's pause → queue/defer → resume → replay semantics are working on canonical production.
 
 ## Portfolio integration
 
@@ -256,7 +259,7 @@ Repository: SaamVR/Portfolio
 - source CTA points to StayPilot repo
 - Cloudflare CTA points to canonical demo
 
-Portfolio card currently says `Verified main · b7ab1f23`; update this to `12cb4d22` after final safety QA passes.
+Portfolio Work #2 should display `Verified main · 12cb4d22`; synchronize the Portfolio repo if it still shows an older SHA.
 
 ## Deployment environment
 
