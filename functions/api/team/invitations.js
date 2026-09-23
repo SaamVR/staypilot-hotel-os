@@ -1,5 +1,5 @@
 import { AuthzError, requireHotelOwner } from "../../_shared/auth.js";
-import { requireConfirmedAccount } from "../../_shared/onboarding.js";
+import { OnboardingError, requireConfirmedAccount } from "../../_shared/onboarding.js";
 import {
   generateInviteToken,
   normalizeInviteEmail,
@@ -22,6 +22,7 @@ function failClosed(config) {
 
 function mapFailure(error) {
   if (error instanceof AuthzError) return jsonResponse({ ok:false, error:error.code }, error.status);
+  if (error instanceof OnboardingError) return jsonResponse({ ok:false, error:error.code }, error.status);
   if (error instanceof TeamInvitationError) return jsonResponse({ ok:false, error:error.code }, error.status);
   const detail = error instanceof SupabaseHttpError
     ? String(error?.body?.message || error?.body?.details || "")
