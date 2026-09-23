@@ -1,4 +1,23 @@
 const DEFAULT_ORIGIN = "https://staypilot-hotel-os.pages.dev";
+const CONTROL_PLANE_HOST = "staypilot-hotel-os.pages.dev";
+
+export function resolveControlPlaneOrigin(value = DEFAULT_ORIGIN) {
+  let url;
+  try { url = new URL(String(value || DEFAULT_ORIGIN)); }
+  catch { throw new Error("invalid_control_plane_origin"); }
+
+  if (
+    url.protocol !== "https:" ||
+    url.hostname.toLowerCase() !== CONTROL_PLANE_HOST ||
+    (url.port && url.port !== "443") ||
+    url.username ||
+    url.password
+  ) {
+    throw new Error("untrusted_control_plane_origin");
+  }
+
+  return url.origin;
+}
 
 export async function runScheduledTick(env, fetchImpl = fetch) {
   const enabled = String(env?.SCHEDULER_ENABLED || "").trim().toLowerCase() === "true";
@@ -7,7 +26,7 @@ export async function runScheduledTick(env, fetchImpl = fetch) {
   const secret = String(env?.ORCHESTRATOR_SECRET || "");
   if (!secret) throw new Error("orchestrator_secret_missing");
 
-  const origin = String(env?.STAYPILOT_ORIGIN || DEFAULT_ORIGIN).replace(/\/$/, "");
+  const origin = resolveControlPlaneOrigin(env?.STAYPILOT_ORIGIN || DEFAULT_ORIGIN);
   const response = await fetchImpl(`${origin}/api/orchestrate-run`, {
     method:"POST",
     redirect:"manual",
