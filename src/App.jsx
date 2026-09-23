@@ -595,6 +595,8 @@ function App() {
     localStorage.removeItem("sp-automations");
     localStorage.removeItem("sp-automation-log");
     localStorage.removeItem("sp-exceptions");
+    localStorage.removeItem("sp-webhook-endpoints");
+    localStorage.removeItem("sp-webhook-deliveries");
     localStorage.removeItem("sp-policy");
     localStorage.removeItem("sp-lowstock-auto");
     localStorage.removeItem("sp-occupancy-auto-fired");
@@ -2133,6 +2135,43 @@ function Connections({ pushActivity, flash }) {
       ],
       scopes: ["Listings", "Availability", "Reservations"]
     },
+    pms: {
+      name: "Existing PMS bridge", icon: "PMS", tone: "green", type: "Property system", note: "Connect the hotel system you already use; StayPilot acts as the automation layer above it.",
+      fields: [
+        ["baseUrl", "PMS API base URL", "https://pms.example.com/api", "text"],
+        ["propertyId", "Property ID", "property_123", "text"],
+        ["apiKey", "API / OAuth credential", "Enter connector credential", "secret"]
+      ],
+      scopes: ["Reservations", "Rooms & availability", "Guest profiles", "Folio events"]
+    },
+    quickbooks: {
+      name: "QuickBooks / Accounting", icon: "QB", tone: "green", type: "Finance", note: "Journal, revenue, tax, expense and settlement export adapter.",
+      fields: [
+        ["companyId", "Company / tenant ID", "company_123", "text"],
+        ["clientId", "OAuth Client ID", "Accounting app client ID", "text"],
+        ["clientSecret", "OAuth Client Secret", "Enter OAuth secret", "secret"]
+      ],
+      scopes: ["Journal entries", "Expenses", "Taxes", "Settlement reconciliation"]
+    },
+    whatsapp: {
+      name: "WhatsApp Business", icon: "WA", tone: "green", type: "Communications", note: "Guest confirmations, arrival instructions, service updates and approved recovery messages.",
+      fields: [
+        ["phoneId", "Phone Number ID", "123456789", "text"],
+        ["businessId", "Business Account ID", "987654321", "text"],
+        ["accessToken", "Access Token", "Enter system-user token", "secret"],
+        ["verifyToken", "Webhook Verify Token", "Enter webhook verification token", "secret"]
+      ],
+      scopes: ["Guest messages", "Delivery receipts", "Inbound replies"]
+    },
+    webhooks: {
+      name: "Webhooks & REST API", icon: "</>", tone: "blue", type: "Developer tools", note: "StayPilot-native integration surface. n8n, Make, Zapier or custom systems can consume it, but none are required.",
+      fields: [
+        ["endpoint", "Outbound destination", "https://your-system.example/staypilot", "text"],
+        ["signingSecret", "HMAC signing secret", "Generated server-side in production", "secret"],
+        ["events", "Subscribed events", "reservation.created, guest.checked_out", "text"]
+      ],
+      scopes: ["Signed outbound events", "Inbound hotel events", "Retries", "Idempotency", "Delivery replay"]
+    },
     meta: {
       name: "Meta Ads", icon: "M", tone: "violet", type: "Marketing", note: "Marketing API",
       fields: [
@@ -2210,6 +2249,16 @@ function Connections({ pushActivity, flash }) {
   const [testing, setTesting] = useState(false);
   const [testingAll, setTestingAll] = useState(false);
   const [lastDemoCheck, setLastDemoCheck] = useState("Not run");
+  const [webhookEndpoints, setWebhookEndpoints] = useState(() => load("sp-webhook-endpoints", [
+    { id:"WH-01", name:"Accounting event sink", url:"https://example-accounting.test/staypilot", events:["payment.captured","guest.checked_out"], status:"Active", deliveries:48, last:"3 min ago", success:"100%" },
+    { id:"WH-02", name:"Operations notifications", url:"https://example-ops.test/hooks", events:["room.maintenance_blocked","inventory.low_stock"], status:"Active", deliveries:19, last:"22 min ago", success:"94.7%" }
+  ]));
+  const [webhookDeliveries, setWebhookDeliveries] = useState(() => load("sp-webhook-deliveries", [
+    { id:"DLV-402", endpoint:"WH-01", event:"guest.checked_out", code:"200 OK", duration:"184 ms", time:"3 min ago" },
+    { id:"DLV-401", endpoint:"WH-02", event:"room.maintenance_blocked", code:"200 OK", duration:"241 ms", time:"22 min ago" }
+  ]));
+  useEffect(() => localStorage.setItem("sp-webhook-endpoints", JSON.stringify(webhookEndpoints)), [webhookEndpoints]);
+  useEffect(() => localStorage.setItem("sp-webhook-deliveries", JSON.stringify(webhookDeliveries)), [webhookDeliveries]);
   const provider = providers[selected];
   const webhook = "https://api.staypilot.demo/webhooks/" + selected;
 
@@ -2246,11 +2295,19 @@ function Connections({ pushActivity, flash }) {
     catch { flash("Webhook URL ready to copy"); }
   };
 
+  const replayWebhook = endpoint => {
+    const delivery = { id:"DLV-"+String(Date.now()).slice(-5), endpoint:endpoint.id, event:endpoint.events[0] || "reservation.created", code:"200 OK", duration:(160 + Date.now()%180) + " ms", time:"now" };
+    setWebhookDeliveries(prev => [delivery, ...prev].slice(0, 30));
+    setWebhookEndpoints(prev => prev.map(x => x.id === endpoint.id ? { ...x, deliveries:Number(x.deliveries||0)+1, last:"now", success:"100%" } : x));
+    pushActivity("green", "Signed webhook delivered", endpoint.name + " · " + delivery.event + " · " + delivery.code, "Automation", "StayPilot integration gateway");
+    flash("Webhook delivery replayed successfully");
+  };
+
   return <>
     <PageHeader
       eyebrow="System administration"
-      title="Connections & API credentials"
-      text="Configure the external systems that power inventory sync, reservations, payments, marketing attribution and guest communications."
+      title="Integration hub"
+      text="Connect the hotel systems you already use. StayPilot normalizes their events, runs policy-aware automations, and exposes signed webhooks/API for everything else."
       action={<div className="connection-security"><ShieldCheck size={17} /><div><b>Secrets vault</b><span>Server-side in production</span></div></div>}
     />
 
@@ -2259,6 +2316,13 @@ function Connections({ pushActivity, flash }) {
       <div><span className="summary-icon safe"><ShieldCheck size={19} /></span><div><b>Encrypted secrets</b><span>KMS / environment vault</span></div></div>
       <div><span className="summary-icon"><Database size={19} /></span><div><b>Webhook intake</b><span>Signed + idempotent events</span></div></div>
       <div className="environment-switch"><span>Environment</span><div>{["Sandbox", "Production"].map(x => <button key={x} className={environment === x ? "active" : ""} onClick={() => setEnvironment(x)}>{x}</button>)}</div></div>
+    </section>
+
+    <section className="owner-field-grid integration-marketplace">
+      <button className="panel owner-field" onClick={() => setSelected("pms")}><span className="field-icon"><Database size={19} /></span><div><span>Existing PMS</span><b>Bridge, don’t replace</b><small>reservations, rooms, folios & guests</small></div><ArrowUpRight size={15} /></button>
+      <button className="panel owner-field" onClick={() => setSelected("quickbooks")}><span className="field-icon"><ReceiptText size={19} /></span><div><span>Accounting</span><b>QuickBooks / ledger</b><small>journals, tax, expenses & settlement</small></div><ArrowUpRight size={15} /></button>
+      <button className="panel owner-field" onClick={() => setSelected("whatsapp")}><span className="field-icon"><MessageSquare size={19} /></span><div><span>Guest messaging</span><b>WhatsApp Business</b><small>confirmations, arrival & service flows</small></div><ArrowUpRight size={15} /></button>
+      <button className="panel owner-field" onClick={() => setSelected("webhooks")}><span className="field-icon"><PlugZap size={19} /></span><div><span>Universal integration</span><b>Webhooks + REST</b><small>n8n / Make / Zapier optional</small></div><ArrowUpRight size={15} /></button>
     </section>
 
     <div className="connections-layout">
@@ -2312,6 +2376,14 @@ function Connections({ pushActivity, flash }) {
         </div>
       </section>
     </div>
+
+    <section className="panel table-panel webhook-console">
+      <div className="panel-head"><div><span className="panel-kicker">Built-in integration gateway</span><h3>Signed webhook endpoints</h3><p>Outgoing events use event IDs, HMAC signatures, idempotency keys and retry/replay semantics in the production architecture.</p></div><button className="ghost-btn" onClick={() => setSelected("webhooks")}><PlugZap size={15} /> Configure webhooks</button></div>
+      <div className="table-scroll"><table><thead><tr><th>Endpoint</th><th>Subscribed events</th><th>Deliveries</th><th>Last delivery</th><th>Success</th><th /></tr></thead><tbody>
+        {webhookEndpoints.map(endpoint => <tr key={endpoint.id}><td><b>{endpoint.name}</b><small>{endpoint.url}</small></td><td>{endpoint.events.join(", ")}</td><td><b>{endpoint.deliveries}</b></td><td>{endpoint.last}</td><td><StatusDot status={endpoint.status} /><small>{endpoint.success}</small></td><td><button className="row-action" onClick={() => replayWebhook(endpoint)}>Replay test</button></td></tr>)}
+      </tbody></table></div>
+      <div className="mini-note"><Database size={15} /> Recent: {webhookDeliveries.slice(0,3).map(x => x.event+" → "+x.code+" ("+x.duration+")").join(" · ")}</div>
+    </section>
 
     <section className="connection-health panel">
       <div className="panel-head"><div><span className="panel-kicker">Integration runtime design</span><h3>Credential & event delivery</h3></div><button className="ghost-btn" onClick={testAll} disabled={testingAll}><RefreshCw size={15} className={testingAll ? "spin" : ""} /> {testingAll ? "Running checks..." : "Run demo checks"}</button></div>
