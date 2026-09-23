@@ -1,11 +1,12 @@
 import { AuthzError, requireHotelOwner } from "../../../_shared/auth.js";
-import { requireConfirmedAccount } from "../../../_shared/onboarding.js";
+import { OnboardingError, requireConfirmedAccount } from "../../../_shared/onboarding.js";
 import { normalizeUuid, TeamInvitationError } from "../../../_shared/team-invitations.js";
 import { getBackendConfig, jsonResponse } from "../../../_shared/webhook.js";
 import { supabaseRpc, SupabaseHttpError } from "../../../_shared/supabase.js";
 
 function mapFailure(error) {
   if (error instanceof AuthzError) return jsonResponse({ ok:false, error:error.code }, error.status);
+  if (error instanceof OnboardingError) return jsonResponse({ ok:false, error:error.code }, error.status);
   if (error instanceof TeamInvitationError) return jsonResponse({ ok:false, error:error.code }, error.status);
   const detail = error instanceof SupabaseHttpError
     ? String(error?.body?.message || error?.body?.details || "")
