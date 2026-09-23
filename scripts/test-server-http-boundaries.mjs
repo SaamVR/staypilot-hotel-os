@@ -67,6 +67,7 @@ const fullEnv = {
   DISPATCHER_SECRET:"integration-dispatcher-secret",
   WEBHOOK_ALLOWED_HOSTS:"hooks.example.com,workflow.example.com",
   OUTBOUND_SIGNING_MASTER_SECRET:"server-http-boundary-signing-master-that-is-long-enough",
+  ORCHESTRATOR_SECRET:"integration-orchestrator-secret",
 };
 
 // 1. Health reports fail-closed dependencies truthfully when unconfigured.
@@ -84,6 +85,7 @@ const fullEnv = {
     outbound_dispatcher_authentication:false,
     outbound_host_allowlist:false,
     outbound_signing_master:false,
+    scheduler_orchestration_authentication:false,
   });
 }
 
@@ -100,6 +102,7 @@ const fullEnv = {
     outbound_dispatcher_authentication:true,
     outbound_host_allowlist:true,
     outbound_signing_master:true,
+    scheduler_orchestration_authentication:true,
   });
 }
 
