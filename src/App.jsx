@@ -7,7 +7,7 @@ import {
   SlidersHorizontal, Building2, Moon, UserRound, ExternalLink,
   MessageSquare, Sparkles, BarChart3, Home, Settings2, KeyRound,
   Eye, EyeOff, ShieldCheck, PlugZap, Copy, Check, Database, Zap,
-  Package, ReceiptText, ClipboardList, Boxes, UserCog, WalletCards
+  Package, ReceiptText, ClipboardList, Boxes, UserCog, WalletCards, Play
 } from "lucide-react";
 import {
   ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip,
