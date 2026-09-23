@@ -270,6 +270,7 @@ function App() {
   const [stock, setStock] = useState(() => load("sp-stock", seedStock));
   const [automationRules, setAutomationRules] = useState(loadAutomationRules);
   const [automationLogs, setAutomationLogs] = useState(() => load("sp-automation-log", seedAutomationLogs));
+  const [automationMaster, setAutomationMaster] = useState(() => load("sp-automation-master", "Active"));
   const [policy, setPolicy] = useState(() => load("sp-policy", defaultPolicy));
   const [activities, setActivities] = useState(() => load("sp-activities", initialActivities));
   const [rateMultiplier, setRateMultiplier] = useState(() => load("sp-rate", 1));
@@ -288,6 +289,7 @@ function App() {
   useEffect(() => localStorage.setItem("sp-stock", JSON.stringify(stock)), [stock]);
   useEffect(() => localStorage.setItem("sp-automations", JSON.stringify(automationRules)), [automationRules]);
   useEffect(() => localStorage.setItem("sp-automation-log", JSON.stringify(automationLogs)), [automationLogs]);
+  useEffect(() => localStorage.setItem("sp-automation-master", JSON.stringify(automationMaster)), [automationMaster]);
   useEffect(() => localStorage.setItem("sp-policy", JSON.stringify(policy)), [policy]);
   useEffect(() => localStorage.setItem("sp-activities", JSON.stringify(activities)), [activities]);
   useEffect(() => localStorage.setItem("sp-rate", JSON.stringify(rateMultiplier)), [rateMultiplier]);
@@ -389,6 +391,10 @@ function App() {
   const emitHotelEvent = (event, payload = {}) => {
     const rule = payload.ruleId ? automationRules.find(r => r.id === payload.ruleId) : automationRuleFor(event);
     if (!rule) return { ok: false, reason: "No automation is mapped to " + event };
+    if (automationMaster === "Paused") {
+      if (payload.manual) flash("Automation master pause is active");
+      return { ok: false, reason: "Automation master pause is active" };
+    }
     if (rule.status !== "Active") {
       if (payload.manual) flash(rule.name + " is paused");
       return { ok: false, reason: "Automation paused" };
@@ -556,14 +562,14 @@ function App() {
       }
     });
     if (changed) localStorage.setItem("sp-lowstock-auto", JSON.stringify(Array.from(seen)));
-  }, [stock]);
+  }, [stock, automationMaster]);
 
   useEffect(() => {
     if (stats.occupancy < 80) return;
     if (load("sp-occupancy-auto-fired", false)) return;
     const result = emitHotelEvent("occupancy.threshold", { adjustment: 8 });
     if (result?.ok) localStorage.setItem("sp-occupancy-auto-fired", JSON.stringify(true));
-  }, [stats.occupancy]);
+  }, [stats.occupancy, automationMaster]);
 
   useEffect(() => {
     if (load("sp-prearrival-auto-fired", false)) return;
@@ -571,7 +577,7 @@ function App() {
     if (!upcoming) return;
     const result = emitHotelEvent("prearrival.due", { booking: upcoming });
     if (result?.ok) localStorage.setItem("sp-prearrival-auto-fired", JSON.stringify(true));
-  }, [bookings]);
+  }, [bookings, automationMaster]);
 
   const nav = role === "owner" ? ownerNav : managerNav;
 
@@ -628,6 +634,7 @@ function App() {
     localStorage.removeItem("sp-guest-threads");
     localStorage.removeItem("sp-automations");
     localStorage.removeItem("sp-automation-log");
+    localStorage.removeItem("sp-automation-master");
     localStorage.removeItem("sp-exceptions");
     localStorage.removeItem("sp-webhook-endpoints");
     localStorage.removeItem("sp-webhook-deliveries");
@@ -643,6 +650,7 @@ function App() {
     setStock(seedStock);
     setAutomationRules(seedAutomationRules);
     setAutomationLogs(seedAutomationLogs);
+    setAutomationMaster("Active");
     setPolicy(defaultPolicy);
     setActive("overview");
     flash("Demo data reset");
@@ -650,7 +658,7 @@ function App() {
 
   const pageProps = {
     rooms, setRooms, bookings, setBookings, approvals, setApprovals, tasks, setTasks, stock, setStock,
-    automationRules, setAutomationRules, automationLogs, setAutomationLogs, emitHotelEvent,
+    automationRules, setAutomationRules, automationLogs, setAutomationLogs, automationMaster, setAutomationMaster, emitHotelEvent,
     policy, setPolicy, activities, setActivities, rateMultiplier, setRateMultiplier, metaPaused, setMetaPaused,
     stats, pushActivity, flash, setActive, role
   };
@@ -683,7 +691,7 @@ function App() {
         </div>)}
       </nav>
       <div className="sidebar-foot">
-        <div className="system-health"><span className="live-dot" /><div><b>Demo systems ready</b><span>shared local state active</span></div></div>
+        <div className={"system-health " + (automationMaster === "Paused" ? "paused" : "")}><span className="live-dot" /><div><b>{automationMaster === "Paused" ? "Automations paused" : "Demo systems ready"}</b><span>{automationMaster === "Paused" ? "Owner safety pause active" : "shared local state active"}</span></div></div>
         <div className="scenario-switcher">
           <span>Demo scenarios</span>
           <button onClick={() => applyScenario("normal")}><CheckCircle2 size={13}/> Normal</button>
@@ -700,7 +708,7 @@ function App() {
         <button className="mobile-menu" onClick={() => setMobileNav(v => !v)}><SlidersHorizontal size={18} /></button>
         <button className="search search-button" onClick={() => { setCommandQuery(""); setCommandOpen(true); }}><Search size={17} /><span>Jump to a workspace or action...</span><kbd>⌘ K</kbd></button>
         <div className="top-actions">
-          <div className="live-pill"><span /> Demo environment</div>
+          <div className={"live-pill " + (automationMaster === "Paused" ? "paused" : "")}><span /> {automationMaster === "Paused" ? "Automation paused" : "Demo environment"}</div>
           <div className="role-demo"><small>View as</small><div className="role-switch" aria-label="Demo role switch">
             <button className={role === "owner" ? "active" : ""} onClick={() => switchRole("owner")}><WalletCards size={14} /> Owner</button>
             <button className={role === "manager" ? "active" : ""} onClick={() => switchRole("manager")}><UserCog size={14} /> Manager</button>
@@ -2048,7 +2056,7 @@ function Assistant({ rooms, setRooms, bookings, stats, rateMultiplier, setRateMu
   </div>;
 }
 
-function AutomationCenter({ role, pushActivity, flash, policy, automationRules, setAutomationRules, automationLogs, emitHotelEvent }) {
+function AutomationCenter({ role, pushActivity, flash, policy, automationRules, setAutomationRules, automationLogs, automationMaster, setAutomationMaster, emitHotelEvent }) {
   const [scopeFilter, setScopeFilter] = useState("All");
   const [runFilter, setRunFilter] = useState("All");
 
@@ -2091,8 +2099,25 @@ function AutomationCenter({ role, pushActivity, flash, policy, automationRules, 
     else if (result?.reason) flash(result.reason);
   };
 
+  const toggleMaster = () => {
+    if (role !== "owner") return flash("Only the Owner can pause all automations");
+    const next = automationMaster === "Paused" ? "Active" : "Paused";
+    setAutomationMaster(next);
+    pushActivity(
+      next === "Paused" ? "amber" : "green",
+      next === "Paused" ? "Automation master pause enabled" : "Automation master pause cleared",
+      next === "Paused" ? "All automation execution blocked until Owner resumes" : "State-triggered workflows can execute again",
+      "Governance"
+    );
+    flash(next === "Paused" ? "All automations paused" : "Automations resumed");
+  };
+
   return <>
     <PageHeader eyebrow="Automation" title="Property automation center" text={role === "owner" ? "Run policy-aware hotel workflows against shared property state, with execution traces and human approvals where required." : "Operate day-to-day hotel automations within the authority configured by the Owner."} />
+    <section className={"automation-master-banner " + (automationMaster === "Paused" ? "paused" : "active")}>
+      <div><span className="master-status-dot" /><div><span className="panel-kicker">Global safety control</span><h3>{automationMaster === "Paused" ? "All automation execution is paused" : "Automation execution is active"}</h3><p>{automationMaster === "Paused" ? "Inbound events and state-triggered workflows are being blocked. Rule settings and hotel state are preserved." : "Rules execute only within their configured autonomy and Owner policy limits."}</p></div></div>
+      {role === "owner" ? <button className={automationMaster === "Paused" ? "primary-btn" : "danger-ghost-btn"} onClick={toggleMaster}>{automationMaster === "Paused" ? <><Play size={15}/> Resume automations</> : <><ShieldCheck size={15}/> Pause all automations</>}</button> : <span className="master-readonly">{automationMaster}</span>}
+    </section>
     <section className="automation-summary">
       <div><span>Active rules</span><b>{roleRules.filter(r=>r.status==="Active").length}</b><small>event-driven workflows</small></div>
       <div><span>Runs</span><b>{roleRules.reduce((n,r)=>n+Number(r.runs||0),0)}</b><small>recorded executions</small></div>
