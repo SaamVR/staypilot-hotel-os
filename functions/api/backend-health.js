@@ -4,7 +4,8 @@ export async function onRequestGet({ env }) {
   const config = getBackendConfig(env);
   const databaseConfigured = Boolean(config.supabaseUrl && config.supabaseKey);
   const signingConfigured = Boolean(config.webhookSigningSecret);
-  const configured = databaseConfigured && signingConfigured;
+  const workerConfigured = Boolean(config.workerSecret);
+  const configured = databaseConfigured && signingConfigured && workerConfigured;
 
   return jsonResponse({
     ok: true,
@@ -14,10 +15,11 @@ export async function onRequestGet({ env }) {
     dependencies: {
       database: databaseConfigured,
       inbound_signature_verification: signingConfigured,
+      durable_worker_authentication: workerConfigured,
     },
     note: configured
-      ? "Server boundary is configured; automation worker rollout is a separate phase."
-      : "Portfolio frontend remains local-first until dedicated backend secrets are configured.",
+      ? "Server boundary dependencies are configured; worker execution remains disabled until the database migrations are applied and explicitly enabled."
+      : "Portfolio frontend remains local-first until dedicated backend and worker secrets are configured.",
   });
 }
 
