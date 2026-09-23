@@ -22,8 +22,9 @@ const env = {
 };
 
 function response(body, status = 200, headers = {}) {
+  const bodyless = status === 204 || status === 205 || status === 304;
   return new Response(
-    typeof body === "string" ? body : JSON.stringify(body),
+    bodyless ? null : (typeof body === "string" ? body : JSON.stringify(body)),
     { status, headers:{ "content-type":"application/json", ...headers } },
   );
 }
