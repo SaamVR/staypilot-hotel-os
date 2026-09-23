@@ -283,6 +283,7 @@ function App() {
   const liveIndex = useRef(0);
   const lowStockSeen = useRef(new Set(load("sp-lowstock-auto", [])));
   const inboundEventIds = useRef(new Set(load("sp-event-ids", [])));
+  const activeInboundEventId = useRef(null);
 
   useEffect(() => localStorage.setItem("sp-rooms", JSON.stringify(rooms)), [rooms]);
   useEffect(() => localStorage.setItem("sp-bookings", JSON.stringify(bookings)), [bookings]);
@@ -355,9 +356,16 @@ function App() {
   const recordAutomation = (ruleId, result, detail, steps = [], minutesSaved = 0) => {
     const rule = automationRules.find(r => r.id === ruleId);
     if (!rule) return;
+    const eventId = activeInboundEventId.current;
+    if (eventId) {
+      inboundEventIds.current.add(eventId);
+      localStorage.setItem("sp-event-ids", JSON.stringify(Array.from(inboundEventIds.current).slice(-120)));
+      activeInboundEventId.current = null;
+    }
     const entry = {
       id: Date.now(),
       runId: "RUN-" + String(Date.now()).slice(-6),
+      eventId,
       ruleId,
       rule: rule.name,
       event: rule.event,
@@ -392,6 +400,7 @@ function App() {
   };
 
   const emitHotelEvent = (event, payload = {}) => {
+    activeInboundEventId.current = null;
     const rule = payload.ruleId ? automationRules.find(r => r.id === payload.ruleId) : automationRuleFor(event);
     if (!rule) return { ok: false, reason: "No automation is mapped to " + event };
     const eventId = payload.eventId || null;
@@ -416,10 +425,7 @@ function App() {
       return { ok: false, queued: true, duplicate: duplicateQueued, eventId, reason: duplicateQueued ? "Duplicate event already queued" : "Automation paused · event queued" };
     }
 
-    if (eventId) {
-      inboundEventIds.current.add(eventId);
-      localStorage.setItem("sp-event-ids", JSON.stringify(Array.from(inboundEventIds.current).slice(-120)));
-    }
+    activeInboundEventId.current = eventId;
 
     if (event === "reservation.created") {
       const booking = payload.booking || bookings[0];
@@ -677,6 +683,7 @@ function App() {
     localStorage.removeItem("sp-prearrival-auto-fired");
     lowStockSeen.current = new Set();
     inboundEventIds.current = new Set();
+    activeInboundEventId.current = null;
     setApprovals(seedApprovals);
     setTasks(seedTasks);
     setStock(seedStock);
