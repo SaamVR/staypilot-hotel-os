@@ -45,6 +45,8 @@ Each automation exposes:
 - execution trace
 - duration
 - audit actor
+- clickable run inspector with Run ID, Event ID, scope, autonomy and step-by-step execution trace
+- contextual routing from the run inspector to Exceptions, Approval Center or Guest Inbox
 
 ### Autonomy modes
 
