@@ -1012,3 +1012,16 @@ nav button,.primary-btn,.secondary-btn,.ghost-btn,.danger-btn,.icon-btn,.row-act
 .status-received i{background:#2d7a60}
 @media(max-width:900px){.internal-reservation-layout{grid-template-columns:1fr}}
 @media(max-width:620px){.internal-form-grid{grid-template-columns:1fr}.internal-form-grid .span-two{grid-column:auto}}
+
+.period-label{font-size:11px;font-weight:650;color:#66736d;background:#f1f4f2;border:1px solid #e0e5e2;border-radius:6px;padding:6px 9px}
+.integration-foot em{font-style:normal;font-size:10.5px;color:#7a857f}
+.stock-no-action{font-size:10.5px;color:#87918c;white-space:nowrap}
+.tape-room-head{position:sticky;left:0;z-index:6;background:#eef2f0}
+.tape-room{position:sticky;left:0;z-index:5;box-shadow:3px 0 7px rgba(21,26,24,.035)}
+.tape-header .tape-room-head{z-index:7}
+@media(max-width:680px){
+  .tape-scroll{padding:12px 14px 18px}
+  .tape-grid{grid-template-columns:128px repeat(7,minmax(96px,1fr));min-width:800px}
+  .stay-block{height:46px;padding:7px}
+  .reservation-drawer{width:100%}
+}

@@ -137,7 +137,6 @@ const managerNav = [
   ["rooms", "Rooms & availability", BedDouble, "Property"],
   ["operations", "Room prep & maintenance", ClipboardCheck, "Property"],
   ["instructions", "Team instructions", ClipboardList, "Property"],
-  ["booking", "Booking engine", Globe2, "Property"],
   ["inventory", "Supplies & inventory", Boxes, "Resources"],
   ["approvals", "My requests", ShieldCheck, "Resources"],
   ["assistant", "Operations assistant", Bot, "System"]
@@ -341,7 +340,7 @@ function App() {
         </div>)}
       </nav>
       <div className="sidebar-foot">
-        <div className="system-health"><span className="live-dot" /><div><b>All systems operational</b><span>5 channels synced</span></div></div>
+        <div className="system-health"><span className="live-dot" /><div><b>Demo systems ready</b><span>shared local state active</span></div></div>
         <button className="reset-btn" onClick={resetDemo}><RotateCcw size={15} /> Reset demo</button>
         <div className="prototype-tag">Demo workspace · reset anytime</div>
       </div>
@@ -469,7 +468,7 @@ function Overview({ stats, activities, setActive, role, rooms, approvals }) {
 
       <section className="dashboard-grid">
         <article className="panel chart-panel">
-          <div className="panel-head"><div><span className="panel-kicker">Performance</span><h3>Revenue & booking pace</h3></div><button className="ghost-btn">Last 7 days <ChevronDown size={14} /></button></div>
+          <div className="panel-head"><div><span className="panel-kicker">Performance</span><h3>Revenue & booking pace</h3></div><span className="period-label">Last 7 days</span></div>
           <div className="chart-stat"><b>$58,950</b><span><TrendingUp size={13} /> 14.2% vs previous period</span></div>
           <div className="chart-wrap">
             <ResponsiveContainer width="100%" height="100%">
@@ -487,7 +486,7 @@ function Overview({ stats, activities, setActive, role, rooms, approvals }) {
 
       <section className="bottom-grid">
         <article className="panel channel-panel">
-          <div className="panel-head"><div><span className="panel-kicker">Distribution</span><h3>Booking channel mix</h3></div><button className="icon-btn flat"><MoreHorizontal size={18} /></button></div>
+          <div className="panel-head"><div><span className="panel-kicker">Distribution</span><h3>Booking channel mix</h3></div><span className="period-label">Current mix</span></div>
           <div className="bar-wrap"><ResponsiveContainer width="100%" height="100%"><BarChart data={channelData} barSize={24}><CartesianGrid stroke="#edf1f7" vertical={false} /><XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: "#78859a", fontSize: 11 }} /><YAxis hide /><Tooltip cursor={{ fill: "#f5f7fb" }} contentStyle={{ borderRadius: 12, border: "1px solid #e4eaf2" }} formatter={v => [v + "%", "Share"]} /><Bar dataKey="value" fill="#1b624b" radius={[3, 3, 0, 0]} /></BarChart></ResponsiveContainer></div>
         </article>
         <article className="panel snapshot">
@@ -876,7 +875,7 @@ function Inventory({ role, approvals, setApprovals, pushActivity, flash, setActi
             <td><span className={"stock-health " + (lowItem ? "low" : "good")}><i />{lowItem ? "Below par" : "Healthy"}</span></td>
             {role === "owner" && <><td>{fmt(item.cost)}</td><td><b>{fmt(Math.round(item.stock * item.cost))}</b></td></>}
             <td>{item.supplier}</td>
-            <td>{order?.status === "Approved" ? <button className="row-action receive-action" onClick={() => receiveOrder(item, order)}>Receive stock</button> : order?.status === "Pending" ? <span className="order-waiting">Awaiting approval</span> : lowItem ? <button className="row-action" onClick={() => requestOrder(item)}>{role === "owner" ? "Create PO" : "Request order"}</button> : <button className="icon-btn flat"><MoreHorizontal size={17} /></button>}</td>
+            <td>{order?.status === "Approved" ? <button className="row-action receive-action" onClick={() => receiveOrder(item, order)}>Receive stock</button> : order?.status === "Pending" ? <span className="order-waiting">Awaiting approval</span> : lowItem ? <button className="row-action" onClick={() => requestOrder(item)}>{role === "owner" ? "Create PO" : "Request order"}</button> : <span className="stock-no-action">No action</span>}</td>
           </tr>;
         })}
       </tbody></table></div>
@@ -982,9 +981,22 @@ function Expenses({ pushActivity, flash }) {
     setExpenses(prev => prev.map(e => e.id === id ? { ...e, status: "Approved" } : e));
     flash("Expense approved");
   };
+  const exportReport = () => {
+    const esc = value => '"' + String(value ?? "").replaceAll('"', '""') + '"';
+    const rows = [["ID","Date","Category","Vendor","Description","Amount","Status"], ...expenses.map(e => [e.id,e.date,e.category,e.vendor,e.note,e.amount,e.status])];
+    const blob = new Blob([rows.map(row => row.map(esc).join(",")).join("\n")], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "staypilot-expenses-sep-2026.csv";
+    a.click();
+    URL.revokeObjectURL(url);
+    pushActivity("blue", "Expense report exported", expenses.length + " ledger entries · CSV");
+    flash("Expense CSV exported");
+  };
 
   return <>
-    <PageHeader eyebrow="Owner finance" title="Operating expenses" text="Track property spending, approvals and budget consumption alongside hotel revenue." action={<button className="ghost-btn" onClick={() => flash("Expense report exported")}><ArrowUpRight size={16} /> Export report</button>} />
+    <PageHeader eyebrow="Owner finance" title="Operating expenses" text="Track property spending, approvals and budget consumption alongside hotel revenue." action={<button className="ghost-btn" onClick={exportReport}><ArrowUpRight size={16} /> Export CSV</button>} />
     <section className="expense-summary">
       <article className="kpi-card"><div className="kpi-top"><span>Month-to-date</span><ReceiptText size={18} /></div><div className="kpi-value">{fmt(total)}</div><div className="kpi-meta"><b>{Math.round(total / budget * 100)}%</b><span>of operating budget</span></div></article>
       <article className="kpi-card"><div className="kpi-top"><span>Budget remaining</span><WalletCards size={18} /></div><div className="kpi-value">{fmt(Math.max(0, budget - total))}</div><div className="kpi-meta"><b>{fmt(budget)}</b><span>monthly budget</span></div></article>
@@ -1071,7 +1083,7 @@ function Channels({ pushActivity, flash }) {
     <section className="integration-grid">{channels.map(c => <article className="panel integration-card" key={c.name}>
       <div className="integration-top"><span className={"channel-logo " + c.color}>{c.short}</span><div><b>{c.name}</b><span>{c.fee}</span></div><StatusDot status={c.sync} /></div>
       <div className="integration-metrics"><div><span>Sellable tonight</span><b>{c.inventory} rooms</b></div><div><span>Published rate</span><b>{c.rate}</b></div></div>
-      <div className="integration-foot"><span><CheckCircle2 size={14} /> Inventory + rates connected</span><button><ExternalLink size={14} /></button></div>
+      <div className="integration-foot"><span><CheckCircle2 size={14} /> Inventory + rates connected</span><em>Configured in Connections</em></div>
     </article>)}</section>
     <div className="mini-note"><MessageSquare size={15} /> Provider access is configured under Connections & API. Inventory remains centralized here after credentials are approved.</div>
   </>;
@@ -1235,7 +1247,7 @@ function Marketing({ metaPaused, setMetaPaused, pushActivity, flash, setActive }
   </>;
 }
 
-function Operations({ activities, role, pushActivity, flash, setActive, tasks, setTasks }) {
+function Operations({ activities, role, pushActivity, flash, setActive, tasks, setTasks, rooms, setRooms }) {
   const payments = [
     ["SP-1046", "Ava Garcia", "Direct Website", 1180, "Captured"],
     ["SP-1048", "Olivia Martin", "Booking.com", 684, "Secured"],
@@ -1243,8 +1255,17 @@ function Operations({ activities, role, pushActivity, flash, setActive, tasks, s
   ];
   const complete = task => {
     setTasks(prev => prev.map(t => t.id === task.id ? { ...t, status: "Completed" } : t));
+    if (task.place === "Room 103" && task.team === "Housekeeping") {
+      setRooms(prev => prev.map(r => r.number === "103" ? { ...r, housekeeping: "Clean" } : r));
+    }
     pushActivity("green", task.place + " task completed", task.team + " · " + task.title);
     flash(task.place + " marked complete");
+  };
+  const resolveRoom207 = () => {
+    setRooms(prev => prev.map(r => r.number === "207" ? { ...r, maintenance: "Clear" } : r));
+    setTasks(prev => prev.map(t => t.place === "Room 207" ? { ...t, status: "Completed" } : t));
+    pushActivity("green", "Room 207 maintenance resolved", "HVAC inspection completed · room block cleared");
+    flash("Room 207 maintenance cleared");
   };
 
   return <>
@@ -1269,8 +1290,8 @@ function Operations({ activities, role, pushActivity, flash, setActive, tasks, s
       </article> : <article className="panel maintenance-control">
         <div className="panel-head"><div><span className="panel-kicker">Maintenance</span><h3>Open property issues</h3></div><Wrench size={18} /></div>
         <div className="maintenance-list">
-          <div><span className="maintenance-severity high">High</span><div><b>Room 207 · HVAC inspection</b><small>Guest comfort · technician assigned</small></div><button className="row-action" onClick={() => flash("Maintenance note opened")}>Open</button></div>
-          <div><span className="maintenance-severity normal">Normal</span><div><b>Service lift · door sensor</b><small>Monitor during afternoon shift</small></div><button className="row-action" onClick={() => flash("Maintenance note opened")}>Open</button></div>
+          <div><span className="maintenance-severity high">High</span><div><b>Room 207 · HVAC inspection</b><small>Guest comfort · technician assigned</small></div><button className="row-action" onClick={resolveRoom207}>Resolve</button></div>
+          <div><span className="maintenance-severity normal">Normal</span><div><b>Service lift · door sensor</b><small>Monitor during afternoon shift</small></div><button className="row-action" onClick={() => setActive("instructions")}>Handoff</button></div>
         </div>
       </article>}
     </section>
@@ -1291,6 +1312,7 @@ function BookingEngine({ rooms, setRooms, bookings, setBookings, rateMultiplier,
   const physicalAvailable = rooms.filter(r => roomSellable(r) && r.type === form.type);
   const heldInventory = bookings.filter(b => b.type === form.type && b.room === "Unassigned" && !["Cancelled", "Checked out"].includes(b.status)).length;
   const availableCount = Math.max(0, physicalAvailable.length - heldInventory);
+  const focusCheckout = () => document.querySelector(".checkout input")?.focus();
 
   const submit = e => {
     e.preventDefault();
@@ -1309,9 +1331,9 @@ function BookingEngine({ rooms, setRooms, bookings, setBookings, rateMultiplier,
     <PageHeader eyebrow="Direct booking" title="A booking engine connected to live inventory." text="Guest bookings reserve room-type inventory immediately, then enter the Front Desk assignment queue for operational room allocation." />
     <div className="booking-demo">
       <section className="guest-site">
-        <div className="guest-nav"><div className="hotel-logo"><span>N</span><div><b>Northstar</b><small>Grand Hotel</small></div></div><div><span>Rooms</span><span>Dining</span><span>Experience</span><button>Book your stay</button></div></div>
+        <div className="guest-nav"><div className="hotel-logo"><span>N</span><div><b>Northstar</b><small>Grand Hotel</small></div></div><div><span>Rooms</span><span>Dining</span><span>Experience</span><button type="button" onClick={focusCheckout}>Book your stay</button></div></div>
         <div className="hero-visual"><div className="hero-copy"><span>Stay at the center of everything.</span><h2>City energy.<br />Quiet luxury.</h2><p>A refined stay designed around how you actually travel.</p><div className="rating">★★★★★ <span>4.8 · 218 guest reviews</span></div></div><div className="visual-card"><Moon size={36} /><span>Northstar Grand</span></div></div>
-        <div className="booking-strip"><div><small>Check in</small><b>Sep 23</b></div><div><small>Check out</small><b>Sep 25</b></div><div><small>Guests</small><b>{form.guests} guests</b></div><button>Check availability</button></div>
+        <div className="booking-strip"><div><small>Check in</small><b>Sep 23</b></div><div><small>Check out</small><b>Sep 25</b></div><div><small>Guests</small><b>{form.guests} guests</b></div><button type="button" onClick={focusCheckout}>Check availability</button></div>
         <div className="guest-proof"><span><CheckCircle2 size={14} /> Best rate guarantee</span><span><CheckCircle2 size={14} /> Instant confirmation</span><span><CheckCircle2 size={14} /> Free changes up to 48h</span></div>
       </section>
 
@@ -1572,6 +1594,8 @@ function Connections({ pushActivity, flash }) {
   const [revealed, setRevealed] = useState({});
   const [connected, setConnected] = useState({ stripe: true });
   const [testing, setTesting] = useState(false);
+  const [testingAll, setTestingAll] = useState(false);
+  const [lastDemoCheck, setLastDemoCheck] = useState("Not run");
   const provider = providers[selected];
   const webhook = "https://api.staypilot.demo/webhooks/" + selected;
 
@@ -1583,14 +1607,24 @@ function Connections({ pushActivity, flash }) {
     setTimeout(() => {
       setTesting(false);
       setConnected(prev => ({ ...prev, [selected]: true }));
-      pushActivity("green", provider.name + " connection verified", environment + " credentials · health check passed");
-      flash(provider.name + " connection test passed");
+      pushActivity("green", provider.name + " demo connection test passed", environment + " · simulated provider handshake");
+      flash(provider.name + " demo connection test passed");
     }, 750);
   };
 
   const save = () => {
     pushActivity("blue", provider.name + " configuration staged", "Demo only · production secrets belong in server vault");
     flash("Configuration staged for secure server-side storage");
+  };
+
+  const testAll = () => {
+    setTestingAll(true);
+    setTimeout(() => {
+      setTestingAll(false);
+      setLastDemoCheck("just now");
+      pushActivity("green", "Integration demo checks completed", "Webhook, token renewal, conversion export and retry policy simulated");
+      flash("Demo integration checks completed");
+    }, 850);
   };
 
   const copyWebhook = async () => {
@@ -1607,7 +1641,7 @@ function Connections({ pushActivity, flash }) {
     />
 
     <section className="connections-summary">
-      <div><span className="summary-icon"><PlugZap size={19} /></span><div><b>{Object.values(connected).filter(Boolean).length} connected</b><span>of {Object.keys(providers).length} integrations</span></div></div>
+      <div><span className="summary-icon"><PlugZap size={19} /></span><div><b>{Object.values(connected).filter(Boolean).length} demo-connected</b><span>of {Object.keys(providers).length} integration surfaces</span></div></div>
       <div><span className="summary-icon safe"><ShieldCheck size={19} /></span><div><b>Encrypted secrets</b><span>KMS / environment vault</span></div></div>
       <div><span className="summary-icon"><Database size={19} /></span><div><b>Webhook intake</b><span>Signed + idempotent events</span></div></div>
       <div className="environment-switch"><span>Environment</span><div>{["Sandbox", "Production"].map(x => <button key={x} className={environment === x ? "active" : ""} onClick={() => setEnvironment(x)}>{x}</button>)}</div></div>
@@ -1619,7 +1653,7 @@ function Connections({ pushActivity, flash }) {
         {Object.entries(providers).map(([id, p]) => <button key={id} className={selected === id ? "active" : ""} onClick={() => setSelected(id)}>
           <span className={"provider-logo " + p.tone}>{p.icon}</span>
           <div><b>{p.name}</b><small>{p.type}</small></div>
-          <span className={"provider-state " + (connected[id] ? "connected" : "")}><i />{connected[id] ? "Connected" : "Setup"}</span>
+          <span className={"provider-state " + (connected[id] ? "connected" : "")}><i />{connected[id] ? "Demo connected" : "Setup"}</span>
         </button>)}
       </aside>
 
@@ -1627,7 +1661,7 @@ function Connections({ pushActivity, flash }) {
         <div className="credential-head">
           <div className={"provider-logo large " + provider.tone}>{provider.icon}</div>
           <div><span className="panel-kicker">{provider.type}</span><h2>{provider.name}</h2><p>{provider.note}</p></div>
-          <StatusDot status={connected[selected] ? "Live" : "Setup"} />
+          <StatusDot status={connected[selected] ? "Configured" : "Setup"} />
         </div>
 
         <div className="security-notice"><ShieldCheck size={18} /><div><b>Credential safety</b><p>This portfolio demo never persists what you type here. A production build should submit secrets over HTTPS to a backend vault/KMS and return only masked metadata to this page.</p></div></div>
@@ -1666,12 +1700,12 @@ function Connections({ pushActivity, flash }) {
     </div>
 
     <section className="connection-health panel">
-      <div className="panel-head"><div><span className="panel-kicker">Runtime health</span><h3>Credential & event delivery</h3></div><button className="ghost-btn" onClick={() => flash("All connection health checks queued")}><RefreshCw size={15} /> Test all</button></div>
+      <div className="panel-head"><div><span className="panel-kicker">Integration runtime design</span><h3>Credential & event delivery</h3></div><button className="ghost-btn" onClick={testAll} disabled={testingAll}><RefreshCw size={15} className={testingAll ? "spin" : ""} /> {testingAll ? "Running checks..." : "Run demo checks"}</button></div>
       <div className="connection-health-grid">
-        <div><span className="health-icon green"><CheckCircle2 size={17} /></span><div><b>Webhook receiver</b><small>Signed events · no failures</small></div><strong>Healthy</strong></div>
-        <div><span className="health-icon blue"><KeyRound size={17} /></span><div><b>Token renewal</b><small>Next scheduled check in 41 min</small></div><strong>Automatic</strong></div>
-        <div><span className="health-icon violet"><RefreshCw size={17} /></span><div><b>Conversion export</b><small>Last batch reconciled 4 min ago</small></div><strong>Current</strong></div>
-        <div><span className="health-icon amber"><Bell size={17} /></span><div><b>Failure policy</b><small>3 retries → operator alert</small></div><strong>Enabled</strong></div>
+        <div><span className="health-icon green"><CheckCircle2 size={17} /></span><div><b>Webhook receiver</b><small>Signed-event validation flow</small></div><strong>Demo-ready</strong></div>
+        <div><span className="health-icon blue"><KeyRound size={17} /></span><div><b>Token renewal</b><small>Scheduled refresh workflow</small></div><strong>Designed</strong></div>
+        <div><span className="health-icon violet"><RefreshCw size={17} /></span><div><b>Conversion export</b><small>Attribution batch workflow</small></div><strong>Simulated</strong></div>
+        <div><span className="health-icon amber"><Bell size={17} /></span><div><b>Failure policy</b><small>3 retries → operator alert</small></div><strong>{lastDemoCheck === "Not run" ? "Configured" : "Checked " + lastDemoCheck}</strong></div>
       </div>
     </section>
   </>;
