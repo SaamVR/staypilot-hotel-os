@@ -387,3 +387,47 @@ WEBHOOK_SECRET_<SECRET_REF>
 The allowlist is exact-host based. Arbitrary customer-supplied destinations are not fetched.
 
 The dispatcher remains dormant in the current public deployment because no dedicated StayPilot Supabase project, dispatcher secret, allowlist or per-endpoint signing secrets are configured.
+
+
+## Dead-letter delivery redrive
+
+Migration `20260924_005_webhook_redrive.sql` adds a controlled recovery path for exhausted outbound webhook deliveries.
+
+The critical rule is:
+
+> Redrive the delivery, never replay the hotel business event.
+
+Server behavior:
+
+- only `dead_letter` or legacy `failed` delivery records are redrivable
+- source `inbound_events` rows are never mutated
+- the original automation run / hotel side effect is never re-executed
+- endpoint must still be Active, server-verified and backed by a server-managed secret reference
+- delivery attempts reset to zero
+- delivery returns to `queued`
+- `redrive_count` and `last_redriven_at` are persisted
+- an Integration audit event is written
+- redrive RPC is service-role only
+
+Trusted endpoint:
+
+```
+POST /api/webhook-redrive
+X-StayPilot-Dispatcher-Secret: <server-only secret>
+Content-Type: application/json
+
+{
+  "delivery_id": "<uuid>",
+  "reason": "Operator retry after endpoint recovery"
+}
+```
+
+The endpoint shares the dispatcher fail-closed boundary:
+
+- no dedicated database / dispatcher auth / outbound allowlist → 503
+- wrong dispatcher secret → 401
+- invalid delivery UUID → 400
+- non-redrivable or non-dispatchable delivery → 409
+- missing delivery → 404
+
+The public portfolio deployment remains dormant: the browser UI demonstrates delivery-only recovery locally, while the server endpoint returns fail-closed until dedicated infrastructure is configured.
