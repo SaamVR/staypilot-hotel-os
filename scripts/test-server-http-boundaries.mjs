@@ -69,6 +69,7 @@ const fullEnv = {
   OUTBOUND_SIGNING_MASTER_SECRET:"server-http-boundary-signing-master-that-is-long-enough",
   ORCHESTRATOR_SECRET:"server-http-boundary-orchestrator-secret",
   ORCHESTRATOR_ENABLED:"true",
+  TENANT_BOOTSTRAP_ENABLED:"true",
 };
 
 // 1. Health reports fail-closed dependencies truthfully when unconfigured.
@@ -88,6 +89,7 @@ const fullEnv = {
     outbound_signing_master:false,
     scheduler_orchestration_authentication:false,
     scheduler_orchestration_enabled:false,
+    tenant_bootstrap_enabled:false,
   });
 }
 
@@ -106,6 +108,7 @@ const fullEnv = {
     outbound_signing_master:true,
     scheduler_orchestration_authentication:true,
     scheduler_orchestration_enabled:true,
+    tenant_bootstrap_enabled:true,
   });
 }
 

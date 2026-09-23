@@ -241,4 +241,32 @@ assert.match(scheduledWorker, /untrusted_control_plane_origin/i, "scheduler must
 assert.match(scheduledConfig, /"crons": \["\* \* \* \* \*"\]/, "scheduler template must define an explicit once-per-minute cron");
 assert.match(scheduledConfig, /"SCHEDULER_ENABLED": "false"/, "scheduler template must ship disabled by default");
 
+const bootstrapMigration = await readFile(
+  new URL("../supabase/migrations/20260924070000_tenant_bootstrap.sql", import.meta.url),
+  "utf8",
+);
+const bootstrapEndpoint = await readFile(new URL("../functions/api/tenant-bootstrap.js", import.meta.url), "utf8");
+const bootstrapAlias = await readFile(new URL("../functions/api/hotels/bootstrap.js", import.meta.url), "utf8");
+const onboardingModule = await readFile(new URL("../functions/_shared/onboarding.js", import.meta.url), "utf8");
+assert.match(bootstrapMigration, /create table if not exists private\.hotel_bootstrap_requests/i, "bootstrap idempotency state must stay in private schema");
+assert.match(bootstrapMigration, /request_fingerprint text not null/i, "bootstrap idempotency must bind the key to request content");
+assert.match(bootstrapMigration, /pg_advisory_xact_lock/i, "bootstrap must serialize duplicate idempotency keys");
+assert.match(bootstrapMigration, /idempotency_key_reused/i, "bootstrap must reject key reuse with different property data");
+assert.match(bootstrapMigration, /automation_paused,settings/i, "new tenants must explicitly set automation authority state");
+assert.match(bootstrapMigration, /jsonb_build_object\('onboarding','server-bootstrap-v1','server_authority','disabled'\)/i, "new tenants must default server authority disabled");
+assert.match(bootstrapMigration, /insert into public\.hotel_members\(hotel_id,user_id,role\)/i, "bootstrap must create first membership transactionally");
+assert.match(bootstrapMigration, /values\(new_hotel\.id,user_uuid,'owner'\)/i, "bootstrap must assign Owner server-side");
+assert.match(bootstrapMigration, /insert into public\.automation_rules/i, "bootstrap must seed default automation rules");
+assert.match(bootstrapMigration, /Initial Owner tenant bootstrap completed/i, "bootstrap must write an audit event");
+assert.match(bootstrapMigration, /revoke all on function public\.bootstrap_hotel_owner\(uuid,text,text,text,text,text\) from public, anon, authenticated/i, "browser sessions must not execute bootstrap RPC");
+assert.match(bootstrapMigration, /grant execute on function public\.bootstrap_hotel_owner\(uuid,text,text,text,text,text\) to service_role/i, "bootstrap RPC must be service-role only");
+assert.match(bootstrapEndpoint, /TENANT_BOOTSTRAP_ENABLED|tenantBootstrapEnabled/i, "tenant bootstrap must have an explicit rollout gate");
+assert.match(bootstrapEndpoint, /requireAuthenticatedUser/i, "bootstrap endpoint must derive identity from authenticated session");
+assert.match(bootstrapEndpoint, /requireConfirmedAccount/i, "bootstrap endpoint must require a confirmed account");
+assert.match(bootstrapEndpoint, /user_uuid:user\.id/i, "bootstrap endpoint must pass authenticated user id to RPC");
+assert.doesNotMatch(bootstrapEndpoint, /input\?\.user_id|input\?\.role/i, "bootstrap endpoint must ignore client identity/role fields");
+assert.match(bootstrapAlias, /tenant-bootstrap\.js/i, "legacy hotel bootstrap route must delegate to hardened canonical endpoint");
+assert.match(onboardingModule, /Intl\.DateTimeFormat/i, "timezone normalization must validate a real IANA timezone");
+assert.match(onboardingModule, /Intl\.NumberFormat/i, "currency normalization must validate a real currency code");
+
 console.log("StayPilot backend contract verification passed.");

@@ -76,5 +76,6 @@ export function getBackendConfig(env = {}) {
     outboundSigningMasterSecret: String(env.OUTBOUND_SIGNING_MASTER_SECRET || ""),
     orchestratorSecret: String(env.ORCHESTRATOR_SECRET || ""),
     orchestratorEnabled: String(env.ORCHESTRATOR_ENABLED || "").trim().toLowerCase() === "true",
+    tenantBootstrapEnabled: String(env.TENANT_BOOTSTRAP_ENABLED || "").trim().toLowerCase() === "true",
   };
 }
