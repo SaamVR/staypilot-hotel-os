@@ -20,7 +20,7 @@ export async function runOrchestration(config, env, {
   workerBatch = 5,
   dispatcherBatch = 5,
   workerPrefix = "orchestrator",
-} = {}) {
+} = {}, services = {}) {
   const maxCycles = boundedInt(cycles, 2, 1, 3);
   const workerLimit = boundedInt(workerBatch, 5, 1, 10);
   const dispatcherLimit = boundedInt(dispatcherBatch, 5, 1, 10);
@@ -29,6 +29,10 @@ export async function runOrchestration(config, env, {
     config?.webhookAllowedHosts &&
     config?.outboundSigningMasterSecret
   );
+  const claimEvents = services.claimInboundEvents || claimInboundEvents;
+  const processEvent = services.processClaimedEvent || processClaimedEvent;
+  const claimDeliveries = services.claimWebhookDeliveries || claimWebhookDeliveries;
+  const dispatchDelivery = services.dispatchClaimedDelivery || dispatchClaimedDelivery;
 
   const runId = crypto.randomUUID();
   const cycleResults = [];
@@ -39,10 +43,10 @@ export async function runOrchestration(config, env, {
 
   for (let index = 0; index < maxCycles; index += 1) {
     const workerName = `${workerPrefix}-worker-${runId}-${index + 1}`;
-    const events = await claimInboundEvents(config, workerName, workerLimit);
+    const events = await claimEvents(config, workerName, workerLimit);
     const processedEvents = [];
     for (const event of events) {
-      const result = await processClaimedEvent(config, event);
+      const result = await processEvent(config, event);
       processedEvents.push(result);
       workerResults.push(result);
     }
@@ -52,9 +56,9 @@ export async function runOrchestration(config, env, {
     const dispatched = [];
     if (canDispatch) {
       const dispatcherName = `${workerPrefix}-dispatcher-${runId}-${index + 1}`;
-      deliveries = await claimWebhookDeliveries(config, dispatcherName, dispatcherLimit);
+      deliveries = await claimDeliveries(config, dispatcherName, dispatcherLimit);
       for (const delivery of deliveries) {
-        const result = await dispatchClaimedDelivery(config, env, delivery);
+        const result = await dispatchDelivery(config, env, delivery);
         dispatched.push(result);
         dispatcherResults.push(result);
       }
