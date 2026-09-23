@@ -220,4 +220,17 @@ assert.match(verifyEndpoint, /mark_webhook_endpoint_verification_failed/i, "fail
 assert.match(sharedConfig, /OUTBOUND_SIGNING_MASTER_SECRET/i, "server config must read the outbound signing master");
 assert.match(dispatcherEndpoint, /config\.outboundSigningMasterSecret/i, "dispatcher must fail closed without the outbound signing master");
 
+const orchestratorModule = await readFile(new URL("../functions/_shared/orchestrator.js", import.meta.url), "utf8");
+const orchestratorEndpoint = await readFile(new URL("../functions/api/orchestrator-run.js", import.meta.url), "utf8");
+assert.match(sharedConfig, /ORCHESTRATOR_SECRET/i, "server config must read scheduler orchestrator secret");
+assert.match(orchestratorEndpoint, /x-staypilot-orchestrator-secret/i, "orchestrator endpoint must require dedicated scheduler authentication");
+assert.match(orchestratorEndpoint, /orchestrator_not_configured/i, "orchestrator endpoint must fail closed before database + scheduler auth configuration");
+assert.match(orchestratorModule, /maxCycles\) \|\| 2, 3\)/i, "orchestrator cycles must be capped");
+assert.match(orchestratorModule, /Math\.min\(Number\(workerBatch\) \|\| 5, 10\)/i, "worker batch must be capped");
+assert.match(orchestratorModule, /Math\.min\(Number\(dispatcherBatch\) \|\| 5, 10\)/i, "dispatcher batch must be capped");
+assert.match(orchestratorModule, /maxDurationMs/i, "orchestrator must enforce a request time budget");
+assert.match(orchestratorModule, /dispatcher_not_configured/i, "outbound dispatch must be optional rather than blocking core worker execution");
+assert.match(orchestratorModule, /claimInboundEvents/i, "orchestrator must use durable inbound claiming");
+assert.match(orchestratorModule, /claimWebhookDeliveries/i, "orchestrator must use durable outbound claiming");
+
 console.log("StayPilot backend contract verification passed.");

@@ -542,3 +542,67 @@ DISPATCHER_SECRET
 ```
 
 The current portfolio production environment intentionally does not configure these values.
+
+
+## Bounded scheduler orchestration
+
+StayPilot now stages one server endpoint that can drive both durable queues without introducing a workflow-platform dependency:
+
+```
+POST /api/orchestrator-run
+X-StayPilot-Orchestrator-Secret: <server-only scheduler secret>
+```
+
+Required server configuration:
+
+```
+SUPABASE_URL
+SUPABASE_SECRET_KEY
+ORCHESTRATOR_SECRET
+```
+
+The endpoint is a scheduler target, not a public hotel action API.
+
+### Tick behavior
+
+Each authenticated tick:
+
+1. claims a bounded inbound-event batch through the existing service-role `claim_inbound_events` RPC
+2. processes those events through the existing durable worker
+3. if outbound dispatcher dependencies are configured, claims a bounded webhook-delivery batch
+4. dispatches those deliveries through the existing signed safe dispatcher
+5. repeats only within the configured cycle and request-time limits
+6. exits early when both queues are below their batch sizes / effectively drained
+
+Current hard bounds:
+
+- worker batch: max 10
+- dispatcher batch: max 10
+- cycles per request: max 3
+- request orchestration budget: max 25 seconds
+
+Concurrent scheduler ticks are safe because inbound events and webhook deliveries are already claimed with `FOR UPDATE ... SKIP LOCKED`.
+
+### Optional outbound stage
+
+Outbound dispatch does not block the core hotel worker.
+
+If dispatcher auth / exact host allowlist / signing master are not configured, the orchestrator:
+
+- still processes hotel events
+- leaves durable webhook deliveries queued
+- reports `dispatcher_not_configured` for the outbound stage
+
+This is intentional. The hotel automation core does not depend on a third-party integration runner.
+
+### Scheduling options
+
+A production deployment can later invoke this endpoint from:
+
+- a small Cloudflare Cron Worker
+- another trusted scheduler
+- a manual operations call for recovery/testing
+
+n8n, Make and Zapier remain optional webhook consumers. They are not required to schedule or execute StayPilot core automation.
+
+The current public deployment intentionally has no `ORCHESTRATOR_SECRET`, so the endpoint remains fail-closed.

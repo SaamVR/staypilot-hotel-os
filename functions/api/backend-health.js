@@ -8,6 +8,7 @@ export async function onRequestGet({ env }) {
   const dispatcherAuthConfigured = Boolean(config.dispatcherSecret);
   const outboundAllowlistConfigured = String(config.webhookAllowedHosts || "").split(",").some(value => value.trim());
   const outboundSigningConfigured = Boolean(config.outboundSigningMasterSecret);
+  const orchestratorConfigured = Boolean(config.orchestratorSecret);
   const configured = databaseConfigured && signingConfigured && workerConfigured;
 
   return jsonResponse({
@@ -22,6 +23,7 @@ export async function onRequestGet({ env }) {
       outbound_dispatcher_authentication: dispatcherAuthConfigured,
       outbound_host_allowlist: outboundAllowlistConfigured,
       outbound_signing_master: outboundSigningConfigured,
+      scheduler_orchestration_authentication: orchestratorConfigured,
     },
     note: configured
       ? (dispatcherAuthConfigured && outboundAllowlistConfigured && outboundSigningConfigured
