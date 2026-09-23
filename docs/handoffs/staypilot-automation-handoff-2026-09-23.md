@@ -6,12 +6,12 @@ Canonical demo: https://staypilot-hotel-os.pages.dev/
 
 ## Durable source state
 
-- main source commit: `12cb4d22893fa283e61af902084282b0d414d42d`
+- verified application release commit: `9de867d90b407b377f435565324443a3857b9d7e`
 - verified Cloudflare bundle branch: `cloudflare-deploy`
 - verified bundle commit: `43d0d606fe0e80a5090546945d6f60dd823625a7`
-- bundle commit message: `stage Cloudflare bundle for 12cb4d22893fa283e61af902084282b0d414d42d`
-- latest deployment preview: https://d1b597ce.staypilot-hotel-os.pages.dev
-- canonical deployment: https://staypilot-hotel-os.pages.dev/?v=12cb4d22
+- bundle commit message: `stage Cloudflare bundle for 9de867d90b407b377f435565324443a3857b9d7e`
+- latest deployment preview: https://3980d10b.staypilot-hotel-os.pages.dev
+- canonical deployment: https://staypilot-hotel-os.pages.dev/?v=9de867d9
 - verification workflow: `.github/workflows/verify.yml`
 - Node 22 + npm ci + npm run build: PASS
 - production artifact upload: PASS
@@ -206,6 +206,8 @@ n8n / Make / Zapier are optional external consumers, not internal dependencies.
 - dynamic exception badge
 - channel inventory/ADR derived from shared hotel state
 - Integration Hub event lab
+- Event-ID idempotency / duplicate-suppression proof
+- paused-event queue dedupe
 - Owner automation master safety pause
 - automation ROI/time-saved framing
 - truth labels for simulated external providers
@@ -248,6 +250,21 @@ Verified sequence:
 
 This confirms the browser prototype's pause → queue/defer → resume → replay semantics are working on canonical production.
 
+## Idempotency reliability release QA — PASS
+
+Verified on canonical production for application release `9de867d9` at a 1280px viewport.
+
+- Integration Hub rendered with no horizontal overflow.
+- **Send new event** created one `review.negative` automation run.
+- **Replay same ID** left the run count unchanged and displayed **Duplicate suppressed**.
+- With the global automation pause active, a new `guest.request_received` Event ID produced exactly one queued item.
+- Replaying that same queued Event ID kept queue length at one and displayed **Duplicate already queued**.
+- Resuming automations drained the queue to zero and produced exactly one guest-request automation run.
+- automation master returned to `Active`.
+- browser reported zero console/page errors.
+
+This verifies duplicate delivery protection for both immediate execution and paused-event queueing in the browser prototype.
+
 ## Portfolio integration
 
 Repository: SaamVR/Portfolio
@@ -284,15 +301,15 @@ cd /tmp/staypilot-deploy
 ~/.local/wrangler-cli/node_modules/.bin/wrangler pages deploy dist \
   --project-name staypilot-hotel-os \
   --branch main \
-  --commit-hash 12cb4d22893fa283e61af902084282b0d414d42d \
-  --commit-message "deploy StayPilot automation safety control" \
+  --commit-hash 9de867d90b407b377f435565324443a3857b9d7e \
+  --commit-message "deploy StayPilot idempotency reliability release" \
   --commit-dirty=false
 
 rm -rf /tmp/staypilot-deploy
 ```
 
 Current deployed preview:
-https://d1b597ce.staypilot-hotel-os.pages.dev
+https://3980d10b.staypilot-hotel-os.pages.dev
 
 ## Production boundary
 
