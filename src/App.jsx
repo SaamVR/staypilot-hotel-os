@@ -41,16 +41,44 @@ const seedBookings = [
   { id: "SP-1043", guest: "Ethan Lee", room: "110", type: "City Queen", source: "Direct Website", checkIn: "Sep 25", checkOut: "Sep 29", guests: 1, total: 612, status: "Confirmed" }
 ];
 
+const normalizeRoom = room => {
+  if (room.occupancy && room.housekeeping && room.maintenance) return room;
+  const legacy = room.status || "Available";
+  return {
+    ...room,
+    occupancy: legacy === "Occupied" ? "Occupied" : legacy === "Reserved" ? "Reserved" : "Vacant",
+    housekeeping: legacy === "Cleaning" ? "Cleaning" : "Clean",
+    maintenance: legacy === "Maintenance" ? "Out of order" : "Clear"
+  };
+};
+
+const roomSellable = room => room.occupancy === "Vacant" && room.housekeeping === "Clean" && room.maintenance === "Clear";
+const roomPrimaryStatus = room => {
+  if (room.maintenance !== "Clear") return "Maintenance";
+  if (room.housekeeping !== "Clean") return room.housekeeping;
+  if (room.occupancy === "Vacant") return "Available";
+  return room.occupancy;
+};
+
 const makeRooms = () => Array.from({ length: 24 }, (_, i) => {
   const floor = i < 12 ? 1 : 2;
   const number = String(floor * 100 + (i % 12) + 1);
   const type = i % 6 === 0 ? "Sky Suite" : i % 2 === 0 ? "Deluxe King" : "City Queen";
   const preset = {
-    "204": "Reserved", "108": "Occupied", "211": "Reserved",
-    "105": "Reserved", "202": "Reserved", "110": "Reserved",
-    "103": "Cleaning", "207": "Maintenance"
+    "204": { occupancy: "Reserved", housekeeping: "Clean", maintenance: "Clear" },
+    "108": { occupancy: "Occupied", housekeeping: "Clean", maintenance: "Clear" },
+    "211": { occupancy: "Reserved", housekeeping: "Clean", maintenance: "Clear" },
+    "105": { occupancy: "Reserved", housekeeping: "Clean", maintenance: "Clear" },
+    "202": { occupancy: "Reserved", housekeeping: "Clean", maintenance: "Clear" },
+    "110": { occupancy: "Reserved", housekeeping: "Clean", maintenance: "Clear" },
+    "103": { occupancy: "Vacant", housekeeping: "Cleaning", maintenance: "Clear" },
+    "207": { occupancy: "Vacant", housekeeping: "Clean", maintenance: "Out of order" }
   };
-  return { number, type, status: preset[number] || (i % 5 === 0 ? "Occupied" : "Available") };
+  return {
+    number,
+    type,
+    ...(preset[number] || { occupancy: i % 5 === 0 ? "Occupied" : "Vacant", housekeeping: "Clean", maintenance: "Clear" })
+  };
 });
 
 const initialActivities = [
@@ -87,12 +115,14 @@ const channels = [
 
 const ownerNav = [
   ["overview", "Owner dashboard", LayoutDashboard, "Property"],
-  ["reservations", "Reservations", CalendarDays, "Property"],
+  ["frontdesk", "Front desk calendar", CalendarDays, "Property"],
+  ["reservations", "Reservations", ClipboardCheck, "Property"],
   ["rooms", "Rooms & availability", BedDouble, "Property"],
   ["operations", "Operations", ClipboardCheck, "Property"],
   ["instructions", "Team instructions", ClipboardList, "Property"],
   ["booking", "Booking engine", Globe2, "Property"],
   ["inventory", "Supplies & inventory", Boxes, "Business"],
+  ["approvals", "Approval center", ShieldCheck, "Business"],
   ["expenses", "Expenses", ReceiptText, "Business"],
   ["channels", "Channel manager", RefreshCw, "Business"],
   ["marketing", "Marketing", Megaphone, "Business"],
@@ -102,12 +132,14 @@ const ownerNav = [
 
 const managerNav = [
   ["overview", "Manager dashboard", LayoutDashboard, "Property"],
-  ["reservations", "Reservations", CalendarDays, "Property"],
+  ["frontdesk", "Front desk calendar", CalendarDays, "Property"],
+  ["reservations", "Reservations", ClipboardCheck, "Property"],
   ["rooms", "Rooms & availability", BedDouble, "Property"],
   ["operations", "Room prep & maintenance", ClipboardCheck, "Property"],
   ["instructions", "Team instructions", ClipboardList, "Property"],
   ["booking", "Booking engine", Globe2, "Property"],
   ["inventory", "Supplies & inventory", Boxes, "Resources"],
+  ["approvals", "My requests", ShieldCheck, "Resources"],
   ["assistant", "Operations assistant", Bot, "System"]
 ];
 
@@ -135,6 +167,23 @@ const seedInstructions = [
   { id: 4, from: "Manager · Nina Chowdhury", audience: "Front Desk", priority: "Normal", text: "VIP welcome pack for Ava Garcia should be at reception before 16:00.", due: "Today · 16:00", done: true }
 ];
 
+const seedApprovals = [
+  { id: "APR-104", type: "Maintenance", title: "Room 207 HVAC invoice", detail: "CoolTech · diagnostic + service", amount: 165, requestedBy: "Sam Rahman", status: "Pending", time: "11 min ago" },
+  { id: "APR-103", type: "Purchase order", title: "Queen bed sheet restock", detail: "20 sets · Coastal Textile", amount: 360, itemRef: 2, qty: 20, requestedBy: "Sam Rahman", status: "Pending", time: "34 min ago" },
+  { id: "APR-102", type: "Rate change", title: "Weekend BAR +18%", detail: "Fri–Sat · occupancy pacing", amount: null, requestedBy: "Sam Rahman", status: "Pending", time: "1 hr ago" },
+  { id: "APR-101", type: "Refund", title: "SP-1039 partial refund", detail: "Service recovery · late room readiness", amount: 85, requestedBy: "Nina Chowdhury", status: "Approved", time: "Yesterday" }
+];
+
+const seedTasks = [
+  { id: 1, place: "Room 103", title: "Full turnover", team: "Housekeeping", due: "Due 14:15", status: "In progress" },
+  { id: 2, place: "Room 207", title: "HVAC inspection", team: "Maintenance", due: "Due 15:00", status: "Assigned" },
+  { id: 3, place: "Lobby", title: "Welcome setup — VIP", team: "Front desk", due: "Due 16:00", status: "Queued" },
+  { id: 4, place: "Room 108", title: "Extra towels requested", team: "Housekeeping", due: "Due 16:20", status: "New" }
+];
+
+const frontDeskDays = ["Sep 23", "Sep 24", "Sep 25", "Sep 26", "Sep 27", "Sep 28", "Sep 29"];
+const dateIndex = value => value === "Today" ? 0 : frontDeskDays.indexOf(value);
+
 const fmt = n => "$" + Number(n).toLocaleString("en-US", { maximumFractionDigits: 0 });
 const load = (key, fallback) => {
   try {
@@ -161,8 +210,10 @@ function PageHeader({ eyebrow, title, text, action }) {
 function App() {
   const [active, setActive] = useState("overview");
   const [role, setRole] = useState(() => load("sp-role", "owner"));
-  const [rooms, setRooms] = useState(() => load("sp-rooms", makeRooms()));
+  const [rooms, setRooms] = useState(() => load("sp-rooms", makeRooms()).map(normalizeRoom));
   const [bookings, setBookings] = useState(() => load("sp-bookings", seedBookings));
+  const [approvals, setApprovals] = useState(() => load("sp-approvals", seedApprovals));
+  const [tasks, setTasks] = useState(() => load("sp-tasks", seedTasks));
   const [activities, setActivities] = useState(() => load("sp-activities", initialActivities));
   const [rateMultiplier, setRateMultiplier] = useState(() => load("sp-rate", 1));
   const [metaPaused, setMetaPaused] = useState(() => load("sp-meta-paused", false));
@@ -174,6 +225,8 @@ function App() {
 
   useEffect(() => localStorage.setItem("sp-rooms", JSON.stringify(rooms)), [rooms]);
   useEffect(() => localStorage.setItem("sp-bookings", JSON.stringify(bookings)), [bookings]);
+  useEffect(() => localStorage.setItem("sp-approvals", JSON.stringify(approvals)), [approvals]);
+  useEffect(() => localStorage.setItem("sp-tasks", JSON.stringify(tasks)), [tasks]);
   useEffect(() => localStorage.setItem("sp-activities", JSON.stringify(activities)), [activities]);
   useEffect(() => localStorage.setItem("sp-rate", JSON.stringify(rateMultiplier)), [rateMultiplier]);
   useEffect(() => localStorage.setItem("sp-meta-paused", JSON.stringify(metaPaused)), [metaPaused]);
@@ -207,13 +260,13 @@ function App() {
   }, []);
 
   const stats = useMemo(() => {
-    const occupied = rooms.filter(r => ["Occupied", "Reserved"].includes(r.status)).length;
+    const occupied = rooms.filter(r => r.occupancy === "Occupied").length;
     const occupancy = Math.round((occupied / rooms.length) * 100);
-    const bookingRevenue = bookings.reduce((a, b) => a + Number(b.total || 0), 0);
+    const bookingRevenue = bookings.filter(b => b.status !== "Cancelled").reduce((a, b) => a + Number(b.total || 0), 0);
     return {
       occupancy,
-      available: rooms.filter(r => r.status === "Available").length,
-      arrivals: bookings.filter(b => b.checkIn === "Today").length,
+      available: rooms.filter(roomSellable).length,
+      arrivals: bookings.filter(b => b.checkIn === "Today" && !["Cancelled", "Checked out"].includes(b.status)).length,
       revenue: 18420 + bookingRevenue,
       adr: Math.round(182 * rateMultiplier),
       revpar: Math.round(153 * rateMultiplier)
@@ -254,12 +307,16 @@ function App() {
     localStorage.removeItem("sp-stock");
     localStorage.removeItem("sp-expenses");
     localStorage.removeItem("sp-instructions");
+    localStorage.removeItem("sp-approvals");
+    localStorage.removeItem("sp-tasks");
+    setApprovals(seedApprovals);
+    setTasks(seedTasks);
     setActive("overview");
     flash("Demo data reset");
   };
 
   const pageProps = {
-    rooms, setRooms, bookings, setBookings, activities, setActivities,
+    rooms, setRooms, bookings, setBookings, approvals, setApprovals, tasks, setTasks, activities, setActivities,
     rateMultiplier, setRateMultiplier, metaPaused, setMetaPaused,
     stats, pushActivity, flash, setActive, role
   };
@@ -309,9 +366,12 @@ function App() {
 
       <div className="content">
         {active === "overview" && <Overview {...pageProps} />}
+        {active === "frontdesk" && <FrontDesk {...pageProps} />}
+        {active === "newreservation" && <NewReservation {...pageProps} />}
         {active === "reservations" && <Reservations {...pageProps} />}
         {active === "rooms" && <Rooms {...pageProps} />}
         {active === "inventory" && <Inventory {...pageProps} />}
+        {active === "approvals" && <ApprovalCenter {...pageProps} />}
         {active === "expenses" && role === "owner" && <Expenses {...pageProps} />}
         {active === "channels" && <Channels {...pageProps} />}
         {active === "marketing" && <Marketing {...pageProps} />}
@@ -340,20 +400,29 @@ function App() {
   </div>;
 }
 
-function Overview({ stats, activities, setActive, role, rooms }) {
+function Overview({ stats, activities, setActive, role, rooms, approvals }) {
   const owner = role === "owner";
-  const attentionRooms = rooms.filter(r => ["Cleaning", "Maintenance"].includes(r.status));
-  const readyRooms = rooms.filter(r => r.status === "Available").length;
+  const attentionRooms = rooms.filter(r => r.housekeeping !== "Clean" || r.maintenance !== "Clear");
+  const readyRooms = rooms.filter(roomSellable).length;
   const currentStock = load("sp-stock", seedStock);
   const currentExpenses = load("sp-expenses", seedExpenses);
   const currentInstructions = load("sp-instructions", seedInstructions);
-  const expensesToday = currentExpenses.filter(e => e.date === "Sep 23").reduce((a, e) => a + Number(e.amount || 0), 0);
+  const todayExpenses = currentExpenses.filter(e => e.date === "Sep 23");
+  const expensesToday = todayExpenses.reduce((a, e) => a + Number(e.amount || 0), 0);
+  const mtdExpenses = currentExpenses.reduce((a, e) => a + Number(e.amount || 0), 0);
+  const expenseBudget = 26000;
+  const stockValue = currentStock.reduce((a, i) => a + Number(i.stock || 0) * Number(i.cost || 0), 0);
+  const currentCampaigns = load("sp-campaigns", seedCampaigns);
+  const campaignSpend = currentCampaigns.reduce((a, c) => a + Number(c.spend || 0), 0);
+  const campaignRevenue = currentCampaigns.reduce((a, c) => a + Number(c.revenue || 0), 0);
+  const paidRoas = campaignSpend ? campaignRevenue / campaignSpend : 0;
+  const pendingApprovals = approvals.filter(a => a.status === "Pending").length;
   const lowStock = currentStock.filter(i => i.stock < i.par).length;
   const ownerKpis = [
     ["Occupancy", stats.occupancy + "%", "+6.8%", TrendingUp, "vs. last week"],
     ["Gross revenue", fmt(stats.revenue), "+12.4%", DollarSign, "today"],
-    ["Operating expenses", fmt(expensesToday), "2 entries", ReceiptText, "logged today"],
-    ["Est. operating margin", "68%", "+3.1 pts", WalletCards, "room revenue basis"]
+    ["Operating expenses", fmt(mtdExpenses), Math.round(mtdExpenses / expenseBudget * 100) + "% budget", ReceiptText, "month to date"],
+    ["Pending approvals", String(pendingApprovals), pendingApprovals ? "Review" : "Clear", ShieldCheck, "owner decision queue"]
   ];
   const managerKpis = [
     ["Arrivals today", String(stats.arrivals), "Next 14:30", Users, "front desk queue"],
@@ -370,7 +439,7 @@ function Overview({ stats, activities, setActive, role, rooms }) {
       text={owner ? "Revenue, costs, inventory exposure and property performance in one owner-level view." : "Today’s arrivals, room readiness, maintenance and staff handoff priorities."}
       action={<div className="page-actions">
         {!owner && <button className="ghost-btn" onClick={() => setActive("instructions")}><ClipboardList size={16} /> Instructions</button>}
-        <button className="primary-btn" onClick={() => setActive("booking")}><Plus size={16} /> New reservation</button>
+        <button className="primary-btn" onClick={() => setActive("newreservation")}><Plus size={16} /> New reservation</button>
       </div>}
     />
 
@@ -392,10 +461,10 @@ function Overview({ stats, activities, setActive, role, rooms }) {
 
     {owner ? <>
       <section className="owner-field-grid">
-        <button className="panel owner-field" onClick={() => setActive("expenses")}><span className="field-icon"><ReceiptText size={19} /></span><div><span>Month-to-date OpEx</span><b>$18,640</b><small>72% of monthly budget</small></div><ArrowUpRight size={15} /></button>
-        <button className="panel owner-field" onClick={() => setActive("inventory")}><span className="field-icon"><Boxes size={19} /></span><div><span>Supply inventory value</span><b>$3,870</b><small>{lowStock} items need reorder</small></div><ArrowUpRight size={15} /></button>
+        <button className="panel owner-field" onClick={() => setActive("approvals")}><span className="field-icon"><ShieldCheck size={19} /></span><div><span>Decision queue</span><b>{pendingApprovals} pending</b><small>rate, spend & refund approvals</small></div><ArrowUpRight size={15} /></button>
+        <button className="panel owner-field" onClick={() => setActive("inventory")}><span className="field-icon"><Boxes size={19} /></span><div><span>Supply inventory value</span><b>{fmt(Math.round(stockValue))}</b><small>{lowStock} items need reorder</small></div><ArrowUpRight size={15} /></button>
         <button className="panel owner-field" onClick={() => setActive("channels")}><span className="field-icon"><RefreshCw size={19} /></span><div><span>OTA exposure</span><b>62%</b><small>38% direct share</small></div><ArrowUpRight size={15} /></button>
-        <button className="panel owner-field" onClick={() => setActive("marketing")}><span className="field-icon"><Megaphone size={19} /></span><div><span>Paid acquisition</span><b>5.67x</b><small>blended ROAS</small></div><ArrowUpRight size={15} /></button>
+        <button className="panel owner-field" onClick={() => setActive("marketing")}><span className="field-icon"><Megaphone size={19} /></span><div><span>Paid acquisition</span><b>{paidRoas.toFixed(2)}x</b><small>blended ROAS</small></div><ArrowUpRight size={15} /></button>
       </section>
 
       <section className="dashboard-grid">
@@ -432,7 +501,7 @@ function Overview({ stats, activities, setActive, role, rooms }) {
         <article className="panel manager-readiness">
           <div className="panel-head"><div><span className="panel-kicker">Room readiness</span><h3>Today’s preparation board</h3></div><button className="ghost-btn" onClick={() => setActive("rooms")}>Open room board</button></div>
           <div className="readiness-list">
-            {rooms.filter(r => ["Cleaning", "Maintenance", "Reserved"].includes(r.status)).slice(0, 6).map(r => <div key={r.number}><span className={"room-dot " + r.status.toLowerCase()} /><div><b>Room {r.number}</b><small>{r.type}</small></div><StatusDot status={r.status} /></div>)}
+            {rooms.filter(r => r.housekeeping !== "Clean" || r.maintenance !== "Clear" || r.occupancy === "Reserved").slice(0, 6).map(r => { const status = roomPrimaryStatus(r); return <div key={r.number}><span className={"room-dot " + status.toLowerCase().replaceAll(" ","-")} /><div><b>Room {r.number}</b><small>{r.type} · {r.housekeeping}</small></div><StatusDot status={status} /></div>; })}
           </div>
         </article>
         <article className="panel manager-instructions">
@@ -463,63 +532,285 @@ function ActivityPanel({ activities, setActive }) {
   </article>;
 }
 
-function Reservations({ bookings, setActive }) {
+function FrontDesk({ bookings, setBookings, rooms, setRooms, role, pushActivity, flash, setActive }) {
+  const [selected, setSelected] = useState(null);
+  const activeBookings = bookings.filter(b => !["Cancelled", "Checked out"].includes(b.status));
+  const unassigned = activeBookings.filter(b => !b.room || b.room === "Unassigned");
+  const arrivals = activeBookings.filter(b => b.checkIn === "Today").length;
+  const departures = activeBookings.filter(b => b.checkOut === "Sep 23").length;
+  const prep = rooms.filter(r => r.housekeeping !== "Clean" || r.maintenance !== "Clear").length;
+
+  const bookingsForRoom = roomNumber => activeBookings.filter(b => b.room === roomNumber);
+
+  return <>
+    <PageHeader
+      eyebrow="Front desk"
+      title="Reservation calendar"
+      text="See room assignments, arrivals, departures, readiness and stay conflicts across the same operational inventory."
+      action={<div className="page-actions"><button className="ghost-btn" onClick={() => setActive("reservations")}><ClipboardCheck size={16} /> Reservation list</button><button className="primary-btn" onClick={() => setActive("newreservation")}><Plus size={16} /> New reservation</button></div>}
+    />
+
+    <section className="frontdesk-summary">
+      <div><span>Arrivals today</span><b>{arrivals}</b><small>front desk queue</small></div>
+      <div><span>Departures today</span><b>{departures}</b><small>checkout workload</small></div>
+      <div><span>Unassigned</span><b>{unassigned.length}</b><small>room assignment needed</small></div>
+      <div><span>Room blockers</span><b>{prep}</b><small>cleaning + maintenance</small></div>
+    </section>
+
+    {unassigned.length > 0 && <section className="panel unassigned-queue">
+      <div className="panel-head"><div><span className="panel-kicker">Assignment queue</span><h3>Reservations waiting for a room</h3></div><span className="instruction-count">{unassigned.length} open</span></div>
+      <div className="unassigned-list">{unassigned.map(b => <button key={b.id} onClick={() => setSelected(b)}><span className="guest-mini">{b.guest.split(" ").map(x => x[0]).slice(0,2).join("")}</span><div><b>{b.guest}</b><small>{b.id} · {b.type} · {b.checkIn}</small></div><span>Assign room</span><ArrowUpRight size={15} /></button>)}</div>
+    </section>}
+
+    <article className="panel tape-panel">
+      <div className="panel-head"><div><span className="panel-kicker">7-day tape chart</span><h3>Rooms & stays</h3></div><div className="tape-legend"><span><i className="legend-confirmed" /> Confirmed</span><span><i className="legend-inhouse" /> In house</span></div></div>
+      <div className="tape-scroll">
+        <div className="tape-grid tape-header">
+          <div className="tape-room-head">Room</div>
+          {frontDeskDays.map((d, i) => <div className={i === 0 ? "today" : ""} key={d}><b>{d.replace("Sep ","")}</b><small>{["Wed","Thu","Fri","Sat","Sun","Mon","Tue"][i]}</small></div>)}
+        </div>
+        {rooms.map(room => <div className="tape-grid tape-row" key={room.number}>
+          <div className="tape-room">
+            <div><b>{room.number}</b><small>{room.type}</small></div>
+            <span className={"room-dot " + roomPrimaryStatus(room).toLowerCase().replaceAll(" ","-")} />
+          </div>
+          {frontDeskDays.map((d, i) => <div className={"tape-day-cell " + (i === 0 ? "today" : "")} style={{ gridColumn: i + 2 }} key={d} />)}
+          {bookingsForRoom(room.number).map(b => {
+            const start = Math.max(0, dateIndex(b.checkIn));
+            const rawEnd = dateIndex(b.checkOut);
+            const end = rawEnd < 0 ? frontDeskDays.length : rawEnd;
+            const span = Math.max(1, Math.min(frontDeskDays.length - start, end - start));
+            return <button
+              className={"stay-block " + (b.status === "Checked in" ? "inhouse" : "confirmed")}
+              style={{ gridColumn: (start + 2) + " / span " + span }}
+              key={b.id}
+              onClick={() => setSelected(b)}
+              title={b.guest + " · " + b.id}
+            ><b>{b.guest}</b><small>{b.id}</small></button>;
+          })}
+        </div>)}
+      </div>
+    </article>
+
+    {selected && <ReservationDrawer booking={bookings.find(b => b.id === selected.id) || selected} bookings={bookings} setBookings={setBookings} rooms={rooms} setRooms={setRooms} role={role} pushActivity={pushActivity} flash={flash} onClose={() => setSelected(null)} />}
+  </>;
+}
+
+function ReservationDrawer({ booking, setBookings, rooms, setRooms, role, pushActivity, flash, onClose }) {
+  const [roomNumber, setRoomNumber] = useState(booking.room && booking.room !== "Unassigned" ? booking.room : "");
+  const candidateRooms = rooms.filter(r => r.type === booking.type && r.maintenance === "Clear" && (r.occupancy === "Vacant" || r.number === booking.room));
+  const currentRoom = rooms.find(r => r.number === booking.room);
+
+  const updateBooking = patch => setBookings(prev => prev.map(b => b.id === booking.id ? { ...b, ...patch } : b));
+
+  const assignRoom = () => {
+    if (!roomNumber) return flash("Choose a room first");
+    const target = rooms.find(r => r.number === roomNumber);
+    if (!target) return flash("Room not found");
+    if (target.maintenance !== "Clear") return flash("That room is blocked by maintenance");
+    if (booking.room && booking.room !== "Unassigned" && booking.room !== roomNumber) {
+      setRooms(prev => prev.map(r => r.number === booking.room ? { ...r, occupancy: "Vacant" } : r));
+    }
+    setRooms(prev => prev.map(r => r.number === roomNumber ? { ...r, occupancy: booking.status === "Checked in" ? "Occupied" : "Reserved" } : r));
+    updateBooking({ room: roomNumber });
+    pushActivity("green", "Room assigned to " + booking.guest, booking.id + " · Room " + roomNumber);
+    flash("Room " + roomNumber + " assigned");
+  };
+
+  const checkIn = () => {
+    const target = rooms.find(r => r.number === (roomNumber || booking.room));
+    if (!target || !target.number || target.number === "Unassigned") return flash("Assign a room before check-in");
+    if (target.housekeeping !== "Clean") return flash("Room " + target.number + " is not ready for check-in");
+    if (target.maintenance !== "Clear") return flash("Room " + target.number + " has an active maintenance block");
+    updateBooking({ status: "Checked in", room: target.number });
+    setRooms(prev => prev.map(r => r.number === target.number ? { ...r, occupancy: "Occupied" } : r));
+    pushActivity("green", booking.guest + " checked in", booking.id + " · Room " + target.number);
+    flash("Guest checked in");
+  };
+
+  const checkOut = () => {
+    if (booking.room && booking.room !== "Unassigned") {
+      setRooms(prev => prev.map(r => r.number === booking.room ? { ...r, occupancy: "Vacant", housekeeping: "Dirty" } : r));
+    }
+    updateBooking({ status: "Checked out" });
+    pushActivity("blue", booking.guest + " checked out", booking.id + " · housekeeping task created");
+    flash("Checkout complete · room marked dirty");
+  };
+
+  const cancel = () => {
+    if (booking.room && booking.room !== "Unassigned") {
+      setRooms(prev => prev.map(r => r.number === booking.room ? { ...r, occupancy: "Vacant" } : r));
+    }
+    updateBooking({ status: "Cancelled" });
+    pushActivity("amber", "Reservation cancelled", booking.id + " · " + booking.guest);
+    flash("Reservation cancelled");
+    onClose();
+  };
+
+  return <div className="drawer-backdrop" onMouseDown={onClose}>
+    <aside className="reservation-drawer" onMouseDown={e => e.stopPropagation()}>
+      <div className="drawer-head"><div><span className="panel-kicker">Reservation {booking.id}</span><h2>{booking.guest}</h2><p>{booking.source} · {booking.guests} guest{booking.guests > 1 ? "s" : ""}</p></div><button className="icon-btn" onClick={onClose}><X size={18} /></button></div>
+      <div className="drawer-status"><StatusDot status={booking.status} /><span>{booking.checkIn} → {booking.checkOut}</span></div>
+
+      <section className="drawer-section"><span className="drawer-label">Stay</span><div className="drawer-facts"><div><span>Room type</span><b>{booking.type}</b></div><div><span>Assigned room</span><b>{booking.room || "Unassigned"}</b></div><div><span>Total</span><b>{fmt(booking.total)}</b></div><div><span>Payment</span><b>Secured</b></div></div></section>
+
+      <section className="drawer-section"><span className="drawer-label">Room assignment</span><div className="drawer-assign"><select value={roomNumber} onChange={e => setRoomNumber(e.target.value)}><option value="">Choose {booking.type}</option>{candidateRooms.map(r => <option value={r.number} key={r.number}>Room {r.number} · {r.housekeeping}{r.occupancy !== "Vacant" ? " · " + r.occupancy : ""}</option>)}</select><button className="secondary-btn" onClick={assignRoom}>Assign room</button></div>{currentRoom && <div className="room-readiness-line"><span>Housekeeping <b>{currentRoom.housekeeping}</b></span><span>Maintenance <b>{currentRoom.maintenance}</b></span></div>}</section>
+
+      <section className="drawer-section"><span className="drawer-label">Guest notes</span><div className="guest-note">Late arrival expected. Front desk should verify arrival time and welcome preference before check-in.</div></section>
+
+      <div className="drawer-actions">
+        {booking.status === "Confirmed" && <button className="primary-btn" onClick={checkIn}><CheckCircle2 size={16} /> Check in</button>}
+        {booking.status === "Checked in" && <button className="primary-btn" onClick={checkOut}><CheckCircle2 size={16} /> Check out</button>}
+        {!["Cancelled","Checked out"].includes(booking.status) && <button className="danger-btn" onClick={cancel}>Cancel reservation</button>}
+      </div>
+      <div className="drawer-audit"><ShieldCheck size={14} /> Changes are attributed to {role === "owner" ? "Maya Rahman · Owner" : "Sam Rahman · Property Manager"}.</div>
+    </aside>
+  </div>;
+}
+
+function NewReservation({ rooms, setRooms, bookings, setBookings, rateMultiplier, pushActivity, flash, setActive }) {
+  const [form, setForm] = useState({ guest: "", type: "Deluxe King", source: "Walk-in", checkIn: "Sep 23", checkOut: "Sep 25", guests: 2, room: "" });
+  const rates = { "City Queen": 149, "Deluxe King": 189, "Sky Suite": 279 };
+  const start = Math.max(0, dateIndex(form.checkIn));
+  const end = Math.max(start + 1, dateIndex(form.checkOut));
+  const nights = Math.max(1, end - start);
+  const rate = Math.round(rates[form.type] * rateMultiplier);
+  const total = rate * nights;
+  const candidates = rooms.filter(r => r.type === form.type && roomSellable(r));
+
+  useEffect(() => {
+    if (form.room && !candidates.some(r => r.number === form.room)) setForm(f => ({ ...f, room: "" }));
+  }, [form.type]);
+
+  const submit = e => {
+    e.preventDefault();
+    if (!form.guest.trim()) return flash("Add a guest name");
+    if (dateIndex(form.checkOut) <= dateIndex(form.checkIn)) return flash("Checkout must be after check-in");
+    const id = "SP-" + (1050 + bookings.length);
+    const booking = {
+      id,
+      guest: form.guest.trim(),
+      room: form.room || "Unassigned",
+      type: form.type,
+      source: form.source,
+      checkIn: form.checkIn === "Sep 23" ? "Today" : form.checkIn,
+      checkOut: form.checkOut,
+      guests: Number(form.guests),
+      total,
+      status: "Confirmed"
+    };
+    setBookings(prev => [booking, ...prev]);
+    if (form.room) setRooms(prev => prev.map(r => r.number === form.room ? { ...r, occupancy: "Reserved" } : r));
+    pushActivity("green", "Front desk reservation created", id + " · " + form.guest.trim() + " · " + (form.room ? "Room " + form.room : "room unassigned"));
+    flash("Reservation " + id + " created");
+    setActive("frontdesk");
+  };
+
+  return <>
+    <PageHeader eyebrow="Front desk" title="New reservation" text="Create walk-in, phone or manually entered stays without using the guest-facing booking engine." action={<button className="ghost-btn" onClick={() => setActive("frontdesk")}><CalendarDays size={16} /> Back to calendar</button>} />
+    <section className="internal-reservation-layout">
+      <form className="panel internal-reservation-form" onSubmit={submit}>
+        <div className="panel-head"><div><span className="panel-kicker">Stay details</span><h3>Create reservation</h3></div></div>
+        <div className="internal-form-grid">
+          <label>Guest name<input value={form.guest} onChange={e => setForm({...form,guest:e.target.value})} placeholder="Guest full name" /></label>
+          <label>Source<select value={form.source} onChange={e => setForm({...form,source:e.target.value})}><option>Walk-in</option><option>Phone</option><option>Email</option><option>Direct</option></select></label>
+          <label>Room type<select value={form.type} onChange={e => setForm({...form,type:e.target.value,room:""})}><option>City Queen</option><option>Deluxe King</option><option>Sky Suite</option></select></label>
+          <label>Guests<select value={form.guests} onChange={e => setForm({...form,guests:e.target.value})}><option>1</option><option>2</option><option>3</option><option>4</option></select></label>
+          <label>Check in<select value={form.checkIn} onChange={e => setForm({...form,checkIn:e.target.value})}>{frontDeskDays.slice(0,-1).map(d => <option key={d}>{d}</option>)}</select></label>
+          <label>Check out<select value={form.checkOut} onChange={e => setForm({...form,checkOut:e.target.value})}>{frontDeskDays.slice(1).map(d => <option key={d}>{d}</option>)}</select></label>
+          <label className="span-two">Room assignment <span className="field-hint">optional</span><select value={form.room} onChange={e => setForm({...form,room:e.target.value})}><option value="">Assign later</option>{candidates.map(r => <option key={r.number} value={r.number}>Room {r.number} · {r.type}</option>)}</select></label>
+        </div>
+        <div className="internal-form-actions"><button type="button" className="ghost-btn" onClick={() => setActive("frontdesk")}>Cancel</button><button className="primary-btn" type="submit"><Plus size={16} /> Create reservation</button></div>
+      </form>
+      <aside className="panel reservation-quote">
+        <span className="panel-kicker">Reservation summary</span><h3>{form.type}</h3>
+        <div><span>Dates</span><b>{form.checkIn} → {form.checkOut}</b></div>
+        <div><span>Stay</span><b>{nights} night{nights > 1 ? "s" : ""}</b></div>
+        <div><span>Rate</span><b>{fmt(rate)} / night</b></div>
+        <div><span>Room</span><b>{form.room ? "Room " + form.room : "Assign later"}</b></div>
+        <div className="quote-total"><span>Estimated total</span><b>{fmt(total)}</b></div>
+        <p>{candidates.length} clean, unblocked {form.type} rooms are currently available for assignment.</p>
+      </aside>
+    </section>
+  </>;
+}
+
+function Reservations({ bookings, setBookings, rooms, setRooms, role, pushActivity, flash, setActive }) {
   const [filter, setFilter] = useState("All");
+  const [selected, setSelected] = useState(null);
   const list = filter === "All" ? bookings : bookings.filter(b => b.status === filter);
   return <>
-    <PageHeader eyebrow="Reservations" title="Bookings, without the channel chaos." text="Every reservation lands in one timeline with source, payment and room assignment visible." action={<button className="primary-btn" onClick={() => setActive("booking")}><Plus size={16} /> Add reservation</button>} />
+    <PageHeader eyebrow="Reservations" title="Reservation operations" text="Review guest stays, room assignment, payment state and front-desk actions from one operational list." action={<div className="page-actions"><button className="ghost-btn" onClick={() => setActive("frontdesk")}><CalendarDays size={16} /> Calendar</button><button className="primary-btn" onClick={() => setActive("newreservation")}><Plus size={16} /> New reservation</button></div>} />
     <div className="toolbar">
-      <div className="segmented">{["All", "Confirmed", "Checked in"].map(x => <button key={x} className={filter === x ? "active" : ""} onClick={() => setFilter(x)}>{x}</button>)}</div>
+      <div className="segmented">{["All", "Confirmed", "Checked in", "Checked out"].map(x => <button key={x} className={filter === x ? "active" : ""} onClick={() => setFilter(x)}>{x}</button>)}</div>
       <button className="ghost-btn"><CalendarDays size={15} /> Sep 23 — Sep 30</button>
     </div>
     <article className="panel table-panel">
       <div className="table-scroll">
         <table>
           <thead><tr><th>Reservation</th><th>Guest</th><th>Stay</th><th>Room</th><th>Source</th><th>Value</th><th>Status</th><th /></tr></thead>
-          <tbody>{list.map(b => <tr key={b.id}>
+          <tbody>{list.map(b => <tr key={b.id} className="clickable-row" onClick={() => setSelected(b)}>
             <td><b>{b.id}</b></td>
             <td><div className="guest-cell"><span>{b.guest.split(" ").map(x => x[0]).slice(0,2).join("")}</span><div><b>{b.guest}</b><small>{b.guests} guest{b.guests > 1 ? "s" : ""}</small></div></div></td>
             <td><b>{b.checkIn}</b><small>{b.checkOut}</small></td>
-            <td><b>{b.room}</b><small>{b.type}</small></td>
+            <td><b>{b.room || "Unassigned"}</b><small>{b.type}</small></td>
             <td><span className={"source source-" + b.source.toLowerCase().replaceAll(" ","-").replace(".","")}>{b.source}</span></td>
             <td><b>{fmt(b.total)}</b><small>Paid / secured</small></td>
             <td><StatusDot status={b.status} /></td>
-            <td><button className="icon-btn flat"><MoreHorizontal size={17} /></button></td>
+            <td><button className="icon-btn flat" onClick={e => { e.stopPropagation(); setSelected(b); }}><MoreHorizontal size={17} /></button></td>
           </tr>)}</tbody>
         </table>
       </div>
     </article>
-    <div className="mini-note"><Sparkles size={15} /> New direct bookings created in the Booking Engine appear here instantly and update room inventory.</div>
+    <div className="mini-note"><CalendarDays size={15} /> Select a reservation to assign rooms, check guests in or out, or cancel the stay.</div>
+    {selected && <ReservationDrawer booking={bookings.find(b => b.id === selected.id) || selected} bookings={bookings} setBookings={setBookings} rooms={rooms} setRooms={setRooms} role={role} pushActivity={pushActivity} flash={flash} onClose={() => setSelected(null)} />}
   </>;
 }
 
 function Rooms({ rooms, setRooms, pushActivity, flash }) {
   const grouped = ["Available", "Occupied", "Reserved", "Cleaning", "Maintenance"];
-  const counts = Object.fromEntries(grouped.map(s => [s, rooms.filter(r => r.status === s).length]));
-  const updateRoom = (number, status) => {
-    setRooms(prev => prev.map(r => r.number === number ? { ...r, status } : r));
-    pushActivity(status === "Available" ? "green" : "amber", "Room " + number + " status changed", status + " · updated from room control");
-    flash("Room " + number + " moved to " + status);
+  const counts = Object.fromEntries(grouped.map(s => [s, rooms.filter(r => roomPrimaryStatus(r) === s).length]));
+
+  const setHousekeeping = (number, housekeeping) => {
+    setRooms(prev => prev.map(r => r.number === number ? { ...r, housekeeping } : r));
+    pushActivity(housekeeping === "Clean" ? "green" : "amber", "Room " + number + " housekeeping updated", housekeeping);
+    flash("Room " + number + " housekeeping: " + housekeeping);
   };
+  const toggleMaintenance = room => {
+    const maintenance = room.maintenance === "Clear" ? "Out of order" : "Clear";
+    setRooms(prev => prev.map(r => r.number === room.number ? { ...r, maintenance } : r));
+    pushActivity(maintenance === "Clear" ? "green" : "amber", "Room " + room.number + " maintenance updated", maintenance);
+    flash("Room " + room.number + ": " + maintenance);
+  };
+  const syncInventory = () => {
+    const sellable = rooms.filter(roomSellable).length;
+    pushActivity("green", "Room inventory synchronized", sellable + " sellable rooms · 5 channels");
+    flash("Inventory synced across connected channels");
+  };
+
   return <>
-    <PageHeader eyebrow="Inventory" title="One room inventory. Every channel." text="Availability, housekeeping and maintenance status remain visible in one operational view." action={<button className="ghost-btn"><RefreshCw size={15} /> Sync inventory</button>} />
+    <PageHeader eyebrow="Rooms" title="Room readiness & availability" text="Occupancy, housekeeping and maintenance are tracked independently so operational changes never overwrite reservation state." action={<button className="ghost-btn" onClick={syncInventory}><RefreshCw size={15} /> Sync inventory</button>} />
     <section className="status-summary">{grouped.map(s => <div key={s}><span className={"room-dot " + s.toLowerCase()} /><div><b>{counts[s]}</b><span>{s}</span></div></div>)}</section>
     <article className="panel room-board">
-      <div className="panel-head"><div><span className="panel-kicker">Floor plan</span><h3>Room status board</h3></div><div className="live-label"><i /> channel inventory live</div></div>
-      <div className="room-grid">{rooms.map(r => <div className={"room-card " + r.status.toLowerCase()} key={r.number}>
-        <div className="room-card-top"><b>{r.number}</b><span>{r.type}</span></div>
-        <StatusDot status={r.status} />
-        <div className="room-actions">
-          {r.status !== "Available" && <button onClick={() => updateRoom(r.number, "Available")}><CheckCircle2 size={13} /> Ready</button>}
-          {r.status !== "Cleaning" && <button onClick={() => updateRoom(r.number, "Cleaning")}><Clock3 size={13} /> Clean</button>}
-          {r.status !== "Maintenance" && <button onClick={() => updateRoom(r.number, "Maintenance")}><Wrench size={13} /></button>}
-        </div>
-      </div>)}</div>
+      <div className="panel-head"><div><span className="panel-kicker">Operational room board</span><h3>Occupancy + housekeeping + maintenance</h3></div><div className="live-label"><i /> shared room state</div></div>
+      <div className="room-grid">{rooms.map(r => {
+        const primary = roomPrimaryStatus(r);
+        return <div className={"room-card " + primary.toLowerCase().replaceAll(" ","-")} key={r.number}>
+          <div className="room-card-top"><b>{r.number}</b><span>{r.type}</span></div>
+          <div className="room-state-stack"><span><small>Occupancy</small><b>{r.occupancy}</b></span><span><small>Housekeeping</small><b>{r.housekeeping}</b></span><span><small>Maintenance</small><b>{r.maintenance}</b></span></div>
+          <div className="sellable-line"><span className={"room-dot " + primary.toLowerCase().replaceAll(" ","-")} /><b>{roomSellable(r) ? "Sellable" : primary}</b></div>
+          <div className="room-actions">
+            {r.housekeeping !== "Clean" && <button onClick={() => setHousekeeping(r.number, "Clean")}><CheckCircle2 size={13} /> Ready</button>}
+            {r.housekeeping !== "Cleaning" && <button onClick={() => setHousekeeping(r.number, "Cleaning")}><Clock3 size={13} /> Clean</button>}
+            <button onClick={() => toggleMaintenance(r)}><Wrench size={13} />{r.maintenance === "Clear" ? " Block" : " Clear"}</button>
+          </div>
+        </div>;
+      })}</div>
     </article>
   </>;
 }
 
-function Inventory({ role, pushActivity, flash }) {
+function Inventory({ role, approvals, setApprovals, pushActivity, flash, setActive }) {
   const [stock, setStock] = useState(() => load("sp-stock", seedStock));
   useEffect(() => localStorage.setItem("sp-stock", JSON.stringify(stock)), [stock]);
 
@@ -528,11 +819,32 @@ function Inventory({ role, pushActivity, flash }) {
   const adjust = (id, delta) => {
     setStock(prev => prev.map(i => i.id === id ? { ...i, stock: Math.max(0, i.stock + delta) } : i));
   };
-  const reorder = item => {
+  const requestOrder = item => {
+    const existing = approvals.find(a => a.type === "Purchase order" && a.itemRef === item.id && ["Pending", "Approved"].includes(a.status));
+    if (existing) return flash(existing.status === "Approved" ? "Order approved · receive it when delivered" : "Purchase request is already awaiting approval");
     const qty = Math.max(item.par - item.stock, Math.ceil(item.par * .35));
-    setStock(prev => prev.map(i => i.id === item.id ? { ...i, stock: i.stock + qty } : i));
-    pushActivity("green", "Inventory restock received", item.item + " · +" + qty + " " + item.unit);
-    flash(item.item + " restocked by " + qty);
+    const status = role === "owner" ? "Approved" : "Pending";
+    const order = {
+      id: "APR-" + (105 + approvals.length),
+      type: "Purchase order",
+      title: item.item + " restock",
+      detail: qty + " " + item.unit + " · " + item.supplier,
+      amount: Number((qty * item.cost).toFixed(2)),
+      itemRef: item.id,
+      qty,
+      requestedBy: role === "owner" ? "Maya Rahman" : "Sam Rahman",
+      status,
+      time: "just now"
+    };
+    setApprovals(prev => [order, ...prev]);
+    pushActivity(status === "Approved" ? "green" : "blue", "Purchase order " + status.toLowerCase(), order.id + " · " + item.item);
+    flash(role === "owner" ? "Purchase order created · awaiting delivery" : "Purchase request sent to Owner");
+  };
+  const receiveOrder = (item, order) => {
+    setStock(prev => prev.map(i => i.id === item.id ? { ...i, stock: i.stock + Number(order.qty || 0) } : i));
+    setApprovals(prev => prev.map(a => a.id === order.id ? { ...a, status: "Received" } : a));
+    pushActivity("green", "Inventory delivery received", item.item + " · +" + order.qty + " " + item.unit);
+    flash(item.item + " received into stock");
   };
 
   return <>
@@ -540,7 +852,7 @@ function Inventory({ role, pushActivity, flash }) {
       eyebrow="Property supplies"
       title="Supplies & inventory"
       text={role === "owner" ? "Track stock value, par levels, suppliers and operating inventory across the property." : "Keep housekeeping, amenities and guest supplies above operational par levels."}
-      action={<button className="primary-btn" onClick={() => flash("Purchase order draft created")}><Plus size={16} /> New purchase order</button>}
+      action={<button className="ghost-btn" onClick={() => setActive("approvals")}><ShieldCheck size={16} /> Purchase requests</button>}
     />
 
     <section className="inventory-summary">
@@ -555,6 +867,7 @@ function Inventory({ role, pushActivity, flash }) {
       <div className="table-scroll"><table className="inventory-table"><thead><tr><th>Item</th><th>Category</th><th>On hand</th><th>Par level</th><th>Health</th>{role === "owner" && <><th>Unit cost</th><th>Stock value</th></>}<th>Supplier</th><th /></tr></thead><tbody>
         {stock.map(item => {
           const lowItem = item.stock < item.par;
+          const order = approvals.find(a => a.type === "Purchase order" && a.itemRef === item.id && ["Pending", "Approved"].includes(a.status));
           return <tr key={item.id}>
             <td><b>{item.item}</b><small>{item.unit}</small></td>
             <td>{item.category}</td>
@@ -563,11 +876,88 @@ function Inventory({ role, pushActivity, flash }) {
             <td><span className={"stock-health " + (lowItem ? "low" : "good")}><i />{lowItem ? "Below par" : "Healthy"}</span></td>
             {role === "owner" && <><td>{fmt(item.cost)}</td><td><b>{fmt(Math.round(item.stock * item.cost))}</b></td></>}
             <td>{item.supplier}</td>
-            <td>{lowItem ? <button className="row-action" onClick={() => reorder(item)}>Reorder</button> : <button className="icon-btn flat"><MoreHorizontal size={17} /></button>}</td>
+            <td>{order?.status === "Approved" ? <button className="row-action receive-action" onClick={() => receiveOrder(item, order)}>Receive stock</button> : order?.status === "Pending" ? <span className="order-waiting">Awaiting approval</span> : lowItem ? <button className="row-action" onClick={() => requestOrder(item)}>{role === "owner" ? "Create PO" : "Request order"}</button> : <button className="icon-btn flat"><MoreHorizontal size={17} /></button>}</td>
           </tr>;
         })}
       </tbody></table></div>
     </article>
+  </>;
+}
+
+function ApprovalCenter({ role, approvals, setApprovals, rateMultiplier, setRateMultiplier, metaPaused, setMetaPaused, pushActivity, flash }) {
+  const [draft, setDraft] = useState({ type: "Purchase order", title: "", detail: "", amount: "" });
+  const pending = approvals.filter(a => a.status === "Pending");
+  const myRequests = approvals.filter(a => a.requestedBy === "Sam Rahman" || role === "owner");
+
+  const decide = (item, status) => {
+    setApprovals(prev => prev.map(a => a.id === item.id ? { ...a, status } : a));
+    if (status === "Approved" && item.type === "Rate change") {
+      const match = item.title.match(/\+(\d+)%/);
+      if (match) setRateMultiplier(v => Number((v * (1 + Number(match[1]) / 100)).toFixed(3)));
+    }
+    if (status === "Approved" && item.type === "Marketing") {
+      if (item.title.toLowerCase().includes("pause meta")) setMetaPaused(true);
+      if (item.title.toLowerCase().includes("resume meta")) setMetaPaused(false);
+    }
+    pushActivity(status === "Approved" ? "green" : "amber", item.title + " " + status.toLowerCase(), item.id + " · " + item.requestedBy);
+    flash(item.id + " " + status.toLowerCase());
+  };
+
+  const submit = e => {
+    e.preventDefault();
+    if (!draft.title.trim()) return flash("Add a request title");
+    const item = {
+      id: "APR-" + (105 + approvals.length),
+      type: draft.type,
+      title: draft.title.trim(),
+      detail: draft.detail.trim() || "Manager request",
+      amount: draft.amount ? Number(draft.amount) : null,
+      requestedBy: "Sam Rahman",
+      status: "Pending",
+      time: "just now"
+    };
+    setApprovals(prev => [item, ...prev]);
+    setDraft({ type: "Purchase order", title: "", detail: "", amount: "" });
+    pushActivity("blue", "Approval request submitted", item.id + " · " + item.title);
+    flash("Request sent to Owner");
+  };
+
+  return <>
+    <PageHeader
+      eyebrow={role === "owner" ? "Owner governance" : "Manager requests"}
+      title={role === "owner" ? "Approval center" : "Requests & approvals"}
+      text={role === "owner" ? "Review exceptional spend, rate changes, refunds and operating requests before they affect the property." : "Submit actions outside your operating authority and track the Owner’s decision."}
+    />
+    <section className="approval-summary">
+      <div><span>Pending</span><b>{pending.length}</b><small>needs owner decision</small></div>
+      <div><span>Approved</span><b>{approvals.filter(a => a.status === "Approved").length}</b><small>completed decisions</small></div>
+      <div><span>Requested by you</span><b>{approvals.filter(a => a.requestedBy === "Sam Rahman").length}</b><small>manager requests</small></div>
+    </section>
+
+    <section className={"approval-layout " + (role === "manager" ? "with-form" : "")}>
+      <article className="panel approval-list-panel">
+        <div className="panel-head"><div><span className="panel-kicker">{role === "owner" ? "Decision queue" : "Request history"}</span><h3>{role === "owner" ? "Items needing review" : "Your submitted requests"}</h3></div><span className="instruction-count">{pending.length} pending</span></div>
+        <div className="approval-list">
+          {(role === "owner" ? approvals : myRequests).map(item => <div className="approval-item" key={item.id}>
+            <span className={"approval-type " + item.type.toLowerCase().replaceAll(" ","-")}>{item.type}</span>
+            <div className="approval-copy"><div><b>{item.title}</b><StatusDot status={item.status} /></div><p>{item.detail}</p><small>{item.id} · {item.requestedBy} · {item.time}</small></div>
+            {item.amount != null && <strong>{fmt(item.amount)}</strong>}
+            {role === "owner" && item.status === "Pending" ? <div className="approval-actions"><button className="ghost-btn" onClick={() => decide(item, "Rejected")}>Reject</button><button className="primary-btn" onClick={() => decide(item, "Approved")}><Check size={15} /> Approve</button></div> : <span className="approval-result">{item.status}</span>}
+          </div>)}
+        </div>
+      </article>
+
+      {role === "manager" && <aside className="panel request-form">
+        <span className="panel-kicker">New request</span><h3>Ask for Owner approval</h3><p>Use this for spend, refunds or changes beyond your assigned authority.</p>
+        <form onSubmit={submit}>
+          <label>Request type<select value={draft.type} onChange={e => setDraft({...draft,type:e.target.value})}><option>Purchase order</option><option>Expense</option><option>Maintenance</option><option>Rate change</option><option>Refund</option><option>Marketing</option></select></label>
+          <label>Title<input value={draft.title} onChange={e => setDraft({...draft,title:e.target.value})} placeholder="e.g. Weekend BAR +18%" /></label>
+          <label>Details<textarea value={draft.detail} onChange={e => setDraft({...draft,detail:e.target.value})} placeholder="Why is this needed?" /></label>
+          <label>Amount (optional)<div className="modal-money"><span>$</span><input type="number" min="0" value={draft.amount} onChange={e => setDraft({...draft,amount:e.target.value})} placeholder="0" /></div></label>
+          <button className="primary-btn" type="submit"><Send size={15} /> Submit request</button>
+        </form>
+      </aside>}
+    </section>
   </>;
 }
 
@@ -845,13 +1235,7 @@ function Marketing({ metaPaused, setMetaPaused, pushActivity, flash, setActive }
   </>;
 }
 
-function Operations({ activities, role, pushActivity, flash, setActive }) {
-  const [tasks, setTasks] = useState([
-    { id: 1, place: "Room 103", title: "Full turnover", team: "Housekeeping", due: "Due 14:15", status: "In progress" },
-    { id: 2, place: "Room 207", title: "HVAC inspection", team: "Maintenance", due: "Due 15:00", status: "Assigned" },
-    { id: 3, place: "Lobby", title: "Welcome setup — VIP", team: "Front desk", due: "Due 16:00", status: "Queued" },
-    { id: 4, place: "Room 108", title: "Extra towels requested", team: "Housekeeping", due: "Due 16:20", status: "New" }
-  ]);
+function Operations({ activities, role, pushActivity, flash, setActive, tasks, setTasks }) {
   const payments = [
     ["SP-1046", "Ava Garcia", "Direct Website", 1180, "Captured"],
     ["SP-1048", "Olivia Martin", "Booking.com", 684, "Secured"],
@@ -904,24 +1288,25 @@ function BookingEngine({ rooms, setRooms, bookings, setBookings, rateMultiplier,
   const rates = { "City Queen": 149, "Deluxe King": 189, "Sky Suite": 279 };
   const rate = Math.round(rates[form.type] * rateMultiplier);
   const total = rate * Number(form.nights || 1);
-  const available = rooms.filter(r => r.status === "Available" && r.type === form.type);
+  const physicalAvailable = rooms.filter(r => roomSellable(r) && r.type === form.type);
+  const heldInventory = bookings.filter(b => b.type === form.type && b.room === "Unassigned" && !["Cancelled", "Checked out"].includes(b.status)).length;
+  const availableCount = Math.max(0, physicalAvailable.length - heldInventory);
 
   const submit = e => {
     e.preventDefault();
     if (!form.guest.trim()) return flash("Add a guest name first");
-    const room = available[0];
-    if (!room) return flash("No demo rooms available in this room type");
+    if (availableCount < 1) return flash("No sellable inventory available in this room type");
     const id = "SP-" + (1050 + bookings.length);
-    const booking = { id, guest: form.guest, room: room.number, type: form.type, source: "Direct Website", checkIn: "Today", checkOut: form.nights + " nights", guests: Number(form.guests), total, status: "Confirmed" };
+    const nights = Number(form.nights || 1);
+    const booking = { id, guest: form.guest, room: "Unassigned", type: form.type, source: "Direct Website", checkIn: "Today", checkOut: frontDeskDays[nights] || "After Sep 29", guests: Number(form.guests), total, status: "Confirmed" };
     setBookings(prev => [booking, ...prev]);
-    setRooms(prev => prev.map(r => r.number === room.number ? { ...r, status: "Reserved" } : r));
-    pushActivity("green", "New direct booking confirmed", id + " · Room " + room.number + " · " + fmt(total));
+    pushActivity("green", "New direct booking confirmed", id + " · " + form.type + " · room assignment pending · " + fmt(total));
     setSuccess(booking);
     flash("Reservation " + id + " created");
   };
 
   return <>
-    <PageHeader eyebrow="Direct booking" title="A booking engine connected to live inventory." text="This guest-facing checkout writes directly into the same reservation and room state used by the dashboard." />
+    <PageHeader eyebrow="Direct booking" title="A booking engine connected to live inventory." text="Guest bookings reserve room-type inventory immediately, then enter the Front Desk assignment queue for operational room allocation." />
     <div className="booking-demo">
       <section className="guest-site">
         <div className="guest-nav"><div className="hotel-logo"><span>N</span><div><b>Northstar</b><small>Grand Hotel</small></div></div><div><span>Rooms</span><span>Dining</span><span>Experience</span><button>Book your stay</button></div></div>
@@ -931,14 +1316,14 @@ function BookingEngine({ rooms, setRooms, bookings, setBookings, rateMultiplier,
       </section>
 
       <aside className="checkout panel">
-        <div className="checkout-head"><span className="panel-kicker">Live demo checkout</span><h3>Create a direct reservation</h3><p>Submit it, then open Reservations or Rooms to see the dashboard update.</p></div>
-        {success ? <div className="booking-success"><span><CheckCircle2 size={30} /></span><h3>Reservation confirmed</h3><p>{success.guest} · Room {success.room}</p><div><b>{success.id}</b><b>{fmt(success.total)}</b></div><div className="success-actions"><button className="secondary-btn" onClick={() => setActive("reservations")}>View reservation <ArrowUpRight size={14} /></button><button className="ghost-btn" onClick={() => setActive("assistant")}><Sparkles size={14} /> Ask assistant</button></div><button className="text-link-btn" onClick={() => setSuccess(null)}>Create another booking</button></div> :
+        <div className="checkout-head"><span className="panel-kicker">Live demo checkout</span><h3>Create a direct reservation</h3><p>Submit it, then open Front Desk to assign a physical room and complete check-in.</p></div>
+        {success ? <div className="booking-success"><span><CheckCircle2 size={30} /></span><h3>Reservation confirmed</h3><p>{success.guest} · {success.type} · room assignment pending</p><div><b>{success.id}</b><b>{fmt(success.total)}</b></div><div className="success-actions"><button className="secondary-btn" onClick={() => setActive("reservations")}>View reservation <ArrowUpRight size={14} /></button><button className="ghost-btn" onClick={() => setActive("assistant")}><Sparkles size={14} /> Ask assistant</button></div><button className="text-link-btn" onClick={() => setSuccess(null)}>Create another booking</button></div> :
         <form onSubmit={submit}>
           <label>Guest name<input value={form.guest} onChange={e => setForm({ ...form, guest: e.target.value })} placeholder="e.g. Maya Thompson" /></label>
           <label>Email<input value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} placeholder="guest@example.com" type="email" /></label>
           <div className="form-row"><label>Room type<select value={form.type} onChange={e => setForm({ ...form, type: e.target.value })}><option>City Queen</option><option>Deluxe King</option><option>Sky Suite</option></select></label><label>Guests<select value={form.guests} onChange={e => setForm({ ...form, guests: e.target.value })}><option>1</option><option>2</option><option>3</option><option>4</option></select></label></div>
-          <label>Nights<input min="1" max="14" type="number" value={form.nights} onChange={e => setForm({ ...form, nights: e.target.value })} /></label>
-          <div className="availability-line"><span>{available.length} rooms available</span><b>{fmt(rate)} / night</b></div>
+          <label>Nights<input min="1" max="6" type="number" value={form.nights} onChange={e => setForm({ ...form, nights: e.target.value })} /></label>
+          <div className="availability-line"><span>{availableCount} rooms available</span><b>{fmt(rate)} / night</b></div>
           <div className="total-line"><span>Total stay</span><b>{fmt(total)}</b></div>
           <button className="primary-btn full" type="submit">Confirm demo booking <ArrowUpRight size={16} /></button>
           <small className="form-note"><CreditCard size={13} /> Payment is simulated for this portfolio prototype.</small>
@@ -948,11 +1333,26 @@ function BookingEngine({ rooms, setRooms, bookings, setBookings, rateMultiplier,
   </>;
 }
 
-function Assistant({ rooms, setRooms, bookings, stats, rateMultiplier, setRateMultiplier, metaPaused, setMetaPaused, pushActivity, flash, setActive }) {
+function Assistant({ rooms, setRooms, bookings, stats, rateMultiplier, setRateMultiplier, metaPaused, setMetaPaused, approvals, setApprovals, pushActivity, flash, setActive, role }) {
   const [messages, setMessages] = useState([
-    { role: "assistant", text: "I’m connected to reservations, room inventory, channel sync, marketing and property operations. Try a command or ask what needs attention." }
+    { role: "assistant", text: role === "owner" ? "I can operate property, pricing and marketing controls within the Owner role." : "I can operate daily property controls. Actions outside Manager authority are routed to the Owner for approval." }
   ]);
   const [input, setInput] = useState("");
+
+  const requestApproval = (type, title, detail, amount = null) => {
+    const existing = approvals.find(a => a.status === "Pending" && a.title === title && a.requestedBy === "Sam Rahman");
+    if (existing) return existing;
+    const item = {
+      id: "APR-" + (105 + approvals.length),
+      type, title, detail, amount,
+      requestedBy: "Sam Rahman",
+      status: "Pending",
+      time: "just now"
+    };
+    setApprovals(prev => [item, ...prev]);
+    pushActivity("blue", "Assistant submitted approval request", item.id + " · " + title);
+    return item;
+  };
 
   const act = raw => {
     const q = raw.trim();
@@ -966,87 +1366,112 @@ function Assistant({ rooms, setRooms, bookings, stats, rateMultiplier, setRateMu
     const roomNumber = roomNumberMatch?.[1];
     const room = roomNumber ? rooms.find(r => r.number === roomNumber) : null;
     const wantsMaintenance = /\b(block|blocked|maintenance|close|closed|out of service)\b/.test(lower);
-    const wantsReady = /\b(ready|available|release|released|open)\b/.test(lower);
+    const wantsReady = /\b(ready|available|release|released|open|inspected)\b/.test(lower);
     const wantsCleaning = /\b(cleaning|needs cleaning|dirty)\b/.test(lower);
     const rateMatch = lower.match(/(?:raise|increase).*(\d+)%/);
 
     if (roomNumber && !room) {
-      reply = "I can’t find Room " + roomNumber + " in this property, so I didn’t change inventory.";
+      reply = "I can’t find Room " + roomNumber + ", so I didn’t change property state.";
     } else if (room && wantsMaintenance) {
-      setRooms(prev => prev.map(r => r.number === roomNumber ? { ...r, status: "Maintenance" } : r));
-      pushActivity("amber", "Assistant blocked Room " + roomNumber, "Maintenance hold · inventory removed from channels");
-      reply = room.status === "Maintenance"
-        ? "Room " + roomNumber + " is already on maintenance hold. No change was needed."
-        : "Done. Room " + roomNumber + " is now on maintenance hold and has been removed from sellable inventory.";
+      if (room.maintenance !== "Clear") {
+        reply = "Room " + roomNumber + " already has a maintenance block. Its " + room.occupancy.toLowerCase() + " state was left unchanged.";
+      } else {
+        setRooms(prev => prev.map(r => r.number === roomNumber ? { ...r, maintenance: "Out of order" } : r));
+        pushActivity("amber", "Assistant blocked Room " + roomNumber, "Maintenance · occupancy preserved · removed from sellable inventory");
+        reply = "Done. Room " + roomNumber + " is Out of order for maintenance. I preserved its occupancy state (" + room.occupancy + ") and removed it from sellable inventory.";
+      }
     } else if (room && wantsReady) {
-      setRooms(prev => prev.map(r => r.number === roomNumber ? { ...r, status: "Available" } : r));
-      pushActivity("green", "Assistant marked Room " + roomNumber + " ready", "Available · inventory returned to channels");
-      reply = room.status === "Available"
-        ? "Room " + roomNumber + " is already marked ready and available. No change was needed."
-        : "Done. Room " + roomNumber + " is marked ready. Its status changed from " + room.status + " to Available and it is back in sellable inventory.";
+      if (room.housekeeping === "Clean") {
+        reply = "Room " + roomNumber + " is already housekeeping-ready. Occupancy remains " + room.occupancy + (room.maintenance === "Clear" ? "." : ", but a maintenance block still prevents sale.");
+      } else {
+        setRooms(prev => prev.map(r => r.number === roomNumber ? { ...r, housekeeping: "Clean" } : r));
+        pushActivity("green", "Assistant marked Room " + roomNumber + " ready", "Housekeeping Clean · occupancy preserved");
+        reply = "Done. Room " + roomNumber + " housekeeping is now Clean. Its occupancy remains " + room.occupancy + (room.maintenance === "Clear" && room.occupancy === "Vacant" ? ", so it is now sellable." : ".");
+      }
     } else if (room && wantsCleaning) {
-      setRooms(prev => prev.map(r => r.number === roomNumber ? { ...r, status: "Cleaning" } : r));
-      pushActivity("amber", "Assistant sent Room " + roomNumber + " to cleaning", "Housekeeping queue · not sellable");
-      reply = room.status === "Cleaning"
-        ? "Room " + roomNumber + " is already in the cleaning queue."
-        : "Room " + roomNumber + " is now marked Cleaning and temporarily removed from sellable inventory.";
+      setRooms(prev => prev.map(r => r.number === roomNumber ? { ...r, housekeeping: "Cleaning" } : r));
+      pushActivity("amber", "Assistant sent Room " + roomNumber + " to cleaning", "Housekeeping queue · occupancy preserved");
+      reply = "Room " + roomNumber + " is now in Cleaning. I preserved its " + room.occupancy.toLowerCase() + " state.";
     } else if (rateMatch) {
       const pct = Math.min(Number(rateMatch[1]), 30);
-      setRateMultiplier(v => Number((v * (1 + pct / 100)).toFixed(3)));
-      pushActivity("blue", "Assistant adjusted BAR rates", "+" + pct + "% · synchronized to connected channels");
-      reply = "Rates increased " + pct + "% across the demo BAR plan. Current ADR is now approximately " + fmt(Math.round(stats.adr * (1 + pct / 100))) + ".";
+      if (role === "manager" && pct > 10) {
+        const item = requestApproval("Rate change", "BAR +" + pct + "%", "Requested through Operations Assistant · Manager limit is 10%");
+        reply = "A " + pct + "% rate increase exceeds the Manager limit of 10%. I did not change rates; I submitted " + item.id + " to the Owner for approval.";
+      } else {
+        setRateMultiplier(v => Number((v * (1 + pct / 100)).toFixed(3)));
+        pushActivity("blue", "Assistant adjusted BAR rates", "+" + pct + "% · synchronized to connected channels");
+        reply = "Rates increased " + pct + "%. Current modeled ADR is approximately " + fmt(Math.round(stats.adr * (1 + pct / 100))) + ".";
+      }
     } else if (lower.includes("pause") && lower.includes("meta")) {
-      setMetaPaused(true);
-      pushActivity("violet", "Assistant paused Meta campaigns", "All Meta campaigns moved to paused");
-      reply = "Meta campaigns are paused. Google remains active and no reservation data was changed.";
+      if (role === "manager") {
+        const item = requestApproval("Marketing", "Pause Meta campaigns", "Requested through Operations Assistant · Owner-controlled marketing");
+        reply = "Marketing delivery is Owner-controlled. Meta remains " + (metaPaused ? "paused" : "active") + "; I submitted " + item.id + " for approval.";
+      } else {
+        setMetaPaused(true);
+        pushActivity("violet", "Assistant paused Meta campaigns", "Owner action · all Meta campaigns paused");
+        reply = "Meta campaigns are paused.";
+      }
     } else if ((lower.includes("resume") || lower.includes("start")) && lower.includes("meta")) {
-      setMetaPaused(false);
-      pushActivity("violet", "Assistant resumed Meta campaigns", "Campaign delivery re-enabled");
-      reply = "Meta campaigns are active again.";
+      if (role === "manager") {
+        const item = requestApproval("Marketing", "Resume Meta campaigns", "Requested through Operations Assistant · Owner-controlled marketing");
+        reply = "Marketing delivery is Owner-controlled. I submitted " + item.id + " for approval and made no campaign change.";
+      } else {
+        setMetaPaused(false);
+        pushActivity("violet", "Assistant resumed Meta campaigns", "Owner action · campaign delivery enabled");
+        reply = "Meta campaigns are active again.";
+      }
     } else if (lower.includes("sync")) {
       pushActivity("blue", "Assistant triggered channel sync", "5 channels acknowledged · no conflicts");
-      reply = "Channel reconciliation completed. Booking.com, Airbnb, Expedia, Agoda and Direct all match the hotel inventory.";
+      reply = "Channel reconciliation completed. Booking.com, Airbnb, Expedia, Agoda and Direct match the current sellable inventory.";
     } else if (lower.includes("arrival")) {
-      const arr = bookings.filter(b => b.checkIn === "Today");
-      reply = "There are " + arr.length + " arrivals today: " + arr.map(b => b.guest + " in " + b.room).join(", ") + ".";
+      const arr = bookings.filter(b => b.checkIn === "Today" && !["Cancelled","Checked out"].includes(b.status));
+      reply = "There are " + arr.length + " arrivals today: " + arr.map(b => b.guest + " · " + (b.room === "Unassigned" ? "room unassigned" : "Room " + b.room)).join(", ") + ".";
     } else if (lower.includes("occupancy")) {
-      reply = "Current modeled occupancy is " + stats.occupancy + "%. " + stats.available + " rooms remain available to sell.";
+      reply = "Current physical occupancy is " + stats.occupancy + "%. " + stats.available + " clean, unblocked rooms are sellable now.";
     } else if (lower.includes("revenue")) {
-      reply = "Today’s modeled gross room revenue is " + fmt(stats.revenue) + ". ADR is " + fmt(stats.adr) + " and RevPAR is " + fmt(stats.revpar) + ".";
+      reply = role === "owner"
+        ? "Today’s modeled gross room revenue is " + fmt(stats.revenue) + ". ADR is " + fmt(stats.adr) + " and RevPAR is " + fmt(stats.revpar) + "."
+        : "Revenue detail is Owner-level information. I can summarize arrivals, room readiness, maintenance and inventory for your shift.";
     } else if (lower.includes("booking") || lower.includes("reservation")) {
-      reply = "You have " + bookings.length + " reservations in the demo ledger. I can summarize arrivals, open the booking engine, or change room availability.";
+      const unassigned = bookings.filter(b => b.room === "Unassigned" && !["Cancelled","Checked out"].includes(b.status)).length;
+      reply = "There are " + bookings.length + " reservations in the demo ledger and " + unassigned + " currently waiting for room assignment. Open Front desk calendar for assignment and check-in controls.";
     } else if (lower.includes("what needs") || lower.includes("attention")) {
-      const maintenance = rooms.filter(r => r.status === "Maintenance").map(r => r.number);
-      const cleaning = rooms.filter(r => r.status === "Cleaning").map(r => r.number);
-      reply = "Priority check: " + (maintenance.length ? "maintenance in room " + maintenance.join(", ") + "; " : "") + (cleaning.length ? "cleaning pending in room " + cleaning.join(", ") + ". " : "") + "Channel sync is healthy. Meta Ads are " + (metaPaused ? "paused." : "active.");
+      const maintenance = rooms.filter(r => r.maintenance !== "Clear").map(r => r.number);
+      const cleaning = rooms.filter(r => r.housekeeping !== "Clean").map(r => r.number);
+      const pending = approvals.filter(a => a.status === "Pending").length;
+      reply = "Priority check: " + (maintenance.length ? "maintenance in room " + maintenance.join(", ") + "; " : "") + (cleaning.length ? "housekeeping pending in room " + cleaning.join(", ") + "; " : "") + pending + " approval item" + (pending === 1 ? "" : "s") + " pending.";
     } else {
-      reply = "I can operate this prototype. Try “show today’s arrivals”, “block room 207”, “mark room 103 ready”, “raise rates 8%”, “sync all channels”, or “pause Meta ads”.";
+      reply = role === "owner"
+        ? "Try “show today’s arrivals”, “block room 207”, “mark room 103 ready”, “raise rates 8%”, “sync all channels”, or “pause Meta ads”."
+        : "Try “show today’s arrivals”, “mark room 103 ready”, “raise rates 8%”, “raise rates 18%” to request approval, or “sync all channels”.";
     }
-    setTimeout(() => setMessages(m => [...m, { role: "assistant", text: reply }]), 350);
+    setTimeout(() => setMessages(m => [...m, { role: "assistant", text: reply }]), 250);
   };
 
-  const quick = ["What needs attention?", "Show today’s arrivals", "Raise rates 8%", "Sync all channels", metaPaused ? "Resume Meta ads" : "Pause Meta ads", "Mark room 103 ready"];
+  const quick = role === "owner"
+    ? ["What needs attention?", "Show today’s arrivals", "Raise rates 8%", "Sync all channels", metaPaused ? "Resume Meta ads" : "Pause Meta ads", "Mark room 103 ready"]
+    : ["What needs attention?", "Show today’s arrivals", "Mark room 103 ready", "Raise rates 8%", "Raise rates 18%", "Sync all channels"];
 
   return <div className="assistant-page">
-    <PageHeader eyebrow="Operations assistant" title="Operate the property with commands." text="Use natural language for approved room, reservation, channel and marketing actions while the dashboard reflects each change." action={<div className="assistant-online"><span /> 6 operational tools connected</div>} />
+    <PageHeader eyebrow="Operations assistant" title="Operate the property with commands." text={role === "owner" ? "Owner-authorized commands can operate property, rate and marketing controls." : "Manager commands operate daily property controls; exceptional actions are routed to Owner approval."} action={<div className="assistant-online"><span /> Permission-aware control layer</div>} />
     <div className="assistant-layout">
       <section className="assistant-chat panel">
-        <div className="chat-head"><div className="ai-orb"><Bot size={19} /></div><div><b>StayPilot Operations</b><span>Property controls · action enabled</span></div><span className="live-label"><i /> online</span></div>
+        <div className="chat-head"><div className="ai-orb"><Bot size={19} /></div><div><b>StayPilot Operations</b><span>{role === "owner" ? "Owner authority" : "Manager authority · approval routing enabled"}</span></div><span className="live-label"><i /> online</span></div>
         <div className="messages">{messages.map((m, i) => <div className={"message " + m.role} key={i}>{m.role === "assistant" && <span className="mini-orb"><Bot size={13} /></span>}<div>{m.text}</div></div>)}</div>
         <div className="quick-prompts">{quick.map(q => <button key={q} onClick={() => act(q)}>{q}</button>)}</div>
         <form className="composer" onSubmit={e => { e.preventDefault(); act(input); }}><input value={input} onChange={e => setInput(e.target.value)} placeholder="Ask or tell StayPilot what to do..." /><button><Send size={17} /></button></form>
       </section>
       <aside className="assistant-side">
-        <article className="panel command-card"><span className="panel-kicker">Live property state</span><h3>What the assistant can touch</h3>
+        <article className="panel command-card"><span className="panel-kicker">Current authority</span><h3>{role === "owner" ? "Owner control scope" : "Manager control scope"}</h3>
           <div className="tool-list">
-            <div><CalendarDays size={16} /><span>Reservations</span><b>{bookings.length}</b></div>
-            <div><BedDouble size={16} /><span>Room inventory</span><b>{stats.available} open</b></div>
-            <div><RefreshCw size={16} /><span>Channel sync</span><b>Healthy</b></div>
-            <div><Megaphone size={16} /><span>Meta Ads</span><b>{metaPaused ? "Paused" : "Live"}</b></div>
-            <div><DollarSign size={16} /><span>BAR multiplier</span><b>{rateMultiplier.toFixed(2)}x</b></div>
+            <div><CalendarDays size={16} /><span>Reservations & rooms</span><b>Operate</b></div>
+            <div><BedDouble size={16} /><span>Housekeeping / maintenance</span><b>Operate</b></div>
+            <div><RefreshCw size={16} /><span>Channel sync</span><b>Operate</b></div>
+            <div><DollarSign size={16} /><span>Rate changes</span><b>{role === "owner" ? "Full" : "≤ 10%"}</b></div>
+            <div><Megaphone size={16} /><span>Marketing</span><b>{role === "owner" ? "Operate" : "Approval"}</b></div>
           </div>
         </article>
-        <article className="panel assistant-tip"><span><Bot size={19} /></span><h3>Action, not just answers.</h3><p>Approved commands update operational state through the same control layer used by reservations, inventory, rates and marketing.</p><button className="secondary-btn" onClick={() => setActive("rooms")}>Open room board <ArrowUpRight size={14} /></button></article>
+        <article className="panel assistant-tip"><span><ShieldCheck size={19} /></span><h3>Permission-safe actions.</h3><p>Commands use the same room state and approval queue as the rest of StayPilot. Restricted actions are requested, not silently executed.</p><button className="secondary-btn" onClick={() => setActive(role === "owner" ? "approvals" : "frontdesk")}>{role === "owner" ? "Open approvals" : "Open front desk"} <ArrowUpRight size={14} /></button></article>
       </aside>
     </div>
   </div>;
