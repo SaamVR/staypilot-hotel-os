@@ -189,6 +189,22 @@ const seedTasks = [
   { id: 4, place: "Room 108", title: "Extra towels requested", team: "Housekeeping", due: "Due 16:20", status: "New" }
 ];
 
+const seedAutomationRules = [
+  { id: "AUTO-01", name: "Reservation intake", scope: "Operations", event: "reservation.created", trigger: "Reservation received", action: "Hold inventory → reconcile channels → confirmation", status: "Active", autonomy: "Auto", last: "2 min ago", runs: 184, failures: 0, minutesSaved: 552 },
+  { id: "AUTO-02", name: "Checkout turnover", scope: "Operations", event: "guest.checked_out", trigger: "Guest checked out", action: "Room → Dirty → housekeeping task → sellability update", status: "Active", autonomy: "Auto", last: "18 min ago", runs: 42, failures: 0, minutesSaved: 168 },
+  { id: "AUTO-03", name: "Pre-arrival message", scope: "Operations", event: "prearrival.due", trigger: "24h before arrival", action: "Send arrival instructions → track delivery", status: "Active", autonomy: "Auto", last: "42 min ago", runs: 67, failures: 1, minutesSaved: 134 },
+  { id: "AUTO-04", name: "Occupancy rate guard", scope: "Revenue", event: "occupancy.threshold", trigger: "Occupancy > 80%", action: "BAR +8% → policy check → apply or approve", status: "Active", autonomy: "Policy", last: "1 hr ago", runs: 12, failures: 0, minutesSaved: 36 },
+  { id: "AUTO-05", name: "Failed payment recovery", scope: "Finance", event: "payment.failed", trigger: "Payment authorization fails", action: "Retry → flag folio → create exception", status: "Paused", autonomy: "Auto", last: "Yesterday", runs: 9, failures: 1, minutesSaved: 27 },
+  { id: "AUTO-06", name: "Low-stock replenishment", scope: "Operations", event: "inventory.low_stock", trigger: "Item falls below par", action: "Calculate reorder → policy check → PO / approval", status: "Active", autonomy: "Policy", last: "Yesterday", runs: 8, failures: 0, minutesSaved: 32 }
+];
+
+const seedAutomationLogs = [
+  { id: 1, runId: "RUN-2818", ruleId: "AUTO-01", rule: "Reservation intake", event: "reservation.created", result: "Success", detail: "SP-1048 · Booking.com", steps: ["Inventory held", "Channel reconciliation recorded", "Confirmation recorded"], duration: 412, minutesSaved: 3, time: "2 min ago" },
+  { id: 2, runId: "RUN-2817", ruleId: "AUTO-03", rule: "Pre-arrival message", event: "prearrival.due", result: "Success", detail: "Olivia Martin · delivery recorded", steps: ["Arrival detected", "Instructions sent", "Delivery tracked"], duration: 286, minutesSaved: 2, time: "42 min ago" },
+  { id: 3, runId: "RUN-2816", ruleId: "AUTO-04", rule: "Occupancy rate guard", event: "occupancy.threshold", result: "Approval", detail: "APR-102 · BAR +18%", steps: ["Threshold crossed", "Policy checked", "Owner approval requested"], duration: 191, minutesSaved: 3, time: "1 hr ago" },
+  { id: 4, runId: "RUN-2815", ruleId: "AUTO-05", rule: "Failed payment recovery", event: "payment.failed", result: "Failed", detail: "Retry exhausted · operator alerted", steps: ["Authorization failed", "Retry attempted", "Exception raised"], duration: 734, minutesSaved: 3, time: "Yesterday" }
+];
+
 const defaultPolicy = {
   managerCanManageRooms: true,
   managerCanSyncChannels: true,
@@ -234,6 +250,9 @@ function App() {
   const [bookings, setBookings] = useState(() => load("sp-bookings", seedBookings));
   const [approvals, setApprovals] = useState(() => load("sp-approvals", seedApprovals));
   const [tasks, setTasks] = useState(() => load("sp-tasks", seedTasks));
+  const [stock, setStock] = useState(() => load("sp-stock", seedStock));
+  const [automationRules, setAutomationRules] = useState(() => load("sp-automations", seedAutomationRules));
+  const [automationLogs, setAutomationLogs] = useState(() => load("sp-automation-log", seedAutomationLogs));
   const [policy, setPolicy] = useState(() => load("sp-policy", defaultPolicy));
   const [activities, setActivities] = useState(() => load("sp-activities", initialActivities));
   const [rateMultiplier, setRateMultiplier] = useState(() => load("sp-rate", 1));
@@ -248,6 +267,9 @@ function App() {
   useEffect(() => localStorage.setItem("sp-bookings", JSON.stringify(bookings)), [bookings]);
   useEffect(() => localStorage.setItem("sp-approvals", JSON.stringify(approvals)), [approvals]);
   useEffect(() => localStorage.setItem("sp-tasks", JSON.stringify(tasks)), [tasks]);
+  useEffect(() => localStorage.setItem("sp-stock", JSON.stringify(stock)), [stock]);
+  useEffect(() => localStorage.setItem("sp-automations", JSON.stringify(automationRules)), [automationRules]);
+  useEffect(() => localStorage.setItem("sp-automation-log", JSON.stringify(automationLogs)), [automationLogs]);
   useEffect(() => localStorage.setItem("sp-policy", JSON.stringify(policy)), [policy]);
   useEffect(() => localStorage.setItem("sp-activities", JSON.stringify(activities)), [activities]);
   useEffect(() => localStorage.setItem("sp-rate", JSON.stringify(rateMultiplier)), [rateMultiplier]);
@@ -305,6 +327,145 @@ function App() {
     setTimeout(() => setNotice(""), 2600);
   };
 
+  const automationRuleFor = event => automationRules.find(rule => rule.event === event);
+
+  const recordAutomation = (ruleId, result, detail, steps = [], minutesSaved = 0) => {
+    const rule = automationRules.find(r => r.id === ruleId);
+    if (!rule) return;
+    const entry = {
+      id: Date.now(),
+      runId: "RUN-" + String(Date.now()).slice(-6),
+      ruleId,
+      rule: rule.name,
+      event: rule.event,
+      result,
+      detail,
+      steps,
+      duration: 140 + (Date.now() % 620),
+      minutesSaved,
+      time: "now"
+    };
+    setAutomationLogs(prev => [entry, ...prev].slice(0, 60));
+    setAutomationRules(prev => prev.map(r => r.id === ruleId ? {
+      ...r,
+      last: "now",
+      runs: Number(r.runs || 0) + 1,
+      failures: Number(r.failures || 0) + (result === "Failed" ? 1 : 0),
+      minutesSaved: Number(r.minutesSaved || 0) + Number(minutesSaved || 0)
+    } : r));
+    pushActivity(
+      result === "Failed" ? "amber" : result === "Approval" ? "blue" : "green",
+      rule.name + " · " + result.toLowerCase(),
+      detail,
+      "Automation",
+      "StayPilot automation"
+    );
+  };
+
+  const upsertSystemException = issue => {
+    const current = load("sp-exceptions", []);
+    if (current.some(x => x.id === issue.id && x.status === "Open")) return;
+    localStorage.setItem("sp-exceptions", JSON.stringify([issue, ...current].slice(0, 30)));
+  };
+
+  const emitHotelEvent = (event, payload = {}) => {
+    const rule = payload.ruleId ? automationRules.find(r => r.id === payload.ruleId) : automationRuleFor(event);
+    if (!rule) return { ok: false, reason: "No automation is mapped to " + event };
+    if (rule.status !== "Active") {
+      if (payload.manual) flash(rule.name + " is paused");
+      return { ok: false, reason: "Automation paused" };
+    }
+
+    if (event === "reservation.created") {
+      const booking = payload.booking || bookings[0];
+      if (!booking) return { ok: false, reason: "No reservation available" };
+      setBookings(prev => prev.map(b => b.id === booking.id ? { ...b, automationState: "Inventory held · confirmation recorded", channelSync: "Reconciled" } : b));
+      recordAutomation(rule.id, "Success", booking.id + " · " + booking.source, ["Room-type inventory held", "Channel inventory reconciliation recorded", "Guest confirmation recorded", "Arrival workflow created"], 3);
+      return { ok: true };
+    }
+
+    if (event === "guest.checked_out") {
+      const booking = payload.booking || bookings.find(b => b.status === "Checked out") || bookings.find(b => b.room && b.room !== "Unassigned");
+      const roomNumber = payload.roomNumber || booking?.room || rooms.find(r => r.occupancy === "Vacant" && r.housekeeping !== "Clean")?.number || "103";
+      setRooms(prev => prev.map(r => r.number === roomNumber ? { ...r, occupancy: "Vacant", housekeeping: "Dirty" } : r));
+      setTasks(prev => {
+        const exists = prev.some(t => t.place === "Room " + roomNumber && t.title === "Checkout turnover" && t.status !== "Done");
+        if (exists) return prev;
+        return [{ id: Date.now(), place: "Room " + roomNumber, title: "Checkout turnover", team: "Housekeeping", due: "Before next arrival", status: "New", automated: true }, ...prev];
+      });
+      recordAutomation(rule.id, "Success", (booking?.id || "Turnover") + " · Room " + roomNumber, ["Occupancy set Vacant", "Housekeeping set Dirty", "Turnover task created", "Sellability recalculated"], 4);
+      return { ok: true };
+    }
+
+    if (event === "prearrival.due") {
+      const booking = payload.booking || bookings.find(b => b.status === "Confirmed") || bookings[0];
+      if (!booking) return { ok: false, reason: "No upcoming arrival available" };
+      setBookings(prev => prev.map(b => b.id === booking.id ? { ...b, preArrivalStatus: "Sent", preArrivalAt: "now" } : b));
+      recordAutomation(rule.id, "Success", booking.guest + " · " + booking.id, ["Upcoming arrival detected", "Arrival instructions generated", "Delivery recorded", "Reply tracking opened"], 2);
+      return { ok: true };
+    }
+
+    if (event === "occupancy.threshold") {
+      const adjustment = Number(payload.adjustment || 8);
+      const policyLimit = Number(policy.managerRateLimit || 0);
+      if (rule.autonomy === "Suggest") {
+        recordAutomation(rule.id, "Success", "BAR +" + adjustment + "% suggested", ["Occupancy threshold evaluated", "Rate recommendation generated"], 2);
+        return { ok: true };
+      }
+      if (rule.autonomy === "Approval" || (rule.autonomy === "Policy" && adjustment > policyLimit)) {
+        const title = "Automation BAR +" + adjustment + "%";
+        const existing = approvals.find(a => a.status === "Pending" && a.type === "Rate change" && a.title === title);
+        if (!existing) {
+          const item = { id: "APR-" + (105 + approvals.length), type: "Rate change", title, detail: "Occupancy threshold · automation policy", amount: null, requestedBy: "StayPilot automation", status: "Pending", time: "just now" };
+          setApprovals(prev => [item, ...prev]);
+          recordAutomation(rule.id, "Approval", item.id + " · BAR +" + adjustment + "%", ["Occupancy threshold crossed", "Rate recommendation generated", "Authority policy checked", "Owner approval requested"], 3);
+        } else {
+          recordAutomation(rule.id, "Approval", existing.id + " · already awaiting Owner", ["Threshold crossed", "Existing approval reused"], 1);
+        }
+      } else {
+        setRateMultiplier(v => Number((v * (1 + adjustment / 100)).toFixed(3)));
+        recordAutomation(rule.id, "Success", "BAR +" + adjustment + "% applied within policy", ["Occupancy threshold crossed", "Policy checked", "Rate adjustment applied", "Channel rate synchronization recorded"], 3);
+      }
+      return { ok: true };
+    }
+
+    if (event === "payment.failed") {
+      const booking = payload.booking || bookings.find(b => b.status === "Confirmed") || bookings[0];
+      if (!booking) return { ok: false, reason: "No reservation available" };
+      setBookings(prev => prev.map(b => b.id === booking.id ? { ...b, paymentRisk: "Retry exhausted" } : b));
+      upsertSystemException({ id: "PAY-" + booking.id, type: "Payment", severity: "High", title: "Payment retry exhausted", detail: booking.id + " · " + booking.guest + " · authorization failed twice", route: "reservations", status: "Open" });
+      recordAutomation(rule.id, "Failed", booking.id + " · retry exhausted · exception raised", ["Authorization failure received", "Retry attempted", "Folio flagged payment-at-risk", "Front desk exception created"], 3);
+      return { ok: true };
+    }
+
+    if (event === "inventory.low_stock") {
+      const item = payload.item || stock.find(i => i.stock < i.par && !approvals.some(a => a.type === "Purchase order" && a.itemRef === i.id && ["Pending", "Approved"].includes(a.status)));
+      if (!item) {
+        recordAutomation(rule.id, "Success", "No unhandled low-stock item", ["Par levels checked", "No new purchase action required"], 1);
+        return { ok: true };
+      }
+      const qty = Math.max(item.par - item.stock, Math.ceil(item.par * .35));
+      const amount = Number((qty * item.cost).toFixed(2));
+      const requiresApproval = rule.autonomy === "Approval" || (rule.autonomy === "Policy" && amount > Number(policy.managerPurchaseLimit || 0));
+      const status = requiresApproval ? "Pending" : "Approved";
+      const order = {
+        id: "APR-" + (105 + approvals.length + Math.floor(Date.now() % 50)),
+        type: "Purchase order",
+        title: item.item + " automated restock",
+        detail: qty + " " + item.unit + " · " + item.supplier,
+        amount, itemRef: item.id, qty,
+        requestedBy: "StayPilot automation",
+        status,
+        time: "just now"
+      };
+      setApprovals(prev => [order, ...prev]);
+      recordAutomation(rule.id, requiresApproval ? "Approval" : "Success", order.id + " · " + item.item + " · " + fmt(amount), ["Below-par condition detected", "Reorder quantity calculated", "Spend policy checked", requiresApproval ? "Owner approval requested" : "Purchase order approved within policy"], 4);
+      return { ok: true };
+    }
+
+    return { ok: false, reason: "Unsupported automation event" };
+  };
+
   const nav = role === "owner" ? ownerNav : managerNav;
 
   const switchRole = nextRole => {
@@ -339,14 +500,18 @@ function App() {
     localStorage.removeItem("sp-policy");
     setApprovals(seedApprovals);
     setTasks(seedTasks);
+    setStock(seedStock);
+    setAutomationRules(seedAutomationRules);
+    setAutomationLogs(seedAutomationLogs);
     setPolicy(defaultPolicy);
     setActive("overview");
     flash("Demo data reset");
   };
 
   const pageProps = {
-    rooms, setRooms, bookings, setBookings, approvals, setApprovals, tasks, setTasks, policy, setPolicy, activities, setActivities,
-    rateMultiplier, setRateMultiplier, metaPaused, setMetaPaused,
+    rooms, setRooms, bookings, setBookings, approvals, setApprovals, tasks, setTasks, stock, setStock,
+    automationRules, setAutomationRules, automationLogs, setAutomationLogs, emitHotelEvent,
+    policy, setPolicy, activities, setActivities, rateMultiplier, setRateMultiplier, metaPaused, setMetaPaused,
     stats, pushActivity, flash, setActive, role
   };
 
@@ -1666,62 +1831,61 @@ function Assistant({ rooms, setRooms, bookings, stats, rateMultiplier, setRateMu
   </div>;
 }
 
-function AutomationCenter({ role, pushActivity, flash, policy }) {
-  const seedRules = [
-    { id: "AUTO-01", name: "Reservation intake", scope: "Operations", trigger: "Reservation received", action: "Hold room-type inventory → sync channels → confirmation", status: "Active", last: "2 min ago", runs: 184, failures: 0 },
-    { id: "AUTO-02", name: "Checkout turnover", scope: "Operations", trigger: "Guest checked out", action: "Room → Dirty → housekeeping task", status: "Active", last: "18 min ago", runs: 42, failures: 0 },
-    { id: "AUTO-03", name: "Pre-arrival message", scope: "Operations", trigger: "24h before arrival", action: "Send arrival instructions → track reply", status: "Active", last: "42 min ago", runs: 67, failures: 1 },
-    { id: "AUTO-04", name: "Occupancy rate guard", scope: "Revenue", trigger: "Occupancy > 80%", action: "Suggest BAR +8% → Owner approval if >10%", status: "Active", last: "1 hr ago", runs: 12, failures: 0 },
-    { id: "AUTO-05", name: "Failed payment recovery", scope: "Finance", trigger: "Payment authorization fails", action: "Retry once → notify front desk", status: "Paused", last: "Yesterday", runs: 9, failures: 1 },
-    { id: "AUTO-06", name: "Low-stock alert", scope: "Operations", trigger: "Item falls below par", action: "Create purchase request → notify manager", status: "Active", last: "Yesterday", runs: 8, failures: 0 }
-  ];
-  const [rules, setRules] = useState(() => load("sp-automations", seedRules));
-  const [logs, setLogs] = useState(() => load("sp-automation-log", [
-    { id:1, rule:"Reservation intake", result:"Success", detail:"SP-1048 · Booking.com", time:"2 min ago" },
-    { id:2, rule:"Pre-arrival message", result:"Success", detail:"Olivia Martin · delivered", time:"42 min ago" },
-    { id:3, rule:"Occupancy rate guard", result:"Approval", detail:"APR-102 · BAR +18%", time:"1 hr ago" },
-    { id:4, rule:"Failed payment recovery", result:"Failed", detail:"Retry exhausted · operator alerted", time:"Yesterday" }
-  ]));
-  useEffect(() => localStorage.setItem("sp-automations", JSON.stringify(rules)), [rules]);
-  useEffect(() => localStorage.setItem("sp-automation-log", JSON.stringify(logs)), [logs]);
+function AutomationCenter({ role, pushActivity, flash, policy, automationRules, setAutomationRules, automationLogs, emitHotelEvent }) {
+  const visibleRules = role === "owner" ? automationRules : automationRules.filter(r => r.scope === "Operations");
+  const visibleLogs = role === "owner" ? automationLogs : automationLogs.filter(log => {
+    const rule = automationRules.find(r => r.id === log.ruleId);
+    return rule?.scope === "Operations";
+  });
+  const minutesSaved = visibleRules.reduce((n, r) => n + Number(r.minutesSaved || 0), 0);
 
-  const visibleRules = role === "owner" ? rules : rules.filter(r => r.scope === "Operations");
   const toggle = rule => {
     if (role === "manager" && (!policy.managerCanOperateAutomations || rule.scope !== "Operations")) return flash("Owner permission required");
     const next = rule.status === "Active" ? "Paused" : "Active";
-    setRules(prev => prev.map(r => r.id === rule.id ? { ...r, status: next } : r));
+    setAutomationRules(prev => prev.map(r => r.id === rule.id ? { ...r, status: next } : r));
     pushActivity(next === "Active" ? "green" : "amber", rule.name + " " + next.toLowerCase(), rule.id + " · automation control", "Automation");
     flash(rule.name + " " + next.toLowerCase());
   };
+
+  const setAutonomy = (rule, autonomy) => {
+    if (role !== "owner") return flash("Only the Owner can change automation authority");
+    setAutomationRules(prev => prev.map(r => r.id === rule.id ? { ...r, autonomy } : r));
+    pushActivity("blue", rule.name + " authority updated", rule.id + " · " + autonomy, "Governance");
+    flash(rule.name + " authority: " + autonomy);
+  };
+
   const runNow = rule => {
     if (role === "manager" && !policy.managerCanOperateAutomations) return flash("Operational automation control is restricted by Owner policy");
     if (rule.status !== "Active") return flash("Enable the automation before running it");
-    const entry = { id: Date.now(), rule: rule.name, result: "Success", detail: "Manual demo run · " + (role === "owner" ? "Owner" : "Manager"), time: "now" };
-    setLogs(prev => [entry, ...prev].slice(0,30));
-    setRules(prev => prev.map(r => r.id === rule.id ? { ...r, last: "now", runs: r.runs + 1 } : r));
-    pushActivity("green", rule.name + " executed", "Manual demo run completed", "Automation");
-    flash(rule.name + " completed");
+    const result = emitHotelEvent(rule.event, { manual: true, ruleId: rule.id });
+    if (result?.ok) flash(rule.name + " executed against shared hotel state");
+    else if (result?.reason) flash(result.reason);
   };
 
   return <>
-    <PageHeader eyebrow="Automation" title="Property automation center" text={role === "owner" ? "Control operational, revenue and finance workflows with a visible execution history." : "Manage day-to-day operational automations within the Manager role."} />
+    <PageHeader eyebrow="Automation" title="Property automation center" text={role === "owner" ? "Run policy-aware hotel workflows against shared property state, with execution traces and human approvals where required." : "Operate day-to-day hotel automations within the authority configured by the Owner."} />
     <section className="automation-summary">
-      <div><span>Active rules</span><b>{visibleRules.filter(r=>r.status==="Active").length}</b><small>within your scope</small></div>
-      <div><span>Runs</span><b>{visibleRules.reduce((n,r)=>n+r.runs,0)}</b><small>recorded executions</small></div>
-      <div><span>Failures</span><b>{visibleRules.reduce((n,r)=>n+r.failures,0)}</b><small>require review</small></div>
-      <div><span>Permission model</span><b>{role === "owner" ? "Full" : "Operations"}</b><small>{role === "owner" ? "all scopes" : "role limited"}</small></div>
+      <div><span>Active rules</span><b>{visibleRules.filter(r=>r.status==="Active").length}</b><small>event-driven workflows</small></div>
+      <div><span>Runs</span><b>{visibleRules.reduce((n,r)=>n+Number(r.runs||0),0)}</b><small>recorded executions</small></div>
+      <div><span>Estimated time saved</span><b>{(minutesSaved / 60).toFixed(1)}h</b><small>{minutesSaved} staff minutes avoided</small></div>
+      <div><span>Failures</span><b>{visibleRules.reduce((n,r)=>n+Number(r.failures||0),0)}</b><small>surfaced for review</small></div>
     </section>
     <section className="automation-layout">
       <div className="automation-rule-list">
         {visibleRules.map(rule => <article className="panel automation-rule" key={rule.id}>
-          <div className="automation-rule-head"><div><span className="rule-scope">{rule.scope}</span><h3>{rule.name}</h3><small>{rule.id}</small></div><button className={"toggle-switch " + (rule.status === "Active" ? "on" : "")} onClick={() => toggle(rule)}><i /></button></div>
+          <div className="automation-rule-head"><div><span className="rule-scope">{rule.scope}</span><h3>{rule.name}</h3><small>{rule.id} · {rule.event}</small></div><button className={"toggle-switch " + (rule.status === "Active" ? "on" : "")} onClick={() => toggle(rule)}><i /></button></div>
           <div className="automation-flow"><div><span>IF</span><b>{rule.trigger}</b></div><ArrowUpRight size={16} /><div><span>THEN</span><b>{rule.action}</b></div></div>
-          <div className="automation-rule-foot"><span>Last run <b>{rule.last}</b></span><span>{rule.runs} runs · {rule.failures} failures</span><button className="row-action" onClick={() => runNow(rule)}>Run now</button></div>
+          <div className="automation-authority"><span>Autonomy</span>{role === "owner" ? <select value={rule.autonomy || "Auto"} onChange={e => setAutonomy(rule, e.target.value)}><option>Auto</option><option>Policy</option><option>Approval</option><option>Suggest</option></select> : <b>{rule.autonomy || "Auto"}</b>}</div>
+          <div className="automation-rule-foot"><span>Last run <b>{rule.last}</b></span><span>{rule.runs} runs · {rule.failures} failures</span><button className="row-action" onClick={() => runNow(rule)}>Run workflow</button></div>
         </article>)}
       </div>
       <aside className="panel automation-log-panel">
-        <div className="panel-head"><div><span className="panel-kicker">Execution history</span><h3>Recent runs</h3></div></div>
-        <div className="automation-log">{logs.slice(0,8).map(log => <div key={log.id}><span className={"automation-result " + log.result.toLowerCase()}><i />{log.result}</span><div><b>{log.rule}</b><small>{log.detail}</small></div><time>{log.time}</time></div>)}</div>
+        <div className="panel-head"><div><span className="panel-kicker">Execution history</span><h3>Real workflow traces</h3></div></div>
+        <div className="automation-log">{visibleLogs.slice(0,10).map(log => <div key={log.id}>
+          <span className={"automation-result " + String(log.result).toLowerCase()}><i />{log.result}</span>
+          <div><b>{log.rule}</b><small>{log.detail}</small>{log.steps?.length ? <small>{log.steps.join(" → ")}</small> : null}</div>
+          <time>{log.duration ? log.duration + " ms" : log.time}</time>
+        </div>)}</div>
       </aside>
     </section>
   </>;
