@@ -18,9 +18,13 @@ function createHarness({
   existingRun = null,
   room = { id:"room-204", number:"204", occupancy:"Occupied", housekeeping:"Clean", maintenance:"Clear" },
   failTaskOnce = false,
+  failOutboxOnce = false,
+  outboundQueued = 2,
 } = {}) {
   const calls = [];
   let taskFailuresRemaining = failTaskOnce ? 1 : 0;
+  let outboxFailuresRemaining = failOutboxOnce ? 1 : 0;
+  let runState = existingRun;
 
   const fetchMock = async (url, options = {}) => {
     const parsed = new URL(String(url));
@@ -33,9 +37,14 @@ function createHarness({
       return response(rule ? [rule] : []);
     }
     if (parsed.pathname.endsWith("/automation_runs") && method === "GET") {
-      return response(existingRun ? [existingRun] : []);
+      return response(runState ? [runState] : []);
     }
     if (parsed.pathname.endsWith("/automation_runs") && method === "POST") {
+      runState = {
+        id:runState?.id || "run-generated",
+        result:body.result,
+        created_at:"2026-09-24T00:00:00Z",
+      };
       return response([]);
     }
     if (parsed.pathname.endsWith("/tasks") && method === "POST") {
@@ -56,6 +65,13 @@ function createHarness({
     }
     if (parsed.pathname.endsWith("/rooms") && method === "PATCH") {
       return response(room ? [{ id:room.id, number:room.number }] : []);
+    }
+    if (parsed.pathname.endsWith("/rpc/enqueue_webhook_deliveries") && method === "POST") {
+      if (outboxFailuresRemaining > 0) {
+        outboxFailuresRemaining -= 1;
+        return response({ message:"temporary outbox outage" }, 503);
+      }
+      return response(outboundQueued);
     }
     if (parsed.pathname.endsWith("/rpc/finish_inbound_event") && method === "POST") {
       return response({ id:body.event_uuid, status:body.outcome });
@@ -114,6 +130,7 @@ function callsFor(calls, suffix, method = null) {
     const result = await processClaimedEvent(config, event());
     assert.equal(result.status, "completed");
     assert.equal(result.result, "Success");
+    assert.equal(result.outboundQueued, 2);
 
     const taskCalls = callsFor(calls, "/tasks", "POST");
     assert.equal(taskCalls.length, 1);
@@ -128,6 +145,7 @@ function callsFor(calls, suffix, method = null) {
     assert.match(runCalls[0].prefer, /merge-duplicates/);
 
     assert.equal(callsFor(calls, "/audit_events", "POST").length, 1);
+    assert.equal(callsFor(calls, "/rpc/enqueue_webhook_deliveries", "POST").length, 1);
     const finish = callsFor(calls, "/rpc/finish_inbound_event", "POST").at(-1);
     assert.equal(finish.body.outcome, "completed");
   });
@@ -275,6 +293,32 @@ function callsFor(calls, suffix, method = null) {
     assert.equal(result.error, "room_not_found");
     assert.equal(callsFor(calls, "/tasks", "POST").length, 0);
     assert.equal(callsFor(calls, "/rpc/finish_inbound_event", "POST").at(-1).body.outcome, "dead_letter");
+  });
+}
+
+// 10. A transient outbox failure retries delivery preparation without repeating hotel effects.
+{
+  const harness = createHarness({ rule:rule(), failOutboxOnce:true, outboundQueued:1 });
+  await withMockFetch(harness, async calls => {
+    const retryEvent = event({ event_id:"evt_outbox_retry_001" });
+
+    const first = await processClaimedEvent(config, retryEvent);
+    assert.equal(first.status, "retrying");
+    assert.equal(first.retryable, true);
+    assert.equal(callsFor(calls, "/tasks", "POST").length, 1);
+    assert.equal(callsFor(calls, "/automation_runs", "POST").length, 1);
+    assert.equal(callsFor(calls, "/automation_runs", "POST")[0].body.result, "Success");
+    assert.equal(callsFor(calls, "/rpc/enqueue_webhook_deliveries", "POST").length, 1);
+    assert.equal(callsFor(calls, "/rpc/finish_inbound_event", "POST").at(-1).body.outcome, "failed");
+
+    const second = await processClaimedEvent(config, { ...retryEvent, attempt_count:2 });
+    assert.equal(second.status, "completed");
+    assert.equal(second.duplicate, true);
+    assert.equal(second.outboundQueued, 1);
+    assert.equal(callsFor(calls, "/tasks", "POST").length, 1, "retry must not repeat the hotel task");
+    assert.equal(callsFor(calls, "/automation_runs", "POST").length, 1, "retry must preserve the terminal automation run");
+    assert.equal(callsFor(calls, "/rpc/enqueue_webhook_deliveries", "POST").length, 2);
+    assert.equal(callsFor(calls, "/rpc/finish_inbound_event", "POST").at(-1).body.outcome, "completed");
   });
 }
 

@@ -132,4 +132,17 @@ assert.match(workerModule, /resolution=merge-duplicates/i, "failed automation ru
 assert.match(workerModule, /findExistingRun/, "worker must check for an existing Event-ID run before mutation");
 assert.match(workerModule, /existing && existing\.result !== "Failed"/, "a prior Failed run must not suppress a retry");
 
+const outboxMigration = await readFile(
+  new URL("../supabase/migrations/20260924_003_webhook_outbox.sql", import.meta.url),
+  "utf8",
+);
+assert.match(outboxMigration, /webhook_deliveries_endpoint_event_uidx/i, "outbound deliveries need endpoint + Event-ID uniqueness");
+assert.match(outboxMigration, /on conflict \(hotel_id, endpoint_id, event_id\) do nothing/i, "outbox enqueue must be duplicate safe");
+assert.match(outboxMigration, /source_event\.event_type = any\(endpoint\.events\)/i, "outbox must honor endpoint event subscriptions");
+assert.match(outboxMigration, /endpoint\.status = 'Active'/i, "outbox must ignore inactive endpoints");
+assert.match(outboxMigration, /grant execute on function public\.enqueue_webhook_deliveries\(uuid\) to service_role/i, "outbox enqueue RPC must be service-role only");
+assert.match(workerModule, /enqueueOutboundDeliveries/, "worker must durably enqueue outbound deliveries");
+assert.match(workerModule, /completeWithOutbox/, "worker completion must include outbox persistence");
+assert.match(workerModule, /terminalRunRecorded/, "outbox retry must preserve terminal business results");
+
 console.log("StayPilot backend contract verification passed.");

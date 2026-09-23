@@ -250,6 +250,19 @@ async function finishEvent(config, eventId, outcome, errorMessage = null, retryD
   return data;
 }
 
+async function enqueueOutboundDeliveries(config, eventId) {
+  const { data } = await supabaseRpc(config, "enqueue_webhook_deliveries", {
+    event_uuid:eventId,
+  });
+  return Number(data) || 0;
+}
+
+async function completeWithOutbox(config, event) {
+  const outboundQueued = await enqueueOutboundDeliveries(config, event.id);
+  await finishEvent(config, event.id, "completed");
+  return outboundQueued;
+}
+
 async function executePlan(config, event, plan) {
   if (plan.kind === "create_task") {
     await createTask(config, event, plan);
@@ -299,6 +312,7 @@ export async function processClaimedEvent(config, event) {
   const started = Date.now();
   let rule = null;
   let plan = null;
+  let terminalRunRecorded = false;
   try {
     rule = await resolveActiveRule(config, event);
     if (!rule) {
@@ -308,8 +322,9 @@ export async function processClaimedEvent(config, event) {
 
     const existing = await findExistingRun(config, event, rule.id);
     if (existing && existing.result !== "Failed") {
-      await finishEvent(config, event.id, "completed");
-      return { eventId:event.event_id, status:"completed", duplicate:true, runId:existing.id };
+      terminalRunRecorded = true;
+      const outboundQueued = await completeWithOutbox(config, event);
+      return { eventId:event.event_id, status:"completed", duplicate:true, runId:existing.id, outboundQueued };
     }
 
     plan = planDomainEvent(event);
@@ -331,9 +346,10 @@ export async function processClaimedEvent(config, event) {
         steps:["Event claimed","Automation authority resolved: Suggest","No business mutation executed"],
         durationMs:Date.now() - started,
       });
+      terminalRunRecorded = true;
       await recordAudit(config, event, "Automation suggestion recorded", rule.name);
-      await finishEvent(config, event.id, "completed");
-      return { eventId:event.event_id, status:"completed", result:"Suppressed" };
+      const outboundQueued = await completeWithOutbox(config, event);
+      return { eventId:event.event_id, status:"completed", result:"Suppressed", outboundQueued };
     }
 
     if (rule.autonomy === "Approval") {
@@ -344,9 +360,10 @@ export async function processClaimedEvent(config, event) {
         steps:["Event claimed","Automation authority resolved: Approval","Approval request persisted"],
         durationMs:Date.now() - started,
       });
+      terminalRunRecorded = true;
       await recordAudit(config, event, "Automation approval requested", rule.name);
-      await finishEvent(config, event.id, "completed");
-      return { eventId:event.event_id, status:"completed", result:"Approval" };
+      const outboundQueued = await completeWithOutbox(config, event);
+      return { eventId:event.event_id, status:"completed", result:"Approval", outboundQueued };
     }
 
     await executePlan(config, event, plan);
@@ -357,13 +374,14 @@ export async function processClaimedEvent(config, event) {
       durationMs:Date.now() - started,
       minutesSaved:plan.minutesSaved,
     });
+    terminalRunRecorded = true;
     await recordAudit(config, event, "Automation executed", `${rule.name} · ${event.event_id}`);
-    await finishEvent(config, event.id, "completed");
-    return { eventId:event.event_id, status:"completed", result:"Success" };
+    const outboundQueued = await completeWithOutbox(config, event);
+    return { eventId:event.event_id, status:"completed", result:"Success", outboundQueued };
   } catch (rawError) {
     const error = classifyError(rawError);
     try {
-      if (rule) {
+      if (rule && !terminalRunRecorded) {
         await recordRun(config, event, rule, {
           result:"Failed",
           detail:`${error.code}: ${error.message}`,
