@@ -253,13 +253,13 @@ This confirms the browser prototype's pause → queue/defer → resume → repla
 Repository: SaamVR/Portfolio
 
 - backup branch: `backup/pre-staypilot-work2-20260923`
-- current Work #2 merge: `ba0d9eddb5c2edc86cfb98fdfd498e33b2cf5acb`
+- current Work #2 merge: `8db4c466cf8061b7f1a54e0b9e43e3e4b4dd3da3`
 - LeadFlow remains the immersive Work #1 page
 - StayPilot Work #2 handoff is responsive and light-mode aware
 - source CTA points to StayPilot repo
 - Cloudflare CTA points to canonical demo
 
-Portfolio Work #2 should display `Verified main · 12cb4d22`; synchronize the Portfolio repo if it still shows an older SHA.
+Portfolio Work #2 displays `Verified main · 12cb4d22` and is synchronized with the deployed application release.
 
 ## Deployment environment
 
