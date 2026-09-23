@@ -831,20 +831,26 @@ function Overview({ stats, activities, setActive, role, rooms, bookings, approva
     ...channelOrder.filter(name => sourceCounts[name]),
     ...Object.keys(sourceCounts).filter(name => !channelOrder.includes(name)).sort()
   ];
-  const derivedChannelData = orderedSources.map(name => ({
-    name,
-    value: activeBookings.length ? Math.round(sourceCounts[name] / activeBookings.length * 100) : 0
-  }));
-  const bookingChannelData = derivedChannelData.length ? derivedChannelData : [{ name:"No bookings", value:0 }];
+  const channelShares = activeBookings.length ? orderedSources.map((name, index) => {
+    const exact = sourceCounts[name] / activeBookings.length * 100;
+    return { name, index, value: Math.floor(exact), remainder: exact - Math.floor(exact) };
+  }) : [];
+  let percentagePoints = 100 - channelShares.reduce((sum, row) => sum + row.value, 0);
+  [...channelShares].sort((a,b) => b.remainder - a.remainder || a.index - b.index).forEach(row => {
+    if (percentagePoints <= 0) return;
+    channelShares[row.index].value += 1;
+    percentagePoints -= 1;
+  });
+  const bookingChannelData = channelShares.length ? channelShares.map(({ name, value }) => ({ name, value })) : [{ name:"No bookings", value:0 }];
   const directCount = sourceCounts.Direct || 0;
-  const directShare = activeBookings.length ? Math.round(directCount / activeBookings.length * 100) : 0;
+  const directShare = bookingChannelData.find(row => row.name === "Direct")?.value || 0;
   const otaExposure = Math.max(0, 100 - directShare);
   const directGoal = 50;
   const directGoalProgress = Math.min(100, Math.round((directShare / directGoal) * 100));
 
   const ownerKpis = [
     ["Occupancy", stats.occupancy + "%", "+6.8%", TrendingUp, "vs. last week"],
-    ["Gross revenue", fmt(stats.revenue), "+12.4%", DollarSign, "today"],
+    ["Gross booking value", fmt(stats.revenue), activeBookings.length + " stays", DollarSign, "active reservation total"],
     ["Operating expenses", fmt(mtdExpenses), Math.round(mtdExpenses / expenseBudget * 100) + "% budget", ReceiptText, "month to date"],
     ["Pending approvals", String(pendingApprovals), pendingApprovals ? "Review" : "Clear", ShieldCheck, "owner decision queue"]
   ];
@@ -1372,8 +1378,8 @@ function Inventory({ role, approvals, setApprovals, pushActivity, flash, setActi
   </>;
 }
 
-function ApprovalCenter({ role, approvals, setApprovals, rateMultiplier, setRateMultiplier, metaPaused, setMetaPaused, pushActivity, flash, bookings, setBookings, emitHotelEvent }) {
-  const [draft, setDraft] = useState({ type: "Purchase order", title: "", detail: "", amount: "", reservationRef: "" });
+function ApprovalCenter({ role, approvals, setApprovals, rateMultiplier, setRateMultiplier, metaPaused, setMetaPaused, pushActivity, flash, bookings, setBookings, tasks, setTasks, emitHotelEvent }) {
+  const [draft, setDraft] = useState({ type: "Expense", title: "", detail: "", amount: "", reservationRef: "" });
   const pending = approvals.filter(a => a.status === "Pending");
   const capturedForBooking = booking => Number(booking?.paid ?? (booking?.status === "Checked in" ? booking?.total : Math.round(Number(booking?.total || 0) * 0.2)));
   const refundableBookings = bookings.filter(booking => booking.status !== "Cancelled" && capturedForBooking(booking) > 0);
@@ -1396,6 +1402,33 @@ function ApprovalCenter({ role, approvals, setApprovals, rateMultiplier, setRate
         return { ...b, paid: Math.max(0, captured - Number(item.amount || 0)), lastRefund: Number(item.amount || 0) };
       }));
     }
+    if (status === "Approved" && item.type === "Expense") {
+      const ledger = load("sp-expenses", seedExpenses);
+      if (!ledger.some(row => row.approvalRef === item.id)) {
+        const row = {
+          id: "EX-APR-" + String(item.id).replace(/[^A-Za-z0-9]/g, "").slice(-8),
+          date: "Sep 23",
+          category: "Operations",
+          vendor: item.title,
+          note: item.detail || "Approved Manager expense",
+          amount: Number(item.amount || 0),
+          status: "Approved",
+          approvalRef: item.id
+        };
+        localStorage.setItem("sp-expenses", JSON.stringify([row, ...ledger]));
+      }
+    }
+    if (status === "Approved" && item.type === "Maintenance") {
+      setTasks(prev => prev.some(task => task.approvalRef === item.id) ? prev : [{
+        id: Date.now(),
+        place: "Property",
+        title: item.title,
+        team: "Maintenance",
+        due: "Approved request · schedule",
+        status: "New",
+        approvalRef: item.id
+      }, ...prev]);
+    }
     pushActivity(status === "Approved" ? "green" : "amber", item.title + " " + status.toLowerCase(), item.id + " · " + item.requestedBy);
     if (status === "Approved") emitHotelEvent("approval.approved", { item: { ...item, status: "Approved" } });
     flash(item.id + " " + status.toLowerCase());
@@ -1404,6 +1437,7 @@ function ApprovalCenter({ role, approvals, setApprovals, rateMultiplier, setRate
   const submit = e => {
     e.preventDefault();
     if (!draft.title.trim()) return flash("Add a request title");
+    if (draft.type === "Expense" && Number(draft.amount || 0) <= 0) return flash("Add an expense amount");
     if (draft.type === "Refund") {
       const reservation = bookings.find(b => b.id === draft.reservationRef);
       if (!reservation) return flash("Choose a reservation for the refund");
@@ -1424,7 +1458,7 @@ function ApprovalCenter({ role, approvals, setApprovals, rateMultiplier, setRate
       time: "just now"
     };
     setApprovals(prev => [item, ...prev]);
-    setDraft({ type: "Purchase order", title: "", detail: "", amount: "", reservationRef: "" });
+    setDraft({ type: "Expense", title: "", detail: "", amount: "", reservationRef: "" });
     pushActivity("blue", "Approval request submitted", item.id + " · " + item.title);
     flash("Request sent to Owner");
   };
@@ -1455,9 +1489,9 @@ function ApprovalCenter({ role, approvals, setApprovals, rateMultiplier, setRate
       </article>
 
       {role === "manager" && <aside className="panel request-form">
-        <span className="panel-kicker">New request</span><h3>Ask for Owner approval</h3><p>Use this for spend, refunds or changes beyond your assigned authority.</p>
+        <span className="panel-kicker">New request</span><h3>Ask for Owner approval</h3><p>Use this for expenses, maintenance, refunds or policy changes beyond your authority. Supply purchase orders are requested from Supplies & inventory.</p>
         <form onSubmit={submit}>
-          <label>Request type<select value={draft.type} onChange={e => setDraft({...draft,type:e.target.value,reservationRef:e.target.value === "Refund" ? draft.reservationRef : ""})}><option>Purchase order</option><option>Expense</option><option>Maintenance</option><option>Rate change</option><option>Refund</option><option>Marketing</option></select></label>
+          <label>Request type<select value={draft.type} onChange={e => setDraft({...draft,type:e.target.value,reservationRef:e.target.value === "Refund" ? draft.reservationRef : ""})}><option>Expense</option><option>Maintenance</option><option>Rate change</option><option>Refund</option><option>Marketing</option></select></label>
           {draft.type === "Refund" && <label>Reservation<select required value={draft.reservationRef} onChange={e => setDraft({...draft,reservationRef:e.target.value})}><option value="">Choose refundable reservation</option>{refundableBookings.map(booking => <option key={booking.id} value={booking.id}>{booking.id} · {booking.guest} · captured {fmt(capturedForBooking(booking))}</option>)}</select></label>}
           <label>Title<input value={draft.title} onChange={e => setDraft({...draft,title:e.target.value})} placeholder="e.g. Weekend BAR +18%" /></label>
           <label>Details<textarea value={draft.detail} onChange={e => setDraft({...draft,detail:e.target.value})} placeholder="Why is this needed?" /></label>
