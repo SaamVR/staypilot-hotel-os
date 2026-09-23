@@ -1217,7 +1217,7 @@ function NewReservation({ rooms, setRooms, bookings, setBookings, rateMultiplier
         {selectedRun.eventId && <div className="idempotency-proof-card"><ShieldCheck size={17}/><div><b>Idempotency protected</b><span>Re-delivery of Event ID {selectedRun.eventId} is suppressed after this recorded action.</span></div></div>}
         <div className="automation-inspector-foot">
           <button className="ghost-btn" onClick={copyRunId}><Copy size={15}/> Copy run ID</button>
-          {selectedRunTarget && <button className="primary-btn" onClick={() => { setSelectedRun(null); setActive(selectedRunTarget); }}>{selectedRunTarget === "exceptions" ? "Open exception center" : "Open approval center"} <ArrowUpRight size={15}/></button>}
+          {selectedRunTarget && <button className="primary-btn" onClick={() => { setSelectedRun(null); setActive(selectedRunTarget); }}>{selectedRunTarget === "exceptions" ? "Open exception center" : selectedRunTarget === "inbox" ? "Open guest inbox" : "Open approval center"} <ArrowUpRight size={15}/></button>}
         </div>
       </aside>
     </div>}
@@ -2146,7 +2146,7 @@ function AutomationCenter({ role, pushActivity, flash, policy, automationRules, 
   });
   const minutesSaved = roleRules.reduce((n, r) => n + Number(r.minutesSaved || 0), 0);
   const selectedRunRule = selectedRun ? automationRules.find(r => r.id === selectedRun.ruleId) : null;
-  const selectedRunTarget = selectedRun?.result === "Failed" ? "exceptions" : selectedRun?.result === "Approval" ? "approvals" : null;
+  const selectedRunTarget = selectedRun?.event === "review.negative" ? "inbox" : selectedRun?.result === "Failed" ? "exceptions" : selectedRun?.result === "Approval" ? "approvals" : null;
 
   const copyRunId = async () => {
     if (!selectedRun?.runId) return;
