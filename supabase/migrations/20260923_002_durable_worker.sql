@@ -19,16 +19,13 @@ alter table public.audit_events
   add column if not exists source_event_id text;
 
 create unique index if not exists tasks_hotel_source_event_uidx
-  on public.tasks(hotel_id, source_event_id)
-  where source_event_id is not null;
+  on public.tasks(hotel_id, source_event_id);
 
 create unique index if not exists approvals_hotel_source_event_uidx
-  on public.approvals(hotel_id, source_event_id)
-  where source_event_id is not null;
+  on public.approvals(hotel_id, source_event_id);
 
 create unique index if not exists audit_events_hotel_source_action_uidx
-  on public.audit_events(hotel_id, source_event_id, action)
-  where source_event_id is not null;
+  on public.audit_events(hotel_id, source_event_id, action);
 
 create index if not exists inbound_events_claim_idx
   on public.inbound_events(status, next_attempt_at, received_at)
