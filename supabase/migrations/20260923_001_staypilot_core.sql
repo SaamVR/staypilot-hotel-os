@@ -73,6 +73,7 @@ $$;
 
 revoke all on function private.is_hotel_member(uuid) from public;
 revoke all on function private.has_hotel_role(uuid, text[]) from public;
+grant usage on schema private to authenticated;
 grant execute on function private.is_hotel_member(uuid) to authenticated;
 grant execute on function private.has_hotel_role(uuid, text[]) to authenticated;
 
@@ -315,10 +316,16 @@ with check ((select private.has_hotel_role(hotel_id, array['owner','manager']::t
 create policy tasks_member_select on public.tasks
 for select to authenticated
 using ((select private.is_hotel_member(hotel_id)));
-create policy tasks_member_write on public.tasks
-for all to authenticated
+create policy tasks_manager_insert on public.tasks
+for insert to authenticated
+with check ((select private.has_hotel_role(hotel_id, array['owner','manager']::text[])));
+create policy tasks_member_update on public.tasks
+for update to authenticated
 using ((select private.is_hotel_member(hotel_id)))
 with check ((select private.is_hotel_member(hotel_id)));
+create policy tasks_manager_delete on public.tasks
+for delete to authenticated
+using ((select private.has_hotel_role(hotel_id, array['owner','manager']::text[])));
 
 create policy approvals_member_select on public.approvals
 for select to authenticated
