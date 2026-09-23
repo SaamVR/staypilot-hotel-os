@@ -128,11 +128,11 @@ const ownerNav = [
   ["expenses", "Expenses", ReceiptText, "Business"],
   ["channels", "Channel manager", RefreshCw, "Business"],
   ["marketing", "Marketing", Megaphone, "Business"],
-  ["automations", "Automation center", Zap, "System"],
-  ["audit", "Audit log", Clock3, "System"],
-  ["permissions", "Roles & permissions", ShieldCheck, "System"],
-  ["assistant", "Operations assistant", Bot, "System"],
-  ["connections", "Connections & API", Settings2, "System"]
+  ["automations", "Automation center", Zap, "Automation"],
+  ["audit", "Audit log", Clock3, "Automation"],
+  ["permissions", "Roles & permissions", ShieldCheck, "Automation"],
+  ["assistant", "Operations assistant", Bot, "Automation"],
+  ["connections", "Integration hub", Settings2, "Platform"]
 ];
 
 const managerNav = [
@@ -146,9 +146,9 @@ const managerNav = [
   ["instructions", "Team instructions", ClipboardList, "Property"],
   ["inventory", "Supplies & inventory", Boxes, "Resources"],
   ["approvals", "My requests", ShieldCheck, "Resources"],
-  ["automations", "Automation center", Zap, "System"],
-  ["audit", "Audit log", Clock3, "System"],
-  ["assistant", "Operations assistant", Bot, "System"]
+  ["automations", "Automation center", Zap, "Automation"],
+  ["audit", "Audit log", Clock3, "Automation"],
+  ["assistant", "Operations assistant", Bot, "Automation"]
 ];
 
 const seedStock = [
@@ -278,6 +278,7 @@ function App() {
   const [commandOpen, setCommandOpen] = useState(false);
   const [commandQuery, setCommandQuery] = useState("");
   const liveIndex = useRef(0);
+  const lowStockSeen = useRef(new Set(load("sp-lowstock-auto", [])));
 
   useEffect(() => localStorage.setItem("sp-rooms", JSON.stringify(rooms)), [rooms]);
   useEffect(() => localStorage.setItem("sp-bookings", JSON.stringify(bookings)), [bookings]);
@@ -541,6 +542,28 @@ function App() {
     return { ok: false, reason: "Unsupported automation event" };
   };
 
+  useEffect(() => {
+    const seen = lowStockSeen.current;
+    let changed = false;
+    stock.filter(item => item.stock < item.par).forEach(item => {
+      const openOrder = approvals.some(a => a.type === "Purchase order" && a.itemRef === item.id && ["Pending", "Approved"].includes(a.status));
+      if (openOrder || seen.has(item.id)) return;
+      const result = emitHotelEvent("inventory.low_stock", { item });
+      if (result?.ok) {
+        seen.add(item.id);
+        changed = true;
+      }
+    });
+    if (changed) localStorage.setItem("sp-lowstock-auto", JSON.stringify(Array.from(seen)));
+  }, [stock]);
+
+  useEffect(() => {
+    if (stats.occupancy < 80) return;
+    if (load("sp-occupancy-auto-fired", false)) return;
+    const result = emitHotelEvent("occupancy.threshold", { adjustment: 8 });
+    if (result?.ok) localStorage.setItem("sp-occupancy-auto-fired", JSON.stringify(true));
+  }, [stats.occupancy]);
+
   const nav = role === "owner" ? ownerNav : managerNav;
 
   const switchRole = nextRole => {
@@ -573,6 +596,9 @@ function App() {
     localStorage.removeItem("sp-automation-log");
     localStorage.removeItem("sp-exceptions");
     localStorage.removeItem("sp-policy");
+    localStorage.removeItem("sp-lowstock-auto");
+    localStorage.removeItem("sp-occupancy-auto-fired");
+    lowStockSeen.current = new Set();
     setApprovals(seedApprovals);
     setTasks(seedTasks);
     setStock(seedStock);
@@ -594,7 +620,7 @@ function App() {
     <aside className={"sidebar " + (mobileNav ? "sidebar-open" : "")}>
       <div className="brand">
         <div className="brand-mark"><Building2 size={20} /></div>
-        <div><strong>StayPilot</strong><span>Hotel OS</span></div>
+        <div><strong>StayPilot</strong><span>Automation OS</span></div>
       </div>
       <div className="property-card">
         <div className="property-thumb"><Moon size={18} /></div>
@@ -674,11 +700,11 @@ function App() {
   </div>;
 }
 
-function Overview({ stats, activities, setActive, role, rooms, approvals }) {
+function Overview({ stats, activities, setActive, role, rooms, approvals, stock, automationRules, automationLogs }) {
   const owner = role === "owner";
   const attentionRooms = rooms.filter(r => r.housekeeping !== "Clean" || r.maintenance !== "Clear");
   const readyRooms = rooms.filter(roomSellable).length;
-  const currentStock = load("sp-stock", seedStock);
+  const currentStock = stock || seedStock;
   const currentExpenses = load("sp-expenses", seedExpenses);
   const currentInstructions = load("sp-instructions", seedInstructions);
   const todayExpenses = currentExpenses.filter(e => e.date === "Sep 23");
@@ -692,6 +718,13 @@ function Overview({ stats, activities, setActive, role, rooms, approvals }) {
   const paidRoas = campaignSpend ? campaignRevenue / campaignSpend : 0;
   const pendingApprovals = approvals.filter(a => a.status === "Pending").length;
   const lowStock = currentStock.filter(i => i.stock < i.par).length;
+  const roleRules = (automationRules || []).filter(r => owner || r.scope === "Operations");
+  const automationRuns = roleRules.reduce((n,r) => n + Number(r.runs || 0), 0);
+  const automationMinutes = roleRules.reduce((n,r) => n + Number(r.minutesSaved || 0), 0);
+  const automationFailures = roleRules.reduce((n,r) => n + Number(r.failures || 0), 0);
+  const openSystemExceptions = load("sp-exceptions", seedSystemExceptions).filter(x => x.status === "Open" && (owner || x.type !== "Distribution")).length;
+  const humanAttention = attentionRooms.length + pendingApprovals + openSystemExceptions;
+
   const ownerKpis = [
     ["Occupancy", stats.occupancy + "%", "+6.8%", TrendingUp, "vs. last week"],
     ["Gross revenue", fmt(stats.revenue), "+12.4%", DollarSign, "today"],
@@ -709,13 +742,20 @@ function Overview({ stats, activities, setActive, role, rooms, approvals }) {
   return <>
     <PageHeader
       eyebrow={owner ? "Owner workspace · Wednesday, September 23" : "Manager workspace · Wednesday, September 23"}
-      title={owner ? "Business overview" : "Property operations"}
-      text={owner ? "Revenue, costs, inventory exposure and property performance in one owner-level view." : "Today’s arrivals, room readiness, maintenance and staff handoff priorities."}
+      title={owner ? "Property command center" : "Your shift"}
+      text={owner ? "Routine hotel work runs automatically. Start with the exceptions, approvals and outcomes that need an Owner decision." : "Work the exceptions StayPilot could not safely resolve on its own, then handle today’s arrivals and room readiness."}
       action={<div className="page-actions">
         {!owner && <button className="ghost-btn" onClick={() => setActive("instructions")}><ClipboardList size={16} /> Instructions</button>}
         <button className="primary-btn" onClick={() => setActive("newreservation")}><Plus size={16} /> New reservation</button>
       </div>}
     />
+
+    <section className="automation-summary owner-command-summary">
+      <div><span>Needs human attention</span><b>{humanAttention}</b><small>rooms, approvals & exceptions</small></div>
+      <div><span>Automation handled</span><b>{automationRuns}</b><small>recorded workflow executions</small></div>
+      <div><span>Estimated time saved</span><b>{(automationMinutes / 60).toFixed(1)}h</b><small>{automationMinutes} staff minutes</small></div>
+      <div><span>Automation failures</span><b>{automationFailures}</b><small>{automationFailures ? "visible for review" : "all clear"}</small></div>
+    </section>
 
     <section className="ops-pulse">
       <div className="ops-pulse-label"><span className="live-dot" /><div><b>{owner ? "Business pulse" : "Shift pulse"}</b><small>Live operational signals</small></div></div>
@@ -735,6 +775,8 @@ function Overview({ stats, activities, setActive, role, rooms, approvals }) {
 
     {owner ? <>
       <section className="owner-field-grid">
+        <button className="panel owner-field" onClick={() => setActive("automations")}><span className="field-icon"><Zap size={19} /></span><div><span>Automation engine</span><b>{automationRuns} actions</b><small>{(automationMinutes / 60).toFixed(1)}h estimated saved</small></div><ArrowUpRight size={15} /></button>
+        <button className="panel owner-field" onClick={() => setActive("exceptions")}><span className="field-icon"><Bell size={19} /></span><div><span>Exceptions</span><b>{openSystemExceptions} open</b><small>automation could not safely resolve</small></div><ArrowUpRight size={15} /></button>
         <button className="panel owner-field" onClick={() => setActive("approvals")}><span className="field-icon"><ShieldCheck size={19} /></span><div><span>Decision queue</span><b>{pendingApprovals} pending</b><small>rate, spend & refund approvals</small></div><ArrowUpRight size={15} /></button>
         <button className="panel owner-field" onClick={() => setActive("inventory")}><span className="field-icon"><Boxes size={19} /></span><div><span>Supply inventory value</span><b>{fmt(Math.round(stockValue))}</b><small>{lowStock} items need reorder</small></div><ArrowUpRight size={15} /></button>
         <button className="panel owner-field" onClick={() => setActive("channels")}><span className="field-icon"><RefreshCw size={19} /></span><div><span>OTA exposure</span><b>62%</b><small>38% direct share</small></div><ArrowUpRight size={15} /></button>
