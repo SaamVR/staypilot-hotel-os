@@ -71,5 +71,7 @@ export function getBackendConfig(env = {}) {
     supabaseKey,
     webhookSigningSecret: String(env.WEBHOOK_SIGNING_SECRET || ""),
     workerSecret: String(env.WORKER_SECRET || ""),
+    dispatcherSecret: String(env.DISPATCHER_SECRET || ""),
+    webhookAllowedHosts: String(env.WEBHOOK_ALLOWED_HOSTS || ""),
   };
 }
