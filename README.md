@@ -385,8 +385,11 @@ The repository now contains a **dormant server-side foundation** for the next co
 - Cloudflare Pages Functions for signed inbound event ingestion and backend health
 - HMAC/timestamp replay protection
 - CI security-contract verification
+- dormant durable worker with atomic SKIP LOCKED claims, retries/dead-lettering and stale-lease recovery
 
 No dedicated StayPilot Supabase project has been provisioned yet, and no unrelated Supabase project is reused. Until server secrets and a dedicated database are explicitly configured, `/api/events` fails closed and the verified portfolio frontend remains local-first.
+
+The staged `/api/worker-run` endpoint also fails closed until a separate server-only `WORKER_SECRET` and the dedicated database exist. Its current safe server-handler set is deliberately limited to non-financial hotel operations.
 
 See `docs/production-backend-foundation.md` for the staged rollout contract.
 

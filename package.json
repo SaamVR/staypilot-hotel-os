@@ -7,7 +7,7 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "verify:backend": "node scripts/verify-backend-contract.mjs && node --check functions/api/events.js && node --check functions/api/backend-health.js"
+    "verify:backend": "node scripts/verify-backend-contract.mjs && node --check functions/api/events.js && node --check functions/api/backend-health.js && node --check functions/api/worker-run.js && node --check functions/_shared/webhook.js && node --check functions/_shared/supabase.js && node --check functions/_shared/worker.js"
   },
   "dependencies": {
     "lucide-react": "^0.468.0",
