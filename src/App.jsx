@@ -403,10 +403,10 @@ function Overview({ stats, activities, setActive, role, rooms }) {
           <div className="chart-wrap">
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart data={revenueData}>
-                <defs><linearGradient id="rev" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#5b8cff" stopOpacity={0.36} /><stop offset="100%" stopColor="#5b8cff" stopOpacity={0} /></linearGradient></defs>
+                <defs><linearGradient id="rev" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#2f666c" stopOpacity={0.24} /><stop offset="100%" stopColor="#2f666c" stopOpacity={0} /></linearGradient></defs>
                 <CartesianGrid stroke="#e8edf5" vertical={false} /><XAxis dataKey="d" axisLine={false} tickLine={false} tick={{ fill: "#78859a", fontSize: 12 }} /><YAxis hide />
                 <Tooltip contentStyle={{ borderRadius: 12, border: "1px solid #e4eaf2", boxShadow: "0 10px 30px rgba(20,35,60,.12)" }} formatter={v => [fmt(v), "Revenue"]} />
-                <Area type="monotone" dataKey="revenue" stroke="#356df3" strokeWidth={2.5} fill="url(#rev)" />
+                <Area type="monotone" dataKey="revenue" stroke="#2f666c" strokeWidth={2.5} fill="url(#rev)" />
               </AreaChart>
             </ResponsiveContainer>
           </div>
@@ -417,7 +417,7 @@ function Overview({ stats, activities, setActive, role, rooms }) {
       <section className="bottom-grid">
         <article className="panel channel-panel">
           <div className="panel-head"><div><span className="panel-kicker">Distribution</span><h3>Booking channel mix</h3></div><button className="icon-btn flat"><MoreHorizontal size={18} /></button></div>
-          <div className="bar-wrap"><ResponsiveContainer width="100%" height="100%"><BarChart data={channelData} barSize={24}><CartesianGrid stroke="#edf1f7" vertical={false} /><XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: "#78859a", fontSize: 11 }} /><YAxis hide /><Tooltip cursor={{ fill: "#f5f7fb" }} contentStyle={{ borderRadius: 12, border: "1px solid #e4eaf2" }} formatter={v => [v + "%", "Share"]} /><Bar dataKey="value" fill="#5b8cff" radius={[6, 6, 0, 0]} /></BarChart></ResponsiveContainer></div>
+          <div className="bar-wrap"><ResponsiveContainer width="100%" height="100%"><BarChart data={channelData} barSize={24}><CartesianGrid stroke="#edf1f7" vertical={false} /><XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: "#78859a", fontSize: 11 }} /><YAxis hide /><Tooltip cursor={{ fill: "#f5f7fb" }} contentStyle={{ borderRadius: 12, border: "1px solid #e4eaf2" }} formatter={v => [v + "%", "Share"]} /><Bar dataKey="value" fill="#3b777d" radius={[4, 4, 0, 0]} /></BarChart></ResponsiveContainer></div>
         </article>
         <article className="panel snapshot">
           <div className="panel-head"><div><span className="panel-kicker">Owner metrics</span><h3>Property snapshot</h3></div></div>
