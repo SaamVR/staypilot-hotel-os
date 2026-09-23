@@ -7,7 +7,7 @@ import {
   SlidersHorizontal, Building2, Moon, UserRound, ExternalLink,
   MessageSquare, Sparkles, BarChart3, Home, Settings2, KeyRound,
   Eye, EyeOff, ShieldCheck, PlugZap, Copy, Check, Database, Zap,
-  Package, ReceiptText, ClipboardList, Boxes, UserCog, WalletCards
+  Package, ReceiptText, ClipboardList, Boxes, UserCog, WalletCards, Play
 } from "lucide-react";
 import {
   ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip,
@@ -565,6 +565,14 @@ function App() {
     if (result?.ok) localStorage.setItem("sp-occupancy-auto-fired", JSON.stringify(true));
   }, [stats.occupancy]);
 
+  useEffect(() => {
+    if (load("sp-prearrival-auto-fired", false)) return;
+    const upcoming = bookings.find(b => b.checkIn === "Sep 24" && b.status === "Confirmed" && b.preArrivalStatus !== "Sent");
+    if (!upcoming) return;
+    const result = emitHotelEvent("prearrival.due", { booking: upcoming });
+    if (result?.ok) localStorage.setItem("sp-prearrival-auto-fired", JSON.stringify(true));
+  }, [bookings]);
+
   const nav = role === "owner" ? ownerNav : managerNav;
 
   const switchRole = nextRole => {
@@ -628,6 +636,7 @@ function App() {
     localStorage.removeItem("sp-policy");
     localStorage.removeItem("sp-lowstock-auto");
     localStorage.removeItem("sp-occupancy-auto-fired");
+    localStorage.removeItem("sp-prearrival-auto-fired");
     lowStockSeen.current = new Set();
     setApprovals(seedApprovals);
     setTasks(seedTasks);
@@ -2040,12 +2049,22 @@ function Assistant({ rooms, setRooms, bookings, stats, rateMultiplier, setRateMu
 }
 
 function AutomationCenter({ role, pushActivity, flash, policy, automationRules, setAutomationRules, automationLogs, emitHotelEvent }) {
-  const visibleRules = role === "owner" ? automationRules : automationRules.filter(r => r.scope === "Operations");
-  const visibleLogs = role === "owner" ? automationLogs : automationLogs.filter(log => {
+  const [scopeFilter, setScopeFilter] = useState("All");
+  const [runFilter, setRunFilter] = useState("All");
+
+  const roleRules = role === "owner" ? automationRules : automationRules.filter(r => r.scope === "Operations");
+  const roleLogs = role === "owner" ? automationLogs : automationLogs.filter(log => {
     const rule = automationRules.find(r => r.id === log.ruleId);
     return rule?.scope === "Operations";
   });
-  const minutesSaved = visibleRules.reduce((n, r) => n + Number(r.minutesSaved || 0), 0);
+  const scopes = ["All", ...Array.from(new Set(roleRules.map(r => r.scope)))];
+  const visibleRules = scopeFilter === "All" ? roleRules : roleRules.filter(r => r.scope === scopeFilter);
+  const visibleLogs = roleLogs.filter(log => {
+    if (runFilter === "Failures") return log.result === "Failed";
+    if (runFilter === "Approvals") return log.result === "Approval";
+    return true;
+  });
+  const minutesSaved = roleRules.reduce((n, r) => n + Number(r.minutesSaved || 0), 0);
 
   const toggle = rule => {
     if (role === "manager" && (!policy.managerCanOperateAutomations || rule.scope !== "Operations")) return flash("Owner permission required");
@@ -2073,11 +2092,15 @@ function AutomationCenter({ role, pushActivity, flash, policy, automationRules, 
   return <>
     <PageHeader eyebrow="Automation" title="Property automation center" text={role === "owner" ? "Run policy-aware hotel workflows against shared property state, with execution traces and human approvals where required." : "Operate day-to-day hotel automations within the authority configured by the Owner."} />
     <section className="automation-summary">
-      <div><span>Active rules</span><b>{visibleRules.filter(r=>r.status==="Active").length}</b><small>event-driven workflows</small></div>
-      <div><span>Runs</span><b>{visibleRules.reduce((n,r)=>n+Number(r.runs||0),0)}</b><small>recorded executions</small></div>
+      <div><span>Active rules</span><b>{roleRules.filter(r=>r.status==="Active").length}</b><small>event-driven workflows</small></div>
+      <div><span>Runs</span><b>{roleRules.reduce((n,r)=>n+Number(r.runs||0),0)}</b><small>recorded executions</small></div>
       <div><span>Estimated time saved</span><b>{(minutesSaved / 60).toFixed(1)}h</b><small>{minutesSaved} staff minutes avoided</small></div>
-      <div><span>Failures</span><b>{visibleRules.reduce((n,r)=>n+Number(r.failures||0),0)}</b><small>surfaced for review</small></div>
+      <div><span>Failures</span><b>{roleRules.reduce((n,r)=>n+Number(r.failures||0),0)}</b><small>surfaced for review</small></div>
     </section>
+    <div className="automation-filter-bar">
+      <div><span>Workflow scope</span>{scopes.map(scope => <button key={scope} className={scopeFilter === scope ? "active" : ""} onClick={() => setScopeFilter(scope)}>{scope}</button>)}</div>
+      <div><span>Run history</span>{["All","Failures","Approvals"].map(filter => <button key={filter} className={runFilter === filter ? "active" : ""} onClick={() => setRunFilter(filter)}>{filter}</button>)}</div>
+    </div>
     <section className="automation-layout">
       <div className="automation-rule-list">
         {visibleRules.map(rule => <article className="panel automation-rule" key={rule.id}>
@@ -2247,7 +2270,7 @@ function PropertySetup({ policy, setPolicy, setActive, pushActivity, flash }) {
   </>;
 }
 
-function Connections({ pushActivity, flash }) {
+function Connections({ pushActivity, flash, emitHotelEvent }) {
   const providers = {
     booking: {
       name: "Booking.com", icon: "B", tone: "blue", type: "Channel", note: "Connectivity Partner API",
@@ -2391,6 +2414,7 @@ function Connections({ pushActivity, flash }) {
   ]));
   useEffect(() => localStorage.setItem("sp-webhook-endpoints", JSON.stringify(webhookEndpoints)), [webhookEndpoints]);
   useEffect(() => localStorage.setItem("sp-webhook-deliveries", JSON.stringify(webhookDeliveries)), [webhookDeliveries]);
+  const [testEvent, setTestEvent] = useState("guest.request_received");
   const provider = providers[selected];
   const webhook = "https://api.staypilot.demo/webhooks/" + selected;
 
@@ -2435,6 +2459,23 @@ function Connections({ pushActivity, flash }) {
     flash("Demo webhook replay recorded");
   };
 
+  const sendInboundTest = () => {
+    const payloads = {
+      "guest.request_received": { request:"Extra pillows requested" },
+      "review.negative": { guest:"Demo Guest", score:2 },
+      "payment.failed": {},
+      "prearrival.due": {},
+      "occupancy.threshold": { adjustment:12 }
+    };
+    const result = emitHotelEvent(testEvent, { ...(payloads[testEvent] || {}), manual:true });
+    if (result?.ok) {
+      pushActivity("blue", "Inbound test event accepted", testEvent + " · normalized by Integration Hub", "Automation", "StayPilot integration gateway");
+      flash("Inbound event executed: " + testEvent);
+    } else {
+      flash(result?.reason || "Inbound test could not execute");
+    }
+  };
+
   return <>
     <PageHeader
       eyebrow="System administration"
@@ -2455,6 +2496,22 @@ function Connections({ pushActivity, flash }) {
       <button className="panel owner-field" onClick={() => setSelected("quickbooks")}><span className="field-icon"><ReceiptText size={19} /></span><div><span>Accounting</span><b>QuickBooks / ledger</b><small>journals, tax, expenses & settlement</small></div><ArrowUpRight size={15} /></button>
       <button className="panel owner-field" onClick={() => setSelected("whatsapp")}><span className="field-icon"><MessageSquare size={19} /></span><div><span>Guest messaging</span><b>WhatsApp Business</b><small>confirmations, arrival & service flows</small></div><ArrowUpRight size={15} /></button>
       <button className="panel owner-field" onClick={() => setSelected("webhooks")}><span className="field-icon"><PlugZap size={19} /></span><div><span>Universal integration</span><b>Webhooks + REST</b><small>n8n / Make / Zapier optional</small></div><ArrowUpRight size={15} /></button>
+    </section>
+
+    <section className="panel inbound-event-lab">
+      <div className="panel-head"><div><span className="panel-kicker">Integration test console</span><h3>Send an inbound hotel event</h3><p>Simulate what a PMS, payment processor, guest channel or reputation provider would send. The event enters the same policy-aware automation engine as internal hotel actions.</p></div></div>
+      <div className="inbound-event-grid">
+        <label><span>Normalized event</span><select value={testEvent} onChange={e => setTestEvent(e.target.value)}>
+          <option value="guest.request_received">guest.request_received</option>
+          <option value="payment.failed">payment.failed</option>
+          <option value="review.negative">review.negative</option>
+          <option value="prearrival.due">prearrival.due</option>
+          <option value="occupancy.threshold">occupancy.threshold</option>
+        </select></label>
+        <div className="event-payload-preview"><span>Payload preview</span><code>{testEvent === "guest.request_received" ? '{ "request": "Extra pillows requested" }' : testEvent === "review.negative" ? '{ "guest": "Demo Guest", "score": 2 }' : testEvent === "occupancy.threshold" ? '{ "adjustment": 12 }' : '{ "demo": true }'}</code></div>
+        <button className="primary-btn" onClick={sendInboundTest}><Play size={15} /> Send test event</button>
+      </div>
+      <div className="mini-note"><ShieldCheck size={15} /> Test events are local portfolio simulations; production inbound webhooks require signature verification, tenant resolution, idempotency and queue-backed execution.</div>
     </section>
 
     <div className="connections-layout">
