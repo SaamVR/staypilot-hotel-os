@@ -126,7 +126,8 @@ async function createTask(config, event, plan) {
   let roomId = null;
   if (plan.roomNumber) {
     const room = await fetchRoom(config, event.hotel_id, plan.roomNumber);
-    roomId = room?.id || null;
+    if (!room) throw new WorkerExecutionError("room_not_found", { code:"room_not_found" });
+    roomId = room.id;
   }
 
   await supabaseRequest(
