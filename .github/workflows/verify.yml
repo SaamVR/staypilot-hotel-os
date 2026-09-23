@@ -7,7 +7,7 @@ on:
     branches: [main, "feature/**"]
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   build:
@@ -33,3 +33,12 @@ jobs:
           path: dist
           if-no-files-found: error
           retention-days: 3
+      - name: Stage Cloudflare deployment branch
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout -B cloudflare-deploy
+          git add -f dist
+          git commit -m "stage Cloudflare bundle for $GITHUB_SHA"
+          git push --force origin cloudflare-deploy
