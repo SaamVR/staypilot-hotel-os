@@ -16,6 +16,7 @@ function mapFailure(error) {
     : "";
 
   if (/hotel_slug_taken/i.test(detail)) return jsonResponse({ ok:false, error:"hotel_slug_taken" }, 409);
+  if (/hotel_already_exists/i.test(detail)) return jsonResponse({ ok:false, error:"hotel_already_exists" }, 409);
   if (/idempotency_key_reused/i.test(detail)) return jsonResponse({ ok:false, error:"idempotency_key_reused" }, 409);
   if (/invalid_(hotel_slug|hotel_name|timezone|currency|idempotency_key)/i.test(detail)) {
     return jsonResponse({ ok:false, error:detail.match(/invalid_[a-z_]+/i)?.[0] || "invalid_onboarding_request" }, 400);
