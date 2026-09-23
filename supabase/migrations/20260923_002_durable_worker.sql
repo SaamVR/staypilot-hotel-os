@@ -53,11 +53,17 @@ begin
     from public.inbound_events e
     join public.hotels h on h.id = e.hotel_id
     where (
-        (e.status in ('queued','failed') and e.next_attempt_at <= now())
+        (
+          e.status in ('queued','failed')
+          and e.next_attempt_at <= now()
+          and e.attempt_count < 5
+        )
         or
-        (e.status = 'processing' and e.locked_at < now() - interval '10 minutes')
+        (
+          e.status = 'processing'
+          and e.locked_at < now() - interval '10 minutes'
+        )
       )
-      and e.attempt_count < 5
       and h.automation_paused = false
     order by e.received_at asc
     for update of e skip locked
