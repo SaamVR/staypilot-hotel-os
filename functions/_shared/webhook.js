@@ -77,5 +77,6 @@ export function getBackendConfig(env = {}) {
     orchestratorSecret: String(env.ORCHESTRATOR_SECRET || ""),
     orchestratorEnabled: String(env.ORCHESTRATOR_ENABLED || "").trim().toLowerCase() === "true",
     tenantBootstrapEnabled: String(env.TENANT_BOOTSTRAP_ENABLED || "").trim().toLowerCase() === "true",
+    teamOnboardingEnabled: String(env.TEAM_ONBOARDING_ENABLED || "").trim().toLowerCase() === "true",
   };
 }

@@ -392,6 +392,7 @@ The repository now contains a **dormant server-side foundation** for the next co
 - audited delivery-only dead-letter redrive that never replays the source hotel action
 - staged server orchestration contract with a separate Cloudflare Cron Worker, bounded worker→dispatcher draining and double enable gates
 - secure tenant bootstrap contract: confirmed session → transactional hotel + first Owner + safe automation defaults + audit, idempotent and disabled by default
+- secure team onboarding contract: Owner-issued hashed single-use Manager/Staff invites, confirmed-email acceptance, revoke/expiry handling and Governance audit, disabled by default
 
 No dedicated StayPilot Supabase project has been provisioned yet, and no unrelated Supabase project is reused. Until server secrets and a dedicated database are explicitly configured, `/api/events` fails closed and the verified portfolio frontend remains local-first.
 
@@ -402,6 +403,8 @@ See `docs/production-backend-foundation.md` for the staged rollout contract.
 See `docs/server-orchestration-contract.md` for the scheduler/control-plane split and rollout gates.
 
 See `docs/tenant-bootstrap-contract.md` for the first-tenant transaction, idempotency and safe onboarding rollout gate.
+
+See `docs/team-onboarding-contract.md` for Owner invite, acceptance, revocation and membership authority rules.
 
 ## Production boundary
 
