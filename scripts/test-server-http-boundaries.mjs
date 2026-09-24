@@ -70,6 +70,7 @@ const fullEnv = {
   ORCHESTRATOR_SECRET:"server-http-boundary-orchestrator-secret",
   ORCHESTRATOR_ENABLED:"true",
   TENANT_BOOTSTRAP_ENABLED:"true",
+  TEAM_ONBOARDING_ENABLED:"true",
 };
 
 // 1. Health reports fail-closed dependencies truthfully when unconfigured.
@@ -90,6 +91,7 @@ const fullEnv = {
     scheduler_orchestration_authentication:false,
     scheduler_orchestration_enabled:false,
     tenant_bootstrap_enabled:false,
+    team_onboarding_enabled:false,
   });
 }
 
@@ -109,6 +111,7 @@ const fullEnv = {
     scheduler_orchestration_authentication:true,
     scheduler_orchestration_enabled:true,
     tenant_bootstrap_enabled:true,
+    team_onboarding_enabled:true,
   });
 }
 
