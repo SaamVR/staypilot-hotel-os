@@ -2585,7 +2585,7 @@ function Connections({ pushActivity, flash, emitHotelEvent }) {
   const [testEvent, setTestEvent] = useState("guest.request_received");
   const [testEventId, setTestEventId] = useState(() => "evt_demo_" + String(Date.now()).slice(-8));
   const [lastInboundOutcome, setLastInboundOutcome] = useState(null);
-  const [backendHealth, setBackendHealth] = useState({ state:"checking", configured:false, database:false, signature:false, worker:false, dispatcher:false, orchestratorAuth:false, orchestratorEnabled:false, tenantBootstrapEnabled:false, mode:"checking" });
+  const [backendHealth, setBackendHealth] = useState({ state:"checking", configured:false, database:false, signature:false, worker:false, dispatcher:false, orchestratorAuth:false, orchestratorEnabled:false, tenantBootstrapEnabled:false, teamOnboardingEnabled:false, mode:"checking" });
 
   const checkBackendHealth = async (notify = false) => {
     setBackendHealth(prev => ({ ...prev, state:"checking" }));
@@ -2603,12 +2603,13 @@ function Connections({ pushActivity, flash, emitHotelEvent }) {
         orchestratorAuth: Boolean(data.dependencies?.scheduler_orchestration_authentication),
         orchestratorEnabled: Boolean(data.dependencies?.scheduler_orchestration_enabled),
         tenantBootstrapEnabled: Boolean(data.dependencies?.tenant_bootstrap_enabled),
+        teamOnboardingEnabled: Boolean(data.dependencies?.team_onboarding_enabled),
         mode: data.mode || (data.configured ? "configured" : "not_configured")
       };
       setBackendHealth(next);
       if (notify) flash(next.configured ? "Production backend boundary is configured" : "Backend foundation is staged and fail-closed");
     } catch {
-      setBackendHealth({ state:"unavailable", configured:false, database:false, signature:false, worker:false, dispatcher:false, orchestratorAuth:false, orchestratorEnabled:false, tenantBootstrapEnabled:false, mode:"unavailable" });
+      setBackendHealth({ state:"unavailable", configured:false, database:false, signature:false, worker:false, dispatcher:false, orchestratorAuth:false, orchestratorEnabled:false, tenantBootstrapEnabled:false, teamOnboardingEnabled:false, mode:"unavailable" });
       if (notify) flash("Backend health endpoint is unavailable");
     }
   };
@@ -2721,7 +2722,7 @@ function Connections({ pushActivity, flash, emitHotelEvent }) {
 
     <section className={"panel backend-readiness-card " + backendHealth.state}>
       <div className="backend-readiness-head">
-        <div><span className="panel-kicker">Commercial backend boundary</span><h3>{backendHealth.state === "ready" ? "Server foundation configured" : backendHealth.state === "unavailable" ? "Server boundary unavailable" : backendHealth.state === "checking" ? "Checking server boundary…" : "Foundation staged · fail-closed"}</h3><p>{backendHealth.state === "ready" ? "Database, inbound HMAC and worker authentication are configured. Server authority still stays disabled until migrations and worker rollout are explicitly enabled." : backendHealth.state === "staged" ? "Pages Functions, RLS schema, durable Event-ID ingestion, worker/dispatcher contracts, verified webhook provisioning, scheduler orchestration and secure tenant bootstrap contracts are deployed, but no dedicated StayPilot Supabase project/secrets are configured yet." : backendHealth.state === "unavailable" ? "The portfolio remains local-first; no server event ingestion is being claimed." : "Verifying the deployed Pages Function without exposing credentials."}</p></div>
+        <div><span className="panel-kicker">Commercial backend boundary</span><h3>{backendHealth.state === "ready" ? "Server foundation configured" : backendHealth.state === "unavailable" ? "Server boundary unavailable" : backendHealth.state === "checking" ? "Checking server boundary…" : "Foundation staged · fail-closed"}</h3><p>{backendHealth.state === "ready" ? "Database, inbound HMAC and worker authentication are configured. Server authority still stays disabled until migrations and worker rollout are explicitly enabled." : backendHealth.state === "staged" ? "Pages Functions, RLS schema, durable Event-ID ingestion, worker/dispatcher contracts, verified webhook provisioning, scheduler orchestration and secure tenant bootstrap and team onboarding contracts are deployed, but no dedicated StayPilot Supabase project/secrets are configured yet." : backendHealth.state === "unavailable" ? "The portfolio remains local-first; no server event ingestion is being claimed." : "Verifying the deployed Pages Function without exposing credentials."}</p></div>
         <span className={"backend-state-pill " + backendHealth.state}>{backendHealth.state === "ready" ? "Configured" : backendHealth.state === "staged" ? "Fail-closed" : backendHealth.state === "checking" ? "Checking" : "Unavailable"}</span>
       </div>
       <div className="backend-readiness-grid">
@@ -2731,6 +2732,7 @@ function Connections({ pushActivity, flash, emitHotelEvent }) {
         <div><PlugZap size={17}/><span>Outbound dispatcher</span><b>{backendHealth.dispatcher ? "Verified + signed" : "Not configured"}</b></div>
         <div><RefreshCw size={17}/><span>Scheduled orchestration</span><b>{backendHealth.orchestratorAuth ? (backendHealth.orchestratorEnabled ? "Enabled" : "Staged · disabled") : "Not configured"}</b></div>
         <div><UserCog size={17}/><span>Tenant onboarding</span><b>{backendHealth.tenantBootstrapEnabled ? "Enabled" : "Staged · disabled"}</b></div>
+        <div><Users size={17}/><span>Team onboarding</span><b>{backendHealth.teamOnboardingEnabled ? "Enabled" : "Staged · disabled"}</b></div>
         <div><PlugZap size={17}/><span>Event ingestion</span><b>{backendHealth.configured ? "Ready for signed events" : "Rejects requests"}</b></div>
       </div>
       <div className="backend-readiness-foot"><small>Current frontend authority: browser-local demo state. Server authority is not enabled.</small><button className="ghost-btn" onClick={() => checkBackendHealth(true)}><RefreshCw size={15} className={backendHealth.state === "checking" ? "spin" : ""}/> Check server boundary</button></div>
