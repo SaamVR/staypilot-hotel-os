@@ -309,4 +309,28 @@ assert.match(teamAcceptEndpoint, /requireConfirmedEmailAccount/i, "acceptance mu
 assert.doesNotMatch(teamAcceptEndpoint, /input\?\.role|input\?\.hotel_id/i, "acceptance must not trust client role/hotel identity");
 assert.match(teamRevokeEndpoint, /requireHotelOwner/i, "invite revocation must require hotel Owner");
 
+const teamAccessMigration = await readFile(
+  new URL("../supabase/migrations/20260924090000_team_access_lifecycle.sql", import.meta.url),
+  "utf8",
+);
+const teamMembersEndpoint = await readFile(new URL("../functions/api/team/members.js", import.meta.url), "utf8");
+const teamRoleEndpoint = await readFile(new URL("../functions/api/team/members/role.js", import.meta.url), "utf8");
+const teamRemoveEndpoint = await readFile(new URL("../functions/api/team/members/remove.js", import.meta.url), "utf8");
+
+assert.match(teamAccessMigration, /perform private\.require_hotel_owner\(owner_uuid, hotel_uuid\)/i, "team membership mutations must require Owner");
+assert.match(teamAccessMigration, /safe_role not in \('manager','staff'\)/i, "generic team role changes must never accept Owner");
+assert.match(teamAccessMigration, /owner_uuid = member_user_uuid/i, "Owner must not mutate their own Owner authority through generic team route");
+assert.match(teamAccessMigration, /member\.role = 'owner'/i, "existing Owner memberships must be immutable through generic team route");
+assert.match(teamAccessMigration, /for update/i, "member mutations must lock current membership");
+assert.match(teamAccessMigration, /Team member role changed/i, "team role changes must audit");
+assert.match(teamAccessMigration, /Team member access removed/i, "team access removal must audit");
+assert.match(teamAccessMigration, /grant execute on function public\.list_hotel_members\(uuid,uuid\) to service_role/i, "member list RPC must be service-role only");
+assert.match(teamAccessMigration, /grant execute on function public\.update_team_member_role\(uuid,uuid,uuid,text\) to service_role/i, "member role RPC must be service-role only");
+assert.match(teamAccessMigration, /grant execute on function public\.remove_team_member\(uuid,uuid,uuid\) to service_role/i, "member removal RPC must be service-role only");
+assert.match(teamMembersEndpoint, /requireHotelOwner/i, "team roster endpoint must require Owner");
+assert.match(teamRoleEndpoint, /normalizeMemberRole/i, "team role endpoint must restrict mutable roles");
+assert.match(teamRoleEndpoint, /requireHotelOwner/i, "team role endpoint must require Owner");
+assert.match(teamRemoveEndpoint, /requireHotelOwner/i, "team removal endpoint must require Owner");
+assert.doesNotMatch(teamRoleEndpoint, /owner_uuid:input|new_role:input/i, "team role endpoint must use authenticated Owner and normalized role");
+
 console.log("StayPilot backend contract verification passed.");

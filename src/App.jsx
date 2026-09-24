@@ -2732,7 +2732,7 @@ function Connections({ pushActivity, flash, emitHotelEvent }) {
         <div><PlugZap size={17}/><span>Outbound dispatcher</span><b>{backendHealth.dispatcher ? "Verified + signed" : "Not configured"}</b></div>
         <div><RefreshCw size={17}/><span>Scheduled orchestration</span><b>{backendHealth.orchestratorAuth ? (backendHealth.orchestratorEnabled ? "Enabled" : "Staged · disabled") : "Not configured"}</b></div>
         <div><UserCog size={17}/><span>Tenant onboarding</span><b>{backendHealth.tenantBootstrapEnabled ? "Enabled" : "Staged · disabled"}</b></div>
-        <div><Users size={17}/><span>Team onboarding</span><b>{backendHealth.teamOnboardingEnabled ? "Enabled" : "Staged · disabled"}</b></div>
+        <div><Users size={17}/><span>Team onboarding & access</span><b>{backendHealth.teamOnboardingEnabled ? "Enabled" : "Staged · disabled"}</b></div>
         <div><PlugZap size={17}/><span>Event ingestion</span><b>{backendHealth.configured ? "Ready for signed events" : "Rejects requests"}</b></div>
       </div>
       <div className="backend-readiness-foot"><small>Current frontend authority: browser-local demo state. Server authority is not enabled.</small><button className="ghost-btn" onClick={() => checkBackendHealth(true)}><RefreshCw size={15} className={backendHealth.state === "checking" ? "spin" : ""}/> Check server boundary</button></div>

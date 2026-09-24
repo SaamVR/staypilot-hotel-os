@@ -83,3 +83,19 @@ export function requireConfirmedEmailAccount(user) {
   }
   return user;
 }
+
+export function normalizeMemberUserId(value) {
+  const id = String(value || "").trim();
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(id)) {
+    throw new TeamOnboardingError("invalid_member_user_id", 400, "invalid_member_user_id");
+  }
+  return id;
+}
+
+export function normalizeMemberRole(value) {
+  const role = String(value || "").trim().toLowerCase();
+  if (!["manager","staff"].includes(role)) {
+    throw new TeamOnboardingError("invalid_member_role", 400, "invalid_member_role");
+  }
+  return role;
+}
