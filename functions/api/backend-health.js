@@ -11,6 +11,7 @@ export async function onRequestGet({ env }) {
   const orchestratorAuthConfigured = Boolean(config.orchestratorSecret);
   const orchestratorEnabled = Boolean(config.orchestratorEnabled);
   const tenantBootstrapEnabled = Boolean(config.tenantBootstrapEnabled);
+  const teamOnboardingEnabled = Boolean(config.teamOnboardingEnabled);
   const configured = databaseConfigured && signingConfigured && workerConfigured;
 
   return jsonResponse({
@@ -28,6 +29,7 @@ export async function onRequestGet({ env }) {
       scheduler_orchestration_authentication: orchestratorAuthConfigured,
       scheduler_orchestration_enabled: orchestratorEnabled,
       tenant_bootstrap_enabled: tenantBootstrapEnabled,
+      team_onboarding_enabled: teamOnboardingEnabled,
     },
     note: configured
       ? (dispatcherAuthConfigured && outboundAllowlistConfigured && outboundSigningConfigured
