@@ -73,3 +73,13 @@ export function generateInviteToken(byteLength = 32) {
 export async function hashInviteToken(token) {
   return sha256Hex(normalizeInviteToken(token));
 }
+
+export function requireConfirmedEmailAccount(user) {
+  if (!user?.id) {
+    throw new TeamOnboardingError("authentication_required", 401, "authentication_required");
+  }
+  if (!user?.email || !user?.email_confirmed_at) {
+    throw new TeamOnboardingError("confirmed_email_required", 403, "confirmed_email_required");
+  }
+  return user;
+}
