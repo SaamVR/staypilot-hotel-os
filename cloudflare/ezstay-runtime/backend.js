@@ -10,6 +10,7 @@ const METHODS = [
   "retryDelivery",
   "advanceClock",
   "getRun",
+  "runScheduledWork",
 ];
 
 async function unavailable() {
