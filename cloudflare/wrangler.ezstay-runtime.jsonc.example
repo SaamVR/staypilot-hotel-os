@@ -2,6 +2,7 @@
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "ezstay-runtime",
   "main": "cloudflare/ezstay-runtime/worker.js",
+  "workers_dev": false,
   "compatibility_date": "2026-09-25",
   "compatibility_flags": ["nodejs_compat"],
   "vars": {
