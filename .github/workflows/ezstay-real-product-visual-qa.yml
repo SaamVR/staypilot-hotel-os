@@ -1,0 +1,50 @@
+name: EZStay Real Product Visual QA
+
+on:
+  push:
+    branches: ["feature/ezstay-real-product-pass"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  visual-qa:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+      - run: npm ci
+      - name: Install pinned browser QA runtime
+        run: |
+          npm install --no-save --package-lock=false playwright@1.63.0
+          npx playwright install --with-deps chromium
+      - name: Verify and build
+        run: |
+          npm run verify:backend
+          npm run verify:ezstay
+          (cd portfolio-backend && npm run verify)
+          npm run build
+      - name: Start built bundle
+        run: |
+          python3 -m http.server 4177 --directory dist >/tmp/ezstay-real-product.log 2>&1 &
+          for i in {1..20}; do
+            curl --fail --silent http://127.0.0.1:4177/ >/dev/null && exit 0
+            sleep 1
+          done
+          cat /tmp/ezstay-real-product.log
+          exit 1
+      - name: Run browser story
+        run: node scripts/run-ezstay-visual-qa.mjs
+      - name: Upload screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ezstay-real-product-qa
+          path: qa-artifacts
+          if-no-files-found: warn
+          retention-days: 7
