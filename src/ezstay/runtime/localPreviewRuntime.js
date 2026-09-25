@@ -1,5 +1,6 @@
 import {
   advanceDemoClock,
+  completeHousekeeping,
   resolveApproval,
   retryDelivery,
   runCheckout,
@@ -145,6 +146,10 @@ export function createLocalPreviewRuntime({ storage = globalThis.localStorage ||
 
     runCheckout(args) {
       return execute(runCheckout, args);
+    },
+
+    completeHousekeeping(args) {
+      return execute(completeHousekeeping, args);
     },
 
     runLowStock(args) {
