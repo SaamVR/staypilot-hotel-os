@@ -98,9 +98,10 @@ test("normal workspace chrome presents hotel context while sandbox disclosure st
 test("test scenarios live in the sandbox environment rather than the operational Command Center", () => {
   const command = readFileSync("src/ezstay/pages/CommandCenter.jsx", "utf8");
   const control = readFileSync("src/ezstay/components/DemoControl.jsx", "utf8");
+  const launcher = readFileSync("src/ezstay/components/ScenarioLauncher.jsx", "utf8");
   assert.doesNotMatch(command, /ScenarioLauncher/);
   assert.match(control, /ScenarioLauncher/);
-  assert.match(control, /Test automations/);
+  assert.match(launcher, /Test automations/);
 });
 
 test("public product copy no longer directs users to an internal Workflow Lab", () => {
