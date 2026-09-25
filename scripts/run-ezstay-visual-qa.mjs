@@ -142,7 +142,13 @@ try {
   await screenshot(mobilePage, "08-landing-mobile-390");
   await enterDemo(mobilePage);
   await screenshot(mobilePage, "09-workspace-mobile-390");
-  await expectVisible(mobilePage.getByText("Northstar Grand").first(), "property identity should remain visible on mobile");
+  await expectVisible(mobilePage.getByText("Northstar Grand · Operations command"), "property identity should remain visible on mobile");
+  for (const label of ["Command","Operations","Automations","Approvals","Activity","Integrations"]) {
+    await expectVisible(
+      mobilePage.locator(".primary-nav button").filter({ hasText:label }),
+      `mobile navigation label should remain visible: ${label}`
+    );
+  }
   await mobile.close();
 
   const tablet = await browser.newContext({ viewport:{ width:768, height:1024 }, deviceScaleFactor:1 });
