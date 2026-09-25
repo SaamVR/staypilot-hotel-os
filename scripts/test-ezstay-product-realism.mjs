@@ -75,3 +75,13 @@ test("workspace chrome contains no dead demo-information navigation", () => {
   assert.doesNotMatch(shell, /Demo property/);
   assert.match(shell, />Environment</);
 });
+
+test("public landing markets EZStay as a product while keeping the sandbox boundary explicit", () => {
+  const landing = readFileSync("src/ezstay/components/MarketingLanding.jsx", "utf8");
+  const entry = readFileSync("src/ezstay/domain/entry.js", "utf8");
+  assert.doesNotMatch(landing, /Working interactive prototype|interactive proofs|dashboard theatre|The demo proves|prototype<\/small>/i);
+  assert.match(landing, /Core workflows/);
+  assert.match(landing, /Connect the systems you already use/);
+  assert.match(entry, /Sample Northstar Grand workspace/);
+  assert.match(entry, /simulated/i);
+});
