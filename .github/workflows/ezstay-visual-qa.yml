@@ -2,7 +2,7 @@ name: EZStay Visual QA
 
 on:
   push:
-    branches: ["feature/ezstay-visual-qa"]
+    branches: ["v2/ezstay", "feature/ezstay-visual-qa"]
   workflow_dispatch:
 
 permissions:
