@@ -10,8 +10,8 @@ const scenarios = [
 export default function ScenarioLauncher({ onRun, busy }) {
   return <section className="scenario-section">
     <div className="section-heading">
-      <div><span className="eyebrow">Guided proof</span><h2>Run an automation, then inspect the evidence.</h2></div>
-      <p>Each scenario mutates the sandbox and opens the exact run record behind the result.</p>
+      <div><span className="eyebrow">Controlled workflows</span><h2>Run a workflow in this sandbox.</h2></div>
+      <p>These controls exercise the operating model deliberately. Each action changes workspace state and opens the exact execution record behind it.</p>
     </div>
     <div className="scenario-grid">
       {scenarios.map(({ key, icon:Icon, step, title, text }) => <article className="scenario-card" key={key}>

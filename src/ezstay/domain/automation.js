@@ -372,7 +372,11 @@ export function resolveApproval(state, command) {
       eventId:eventId(key),
       ruleKey:"approval-executor",
       result:"Success",
-      summary:approved ? "Approval accepted and the authorized draft action was created." : "Approval rejected; no purchase draft was created.",
+      summary:approved
+        ? approval.inventoryItemId
+          ? "Approval accepted and purchase draft created."
+          : "Approval accepted; authorized work may proceed."
+        : "Approval rejected; no authorized follow-up was created.",
       input:{ approvalId:approval.id, decision:command.decision },
       decision:{ autonomy:"Auto", reason:"The human decision is authoritative for the pending approval." },
       changes,
