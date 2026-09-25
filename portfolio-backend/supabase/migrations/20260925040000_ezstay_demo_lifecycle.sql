@@ -478,7 +478,6 @@ begin
   return result_session;
 end;
 $;
-
 revoke execute on function private.ezstay_active_demo_session(uuid) from public, anon, authenticated;
 revoke execute on function private.seed_ezstay_northstar_v2(uuid, uuid, timestamptz) from public, anon, authenticated;
 revoke execute on function private.create_ezstay_demo_session(uuid, timestamptz) from public, anon, authenticated;
