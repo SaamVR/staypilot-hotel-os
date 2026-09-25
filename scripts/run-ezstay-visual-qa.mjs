@@ -62,7 +62,7 @@ async function enterDemo(page) {
   await page.waitForURL(/#demo$/);
   await expectVisible(page.getByText("Interactive demo · Sample data"), "workspace demo disclosure should render");
   await expectVisible(page.getByText("Local preview sandbox"), "local-preview authority label should render");
-  await expectVisible(page.getByText("Run an automation, then inspect the evidence."), "guided proof section should render");
+  await expectVisible(page.getByText("Run a workflow in this sandbox."), "controlled workflow section should render");
 }
 
 async function runScenario(page, title) {
@@ -139,6 +139,18 @@ try {
   assert.match(await recoveryDelivery.innerText(), /Delivered/i);
   await screenshot(page, "07-activity-recovery");
 
+  await page.getByRole("button", { name:"Automations" }).click();
+  await expectVisible(page.getByRole("heading", { name:"Automations" }), "Automations page should render");
+  await expectVisible(page.getByText("Last run").first(), "automation cards should expose execution state");
+  await screenshot(page, "08-automations");
+
+  await page.getByRole("button", { name:"Integrations" }).click();
+  await expectVisible(page.getByRole("heading", { name:"Integrations" }), "Integrations page should render");
+  await expectVisible(page.getByText("Live credentials"), "integration boundary should be explicit");
+  await screenshot(page, "09-integrations");
+
+  await page.getByRole("button", { name:"Activity" }).click();
+
   await page.reload({ waitUntil:"networkidle" });
   await expectVisible(page.getByText("Interactive demo · Sample data"), "workspace should survive reload");
   await page.getByRole("button", { name:"Activity" }).click();
@@ -148,24 +160,24 @@ try {
 
   await page.getByRole("button", { name:"Demo control" }).first().click();
   await expectVisible(page.getByText("Advance +30 min"), "Demo control should expose deterministic clock");
-  await screenshot(page, "08-demo-control");
+  await screenshot(page, "10-demo-control");
   await page.getByRole("button", { name:"Reset workspace" }).click();
   await expectVisible(page.getByText("Workspace reset to a fresh Northstar demo generation."), "reset should confirm a fresh generation");
   await page.getByRole("button", { name:"Activity" }).click();
   const resetDelivery = page.locator(".list-row").filter({ hasText:"DLV-400" });
   await expectVisible(resetDelivery, "reset should restore the seeded failed delivery");
   assert.match(await resetDelivery.innerText(), /Dead-letter/i);
-  await screenshot(page, "09-reset-restored-state");
+  await screenshot(page, "11-reset-restored-state");
   await desktop.close();
 
   const mobile = await browser.newContext({ viewport:{ width:390, height:844 }, deviceScaleFactor:1 });
   const mobilePage = await mobile.newPage();
   captureErrors(mobilePage, "mobile-390");
   await openLanding(mobilePage);
-  await screenshot(mobilePage, "10-landing-mobile-390");
+  await screenshot(mobilePage, "12-landing-mobile-390");
   await enterDemo(mobilePage);
-  await screenshot(mobilePage, "11-workspace-mobile-390");
-  await expectVisible(mobilePage.getByText("Northstar Grand · Operations command"), "property identity should remain visible on mobile");
+  await screenshot(mobilePage, "13-workspace-mobile-390");
+  await expectVisible(mobilePage.getByText("Northstar Grand · Live operations"), "property identity should remain visible on mobile");
   for (const label of ["Command","Operations","Automations","Approvals","Activity","Integrations"]) {
     const navButton = mobilePage.locator(".primary-nav button").filter({ hasText:label });
     await expectVisible(
@@ -179,9 +191,9 @@ try {
   const tabletPage = await tablet.newPage();
   captureErrors(tabletPage, "tablet-768");
   await openLanding(tabletPage);
-  await screenshot(tabletPage, "12-landing-tablet-768");
+  await screenshot(tabletPage, "14-landing-tablet-768");
   await enterDemo(tabletPage);
-  await screenshot(tabletPage, "13-workspace-tablet-768");
+  await screenshot(tabletPage, "15-workspace-tablet-768");
   await tablet.close();
 
   assert.deepEqual(report.consoleErrors, [], "browser console must contain no errors");
