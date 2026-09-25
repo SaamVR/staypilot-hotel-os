@@ -23,5 +23,8 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
+          cache: "npm"
+      - name: Install locked dependencies
+        run: npm ci --ignore-scripts --no-audit --no-fund
       - name: Verify EZStay runtime contracts
         run: node --test scripts/test-ezstay-*.mjs
