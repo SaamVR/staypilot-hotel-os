@@ -59,3 +59,19 @@ test("Automations copy describes product controls rather than a portfolio showca
   assert.doesNotMatch(source, /portfolio proof|Showcase workflow/i);
   assert.match(source, /Last run/);
 });
+
+test("operations and environment use the hotel timezone instead of the viewer timezone", () => {
+  const operations = readFileSync("src/ezstay/pages/Operations.jsx", "utf8");
+  const control = readFileSync("src/ezstay/components/DemoControl.jsx", "utf8");
+  assert.match(operations, /formatHotelClock/);
+  assert.match(operations, /snapshot\.hotel\.timezone/);
+  assert.doesNotMatch(operations, /toLocaleTimeString/);
+  assert.match(control, /snapshot\?\.hotel\?\.timezone/);
+});
+
+test("workspace chrome contains no dead demo-information navigation", () => {
+  const shell = readFileSync("src/ezstay/components/AppShell.jsx", "utf8");
+  assert.doesNotMatch(shell, /About this demo/);
+  assert.doesNotMatch(shell, /Demo property/);
+  assert.match(shell, />Environment</);
+});
