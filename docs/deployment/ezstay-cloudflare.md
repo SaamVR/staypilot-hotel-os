@@ -98,7 +98,20 @@ The browser supplies a Turnstile token to Supabase anonymous sign-in. Supabase A
 
 ## Future Hyperdrive binding
 
-The private Worker will receive a Hyperdrive binding after the live backend gate. The connection identity must be the restricted `ezstay_runtime` database role, not the project owner, postgres superuser, or Supabase service role.
+The private Worker will receive a Hyperdrive binding after the live backend gate. The connection identity must be the restricted `ezstay_runtime` database role, not the project owner, postgres role, or Supabase service role.
+
+The migration creates `ezstay_runtime` with `LOGIN NOINHERIT` but deliberately does **not** commit a password. During live provisioning only:
+
+1. generate a strong unique password outside Git;
+2. set it with `ALTER ROLE ezstay_runtime WITH PASSWORD '<generated secret>'`;
+3. copy the exact Supabase connection endpoint/username format from the project's Connect dialog;
+4. create the Cloudflare Hyperdrive configuration with that connection string;
+5. bind the resulting Hyperdrive ID to the private runtime Worker;
+6. verify the connected database role is `ezstay_runtime` before enabling backend mode.
+
+For the Supabase shared pooler, a custom role username is `ezstay_runtime.<project-ref>`; do not construct the host or project reference from memory. The database password belongs only in the secure provisioning path / Cloudflare Hyperdrive configuration, never in browser variables or the repository.
+
+The Worker-side database adapter should use Cloudflare's recommended `pg` driver with Hyperdrive. That adapter remains disabled until the binding exists and the live migration/security gate passes.
 
 ## Production promotion
 
