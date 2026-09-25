@@ -321,6 +321,14 @@ begin
     raise exception 'authenticated_user_required';
   end if;
 
+  -- Serialize first-time session creation for this EZStay user. Separate
+  -- browser tabs may send different idempotency keys concurrently; this
+  -- lock makes the second caller re-check and reuse the active session
+  -- instead of racing the partial unique index.
+  perform pg_catalog.pg_advisory_xact_lock(
+    pg_catalog.hashtextextended('ezstay-demo-session:' || auth_user_id::text, 0)
+  );
+
   existing_session := private.ezstay_active_demo_session(auth_user_id);
   if existing_session.id is not null then
     return existing_session;
