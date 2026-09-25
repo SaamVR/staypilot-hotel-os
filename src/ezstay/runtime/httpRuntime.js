@@ -29,14 +29,21 @@ async function parseResponse(response) {
   return body;
 }
 
-export function createHttpRuntime({ fetchImpl = globalThis.fetch } = {}) {
+export function createHttpRuntime({ fetchImpl = globalThis.fetch, getAccessToken = async () => null } = {}) {
   if (typeof fetchImpl !== "function") throw new Error("fetch_required");
+
+  async function requestHeaders(base = {}) {
+    const headers = { ...base };
+    const accessToken = await getAccessToken();
+    if (accessToken) headers.authorization = `Bearer ${accessToken}`;
+    return headers;
+  }
 
   async function get(url) {
     return parseResponse(await fetchImpl(url, {
       method:"GET",
       cache:"no-store",
-      headers:{ accept:"application/json" },
+      headers:await requestHeaders({ accept:"application/json" }),
     }));
   }
 
@@ -45,11 +52,11 @@ export function createHttpRuntime({ fetchImpl = globalThis.fetch } = {}) {
     return parseResponse(await fetchImpl(url, {
       method:"POST",
       cache:"no-store",
-      headers:{
+      headers:await requestHeaders({
         "content-type":"application/json",
         accept:"application/json",
         "Idempotency-Key":idempotencyKey,
-      },
+      }),
       body:JSON.stringify(body),
     }));
   }
