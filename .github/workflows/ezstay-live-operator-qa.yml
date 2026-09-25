@@ -1,0 +1,37 @@
+name: EZStay Live Operator QA
+
+on:
+  push:
+    branches: ["feature/ezstay-live-operator-qa"]
+
+permissions:
+  contents: read
+
+jobs:
+  live-qa:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+      - run: npm ci
+      - name: Install pinned browser QA runtime
+        run: |
+          npm install --no-save --package-lock=false playwright@1.63.0
+          npx playwright install --with-deps chromium
+      - name: Run current product story against live production
+        env:
+          EZSTAY_QA_URL: https://ezstay.pages.dev
+          EZSTAY_QA_OUT: qa-artifacts
+        run: node scripts/run-ezstay-visual-qa.mjs
+      - name: Upload live evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ezstay-live-operator-qa
+          path: qa-artifacts
+          if-no-files-found: warn
+          retention-days: 7
