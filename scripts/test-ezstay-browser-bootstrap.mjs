@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { selectEzstayRuntimeMode } from "../src/ezstay/runtime/bootstrap.js";
+import { createBackendSandboxRuntime, selectEzstayRuntimeMode } from "../src/ezstay/runtime/bootstrap.js";
 import { createHttpRuntime } from "../src/ezstay/runtime/httpRuntime.js";
 
 test("browser runtime stays local unless backend health is fully configured", () => {
@@ -35,4 +35,45 @@ test("HTTP runtime fails closed when backend auth token is unavailable", async (
   });
   await assert.rejects(() => runtime.getSession(), /backend_authentication_required/);
   assert.equal(called, false);
+});
+
+test("configured backend runtime is built only after anonymous Auth succeeds", async () => {
+  const calls = [];
+  const auth = {
+    async ensureAnonymousSession({ captchaToken }) {
+      calls.push(["ensure", captchaToken]);
+      return { access_token:"access_1", user:{ is_anonymous:true } };
+    },
+    async getAccessToken() {
+      calls.push(["token"]);
+      return "access_1";
+    },
+  };
+  const runtime = { kind:"http" };
+  const result = await createBackendSandboxRuntime({
+    config:{
+      mode:"configured",
+      supabaseUrl:"https://project.supabase.co",
+      supabasePublishableKey:"publishable",
+    },
+    captchaToken:"turnstile_1",
+    createAuthImpl:() => auth,
+    createHttpRuntimeImpl:options => {
+      assert.equal(typeof options.getAccessToken, "function");
+      return runtime;
+    },
+  });
+  assert.equal(result.runtime, runtime);
+  assert.equal(result.auth, auth);
+  assert.deepEqual(calls, [["ensure", "turnstile_1"]]);
+});
+
+test("backend runtime helper fails closed for incomplete public config", async () => {
+  await assert.rejects(
+    () => createBackendSandboxRuntime({
+      config:{ mode:"not_configured" },
+      captchaToken:"turnstile_1",
+    }),
+    /backend_not_configured/
+  );
 });
