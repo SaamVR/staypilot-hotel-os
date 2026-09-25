@@ -85,3 +85,25 @@ test("public landing markets EZStay as a product while keeping the sandbox bound
   assert.match(entry, /Sample Northstar Grand workspace/);
   assert.match(entry, /simulated/i);
 });
+
+
+test("normal workspace chrome presents hotel context while sandbox disclosure stays behind environment controls", () => {
+  const shell = readFileSync("src/ezstay/components/AppShell.jsx", "utf8");
+  assert.match(shell, /formatHotelClock/);
+  assert.match(shell, /hotel time/);
+  assert.match(shell, />Sandbox</);
+  assert.doesNotMatch(shell, /Interactive demo · Sample data|Local preview sandbox|Backend sandbox/);
+});
+
+test("test scenarios live in the sandbox environment rather than the operational Command Center", () => {
+  const command = readFileSync("src/ezstay/pages/CommandCenter.jsx", "utf8");
+  const control = readFileSync("src/ezstay/components/DemoControl.jsx", "utf8");
+  assert.doesNotMatch(command, /ScenarioLauncher/);
+  assert.match(control, /ScenarioLauncher/);
+  assert.match(control, /Test automations/);
+});
+
+test("public product copy no longer directs users to an internal Workflow Lab", () => {
+  const landing = readFileSync("src/ezstay/components/MarketingLanding.jsx", "utf8");
+  assert.doesNotMatch(landing, /Workflow Lab/);
+});
