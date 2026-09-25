@@ -1,11 +1,11 @@
 -- Least-privilege EZStay runtime role and read interfaces.
 -- This role is intended for the future Cloudflare Hyperdrive connection.
--- It has no login credential in migrations and no direct business-table grants.
+-- It may log in, but its password is never stored in migrations and it has no direct business-table grants.
 
 do $$
 begin
   if not exists (select 1 from pg_roles where rolname = 'ezstay_runtime') then
-    create role ezstay_runtime noinherit nologin;
+    create role ezstay_runtime noinherit login;
   end if;
 end;
 $$;
