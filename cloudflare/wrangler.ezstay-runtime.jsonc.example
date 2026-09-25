@@ -1,0 +1,10 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "ezstay-runtime",
+  "main": "cloudflare/ezstay-runtime/worker.js",
+  "compatibility_date": "2026-09-25",
+  "vars": {
+    "EZSTAY_BACKEND_MODE": "not_configured",
+    "EZSTAY_SCHEDULER_ENABLED": "false"
+  }
+}
