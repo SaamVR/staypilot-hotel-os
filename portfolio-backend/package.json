@@ -4,6 +4,6 @@
   "version": "0.1.0",
   "type": "module",
   "scripts": {
-    "verify": "node scripts/verify-layout.mjs"
+    "verify": "node --test scripts/test-*.mjs && node scripts/verify-layout.mjs"
   }
 }
