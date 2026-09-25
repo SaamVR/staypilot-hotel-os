@@ -6,7 +6,7 @@ const html = readFileSync("index.html", "utf8");
 
 test("EZStay document metadata carries the V2 brand", () => {
   assert.match(html, /<title>EZStay — Hotel Operations Automation<\/title>/);
-  assert.match(html, /name="description"\s+content="EZStay is an interactive hotel operations automation prototype/);
+  assert.match(html, /name="description"\s+content="EZStay is a hotel operations automation workspace/);
   assert.match(html, /name="theme-color"\s+content="#111816"/);
 });
 
