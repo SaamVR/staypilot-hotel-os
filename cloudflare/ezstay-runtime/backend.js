@@ -1,3 +1,5 @@
+import { createHyperdriveBackend } from "./hyperdriveBackend.js";
+
 const METHODS = [
   "getSession",
   "startDemo",
@@ -20,15 +22,19 @@ async function unavailable() {
 
 export function createBackendAdapter(env = {}) {
   const bound = env.EZSTAY_BACKEND;
-  if (!bound) {
-    return Object.fromEntries(METHODS.map(name => [name, unavailable]));
+  if (bound) {
+    const adapter = {};
+    for (const name of METHODS) {
+      adapter[name] = typeof bound[name] === "function"
+        ? context => bound[name](context)
+        : unavailable;
+    }
+    return adapter;
   }
 
-  const adapter = {};
-  for (const name of METHODS) {
-    adapter[name] = typeof bound[name] === "function"
-      ? context => bound[name](context)
-      : unavailable;
+  if (env?.HYPERDRIVE?.connectionString) {
+    return createHyperdriveBackend(env);
   }
-  return adapter;
+
+  return Object.fromEntries(METHODS.map(name => [name, unavailable]));
 }

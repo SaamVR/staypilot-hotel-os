@@ -3,8 +3,15 @@
   "name": "ezstay-runtime",
   "main": "cloudflare/ezstay-runtime/worker.js",
   "compatibility_date": "2026-09-25",
+  "compatibility_flags": ["nodejs_compat"],
   "vars": {
     "EZSTAY_BACKEND_MODE": "not_configured",
     "EZSTAY_SCHEDULER_ENABLED": "false"
-  }
+  },
+  "hyperdrive": [
+    {
+      "binding": "HYPERDRIVE",
+      "id": "<EZSTAY_HYPERDRIVE_ID>"
+    }
+  ]
 }
