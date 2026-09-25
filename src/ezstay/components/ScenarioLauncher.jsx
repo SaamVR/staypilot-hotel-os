@@ -2,7 +2,7 @@ import { BedDouble, Box, MessageSquareText, RotateCcw } from "lucide-react";
 
 const scenarios = [
   { key:"guest", icon:MessageSquareText, step:"01", title:"Guest request → assigned task", text:"Route a real in-stay request into housekeeping with a linked task and acknowledgement." },
-  { key:"checkout", icon:BedDouble, step:"02", title:"Checkout → room turnover", text:"Close the stay, mark the room Vacant + Dirty, and create turnover work automatically." },
+  { key:"checkout", icon:BedDouble, step:"02", title:"Checkout → room ready", text:"Close the stay, create turnover work, then complete housekeeping to release the room only when readiness rules allow it." },
   { key:"stock", icon:Box, step:"03", title:"Low stock → approval", text:"Evaluate par level, stop at policy, then let a human authorize the purchase draft." },
   { key:"recovery", icon:RotateCcw, step:"04", title:"Failure → safe recovery", text:"Retry an exhausted delivery without replaying the hotel action that already succeeded." },
 ];
