@@ -33,15 +33,34 @@ EZSTAY_AUTH_REQUIRED=false
 EZSTAY_SCHEDULER_ENABLED=false
 ```
 
-The first V2 preview is therefore a truthful local-preview sandbox. It must continue to show:
+The public V2 remains a truthful local-preview sandbox until the backend enablement gate is complete.
 
-> Interactive demo · Sample data
+Current disclosure contract:
 
-and:
+- the marketing entry states that Northstar Grand uses sample hotel data;
+- simulated external booking/payment/messaging/supplier boundaries are disclosed near the entry and in the footer;
+- the workspace keeps a compact `Sandbox` environment control in normal product chrome;
+- detailed runtime/seed/persistence boundaries live inside the environment drawer rather than dominating everyday operating screens.
 
-> Local preview sandbox
+Do not reintroduce large demo banners into normal operating chrome merely to satisfy disclosure; disclosure must remain explicit but secondary to the product experience.
 
-until the backend enablement gate is complete.
+
+## Manual / samvr Pages deployment invariant
+
+Cloudflare Pages Functions are discovered from the repository's `functions/` directory relative to the Wrangler working directory.
+
+When deploying a verified GitHub `ezstay-pages-dist` artifact manually from `samvr`:
+
+1. checkout the exact canonical commit in the repository workspace;
+2. download/extract the verified artifact;
+3. copy the artifact contents into the repository's `dist/` directory;
+4. run `wrangler pages deploy dist ...` **from the repository root**;
+5. verify Wrangler reports `Compiled Worker successfully` / `Uploading Functions bundle`;
+6. smoke-check `/api/ezstay/backend-health` and require JSON containing `contractVersion: ezstay-backend-v1`.
+
+Do **not** run `wrangler pages deploy /tmp/<artifact>` from outside the repository root. That can publish the static SPA without the Pages Functions, causing `/api/ezstay/*` to fall through to `index.html`.
+
+This failure mode was reproduced during the 2026-09-25 local-preview deployment and is now part of the operational handoff.
 
 ## Private runtime Worker
 
