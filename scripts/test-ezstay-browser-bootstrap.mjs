@@ -7,7 +7,8 @@ test("browser runtime stays local unless backend health is fully configured", ()
   assert.equal(selectEzstayRuntimeMode(null), "local-preview");
   assert.equal(selectEzstayRuntimeMode({ mode:"not_configured" }), "local-preview");
   assert.equal(selectEzstayRuntimeMode({ mode:"configured", authConfigured:false, runtimeConfigured:true }), "local-preview");
-  assert.equal(selectEzstayRuntimeMode({ mode:"configured", authConfigured:true, runtimeConfigured:true }), "backend-sandbox");
+  assert.equal(selectEzstayRuntimeMode({ mode:"configured", authConfigured:true, runtimeConfigured:true, turnstileConfigured:false }), "local-preview");
+  assert.equal(selectEzstayRuntimeMode({ mode:"configured", authConfigured:true, runtimeConfigured:true, turnstileConfigured:true }), "backend-sandbox");
 });
 
 test("HTTP runtime attaches the current bearer token to protected requests", async () => {
