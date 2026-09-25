@@ -116,8 +116,17 @@ try {
   await inspector.getByRole("button", { name:"Close run inspector" }).click();
   await page.getByRole("button", { name:"Approvals" }).click();
   await expectVisible(page.getByRole("heading", { name:"Approvals" }), "Approvals page should render");
-  await expectVisible(page.getByText("Queen bed sheet restock").first(), "stock approval should be visible");
+  const stockApproval = page.locator(".approval-card").filter({ hasText:"Queen bed sheet restock" });
+  await expectVisible(stockApproval, "stock approval should be visible");
   await screenshot(page, "05-approvals");
+  await stockApproval.getByRole("button", { name:"Approve" }).click();
+  inspector = page.getByLabel("Automation run inspector");
+  await inspector.waitFor({ state:"visible" });
+  assert.match(await inspector.innerText(), /purchase draft|approved/i);
+  await inspector.getByRole("button", { name:"Close run inspector" }).click();
+  await expectVisible(page.getByRole("heading", { name:"Purchase drafts" }), "approved stock request should create a purchase draft");
+  await expectVisible(page.getByText("Coastal Textile").first(), "purchase draft should expose its supplier");
+  await screenshot(page, "06-approved-purchase-draft");
 
   await page.getByRole("button", { name:"Command Center" }).click();
   inspector = await runScenario(page, "Failure → safe recovery");
@@ -128,20 +137,34 @@ try {
   const recoveryDelivery = page.locator(".list-row").filter({ hasText:"DLV-400" });
   await expectVisible(recoveryDelivery, "seeded failed delivery should remain traceable");
   assert.match(await recoveryDelivery.innerText(), /Delivered/i);
-  await screenshot(page, "06-activity-recovery");
+  await screenshot(page, "07-activity-recovery");
+
+  await page.reload({ waitUntil:"networkidle" });
+  await expectVisible(page.getByText("Interactive demo · Sample data"), "workspace should survive reload");
+  await page.getByRole("button", { name:"Activity" }).click();
+  const persistedDelivery = page.locator(".list-row").filter({ hasText:"DLV-400" });
+  await expectVisible(persistedDelivery, "recovered delivery should persist through reload");
+  assert.match(await persistedDelivery.innerText(), /Delivered/i);
 
   await page.getByRole("button", { name:"Demo control" }).first().click();
   await expectVisible(page.getByText("Advance +30 min"), "Demo control should expose deterministic clock");
-  await screenshot(page, "07-demo-control");
+  await screenshot(page, "08-demo-control");
+  await page.getByRole("button", { name:"Reset workspace" }).click();
+  await expectVisible(page.getByText("Workspace reset to a fresh Northstar demo generation."), "reset should confirm a fresh generation");
+  await page.getByRole("button", { name:"Activity" }).click();
+  const resetDelivery = page.locator(".list-row").filter({ hasText:"DLV-400" });
+  await expectVisible(resetDelivery, "reset should restore the seeded failed delivery");
+  assert.match(await resetDelivery.innerText(), /Dead-letter/i);
+  await screenshot(page, "09-reset-restored-state");
   await desktop.close();
 
   const mobile = await browser.newContext({ viewport:{ width:390, height:844 }, deviceScaleFactor:1 });
   const mobilePage = await mobile.newPage();
   captureErrors(mobilePage, "mobile-390");
   await openLanding(mobilePage);
-  await screenshot(mobilePage, "08-landing-mobile-390");
+  await screenshot(mobilePage, "10-landing-mobile-390");
   await enterDemo(mobilePage);
-  await screenshot(mobilePage, "09-workspace-mobile-390");
+  await screenshot(mobilePage, "11-workspace-mobile-390");
   await expectVisible(mobilePage.getByText("Northstar Grand · Operations command"), "property identity should remain visible on mobile");
   for (const label of ["Command","Operations","Automations","Approvals","Activity","Integrations"]) {
     const navButton = mobilePage.locator(".primary-nav button").filter({ hasText:label });
@@ -156,9 +179,9 @@ try {
   const tabletPage = await tablet.newPage();
   captureErrors(tabletPage, "tablet-768");
   await openLanding(tabletPage);
-  await screenshot(tabletPage, "10-landing-tablet-768");
+  await screenshot(tabletPage, "12-landing-tablet-768");
   await enterDemo(tabletPage);
-  await screenshot(tabletPage, "11-workspace-tablet-768");
+  await screenshot(tabletPage, "13-workspace-tablet-768");
   await tablet.close();
 
   assert.deepEqual(report.consoleErrors, [], "browser console must contain no errors");
