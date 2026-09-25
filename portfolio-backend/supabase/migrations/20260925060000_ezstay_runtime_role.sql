@@ -107,7 +107,7 @@ begin
           'roomId', x.room_id,
           'place', case
             when x.room_id is not null then 'Room ' || coalesce(r.number, '')
-            else 'Property'
+            else coalesce(x.metadata ->> 'place', 'Property')
           end,
           'title', x.title,
           'team', x.team,

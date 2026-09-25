@@ -26,16 +26,16 @@ test("durable Northstar fixture carries both pending human gates", () => {
 });
 
 test("durable room types match the visible local-preview fixture", () => {
-  for (const room of ["101","107","201","211"]) {
-    assert.match(sql, new RegExp(`when room_number = '${room}' then 'Sky Suite'|when room_number in \\([^)]*'${room}'[^)]*\\) then 'Sky Suite'`));
-  }
-  for (const room of ["103","105","108","110"]) {
-    assert.match(sql, new RegExp(`when room_number = '${room}' then 'City Queen'|when room_number in \\([^)]*'${room}'[^)]*\\) then 'City Queen'`));
-  }
-  for (const room of ["202","204","207","211"]) {
-    const reservationBlock = sql.match(/insert into ezstay\.reservations[\s\S]*?;\n/)?.[0] || "";
-    if (room === "211") assert.match(reservationBlock, /room_211_id, 'Sky Suite'/);
-  }
+  const typeCase = sql.match(
+    /case\s+when room_number in \(([^)]+)\) then 'Sky Suite'\s+when room_number in \(([^)]+)\) then 'Deluxe King'\s+else 'City Queen'\s+end/
+  );
+  assert.ok(typeCase, "room type CASE expression");
+  const parseRooms = value => [...value.matchAll(/'(\d{3})'/g)].map(match => match[1]).sort();
+  assert.deepEqual(parseRooms(typeCase[1]), ["101","107","201","211"]);
+  assert.deepEqual(parseRooms(typeCase[2]), ["109","111","202","203","204","205","207","209"]);
+  const reservationBlock = sql.match(/insert into ezstay\.reservations[\s\S]*?;\n/)?.[0] || "";
+  assert.match(reservationBlock, /room_211_id, 'Sky Suite'/);
+  assert.match(reservationBlock, /room_110_id, 'City Queen'/);
 });
 
 test("backend snapshot preserves non-room task place metadata", () => {
