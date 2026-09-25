@@ -846,7 +846,7 @@ begin
   perform private.ezstay_materialize_run_evidence(target_hotel_id, actual_run_id);
   return actual_run_id;
 end;
-$;
+$$;
 
 create or replace function private.ezstay_apply_low_stock(
   target_hotel_id uuid,
