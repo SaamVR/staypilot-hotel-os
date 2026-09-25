@@ -117,7 +117,7 @@ handleGetRun(ctx)
 - Browser: `signInDemo({ captchaToken }) -> { accessToken, userId }`.
 - Gateway: `requireAuthenticatedUser(request, env, fetchImpl) -> { userId, isAnonymous }`.
 
-- [ ] **Step 1: Add pinned `@supabase/supabase-js` dependency after Lane A owns the initial package edits**
+- [ ] **Step 1: After Lane A Gate 1, run `npm install --save-exact @supabase/supabase-js` so the lockfile records the exact resolved version**
 - [ ] **Step 2: Test that backend-sandbox demo start rejects a missing bearer token before runtime delegation**
 - [ ] **Step 3: Implement browser anonymous sign-in using Supabase Auth with the Turnstile `captchaToken`; the token is validated by Supabase Auth and is never logged**
 - [ ] **Step 4: Implement gateway identity validation against Supabase Auth using the publishable key plus the caller bearer token; do not use `service_role`**
@@ -181,6 +181,6 @@ handleGetRun(ctx)
 EZSTAY_BACKEND_MODE=not_configured
 EZSTAY_SCHEDULER_ENABLED=false
 ```
-- [ ] **Step 4: Document production-only Turnstile secret and future Hyperdrive binding names without values**
+- [ ] **Step 4: Document the public Turnstile site key and Supabase Auth CAPTCHA configuration; Turnstile secret verification is owned by Supabase Auth for anonymous sign-in. Document future Hyperdrive binding names without credential values**
 - [ ] **Step 5: Verify no V1 Cloudflare project name appears as the target of V2 deployment**
 - [ ] **Step 6: Commit**
