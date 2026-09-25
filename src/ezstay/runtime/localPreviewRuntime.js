@@ -99,7 +99,7 @@ export function createLocalPreviewRuntime({ storage = globalThis.localStorage ||
     return current;
   }
 
-  function execute(domainFn, args) {
+  async function execute(domainFn, args) {
     const current = ensure();
     const command = {
       ...args,
@@ -107,7 +107,7 @@ export function createLocalPreviewRuntime({ storage = globalThis.localStorage ||
     };
     const result = domainFn(current.snapshot, command);
     syncSnapshot(result.state);
-    return Promise.resolve({ run:result.run, snapshot:result.state, duplicate:result.duplicate });
+    return { run:result.run, snapshot:result.state, duplicate:result.duplicate };
   }
 
   return {
