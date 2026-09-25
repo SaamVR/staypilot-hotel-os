@@ -25,6 +25,8 @@ jobs:
         run: npm ci
       - name: Verify backend contracts
         run: npm run verify:backend
+      - name: Verify EZStay
+        run: npm run verify:ezstay
       - name: Build
         run: npm run build
       - name: Upload production build
