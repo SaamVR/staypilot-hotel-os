@@ -384,8 +384,7 @@ end;
 $$;
 
 grant execute on function private.ezstay_active_demo_session(uuid) to ezstay_runtime;
-grant execute on function private.create_ezstay_demo_session(uuid, timestamptz) to ezstay_runtime;
-grant execute on function private.reset_ezstay_demo_session(uuid, uuid, integer) to ezstay_runtime;
+grant execute on function private.ezstay_start_demo_command(uuid, text) to ezstay_runtime;
 grant execute on function private.ezstay_reset_demo_command(uuid, text) to ezstay_runtime;
 grant execute on function private.ezstay_claim_inbound_events(text, integer) to ezstay_runtime;
 grant execute on function private.ezstay_finish_inbound_event(uuid, text, text, integer) to ezstay_runtime;

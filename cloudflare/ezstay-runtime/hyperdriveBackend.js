@@ -130,9 +130,10 @@ export function createHyperdriveBackend(env = {}, { ClientImpl = Client } = {}) 
     async startDemo(context) {
       const { userId } = identityOf(context, { anonymousOnly:true });
       return withClient(async client => {
+        const idempotencyKey = requireText(context?.idempotencyKey, "idempotency_key_required", 160);
         const result = await client.query(
-          "select * from private.create_ezstay_demo_session($1::uuid)",
-          [userId],
+          "select * from private.ezstay_start_demo_command($1::uuid, $2::text)",
+          [userId, idempotencyKey],
         );
         const session = result.rows?.[0];
         if (!session?.id) throw new Error("runtime_command_failed");
