@@ -26,7 +26,12 @@ test("anonymous and authenticated roles receive no direct internal schema grants
   assert.match(sql, /revoke\s+all\s+on\s+schema\s+ezstay\s+from\s+authenticated/);
 });
 
-test("private helper execution is revoked from public client roles", () => {
+test("RLS helpers are callable only by authenticated policy evaluation", () => {
+  assert.match(sql, /revoke\s+all\s+on\s+schema\s+private\s+from\s+public/);
+  assert.match(sql, /revoke\s+all\s+on\s+schema\s+private\s+from\s+anon/);
+  assert.match(sql, /grant\s+usage\s+on\s+schema\s+private\s+to\s+authenticated/);
   assert.match(sql, /revoke\s+execute\s+on\s+function\s+private\.ezstay_is_member\(uuid\)\s+from\s+public/);
   assert.match(sql, /revoke\s+execute\s+on\s+function\s+private\.ezstay_is_member\(uuid\)\s+from\s+anon/);
+  assert.match(sql, /grant\s+execute\s+on\s+function\s+private\.ezstay_is_member\(uuid\)\s+to\s+authenticated/);
+  assert.match(sql, /grant\s+execute\s+on\s+function\s+private\.ezstay_has_role\(uuid,\s*text\[\]\)\s+to\s+authenticated/);
 });
