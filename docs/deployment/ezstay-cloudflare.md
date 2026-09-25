@@ -88,7 +88,17 @@ EZSTAY_BACKEND_MODE=configured
 EZSTAY_AUTH_REQUIRED=true
 SUPABASE_URL=<shared project URL>
 SUPABASE_PUBLISHABLE_KEY=<publishable key>
+TURNSTILE_SITE_KEY=<public Turnstile site key>
 ```
+
+The GitHub deployment workflow additionally requires an explicit server-side promotion gate:
+
+```text
+EZSTAY_BACKEND_ENABLE=true
+EZSTAY_HYPERDRIVE_ID=<Cloudflare Hyperdrive config id>
+```
+
+If any backend promotion value is missing, the workflow intentionally deploys or retains the local-preview experience instead of partially enabling the backend.
 
 Do not place database passwords, service-role keys, Turnstile secrets, webhook secrets, or provider credentials in browser-visible variables.
 
@@ -96,9 +106,17 @@ Do not place database passwords, service-role keys, Turnstile secrets, webhook s
 
 The browser supplies a Turnstile token to Supabase anonymous sign-in. Supabase Auth owns CAPTCHA verification for that sign-in flow. The Pages gateway then validates the resulting bearer identity against Supabase Auth before delegating to the private EZStay Worker.
 
-## Future Hyperdrive binding
+## Hyperdrive runtime
 
-The private Worker will receive a Hyperdrive binding after the live backend gate. The connection identity must be the restricted `ezstay_runtime` database role, not the project owner, postgres role, or Supabase service role.
+The private Worker adapter is implemented in:
+
+```text
+cloudflare/ezstay-runtime/hyperdriveBackend.js
+```
+
+It uses the pinned `pg` driver and calls only the approved private database functions. The checked-in Worker example sets `workers_dev:false`, so the runtime is intended to be reachable only through the Pages Service Binding.
+
+The private Worker receives its Hyperdrive binding only after the live backend gate. The connection identity must be the restricted `ezstay_runtime` database role, not the project owner, postgres role, or Supabase service role.
 
 The migration creates `ezstay_runtime` with `LOGIN NOINHERIT` but deliberately does **not** commit a password. During live provisioning only:
 
@@ -111,7 +129,7 @@ The migration creates `ezstay_runtime` with `LOGIN NOINHERIT` but deliberately d
 
 For the Supabase shared pooler, a custom role username is `ezstay_runtime.<project-ref>`; do not construct the host or project reference from memory. The database password belongs only in the secure provisioning path / Cloudflare Hyperdrive configuration, never in browser variables or the repository.
 
-The Worker-side database adapter should use Cloudflare's recommended `pg` driver with Hyperdrive. That adapter remains disabled until the binding exists and the live migration/security gate passes.
+The Worker-side database adapter already uses Cloudflare's recommended `pg` driver with Hyperdrive. It remains operationally disabled until the Hyperdrive binding exists and the live migration/security gate passes.
 
 ## Production promotion
 
@@ -124,3 +142,14 @@ Before promotion:
 - delivery recovery does not repeat a business action;
 - no copy implies that simulated third-party services are live;
 - StayPilot V1 production remains unchanged.
+
+
+## GitHub deployment states
+
+The `Deploy EZStay V2` workflow has three intentionally separate outcomes:
+
+1. **No Cloudflare credentials:** verify, build, and upload the `ezstay-pages-dist` artifact only.
+2. **Cloudflare credentials, backend gate incomplete:** deploy the separate EZStay Pages project in truthful local-preview mode.
+3. **Explicit backend gate complete:** deploy the private `ezstay-runtime` Worker first, then deploy Pages with the `EZSTAY_RUNTIME` Service Binding and browser-safe Supabase/Turnstile variables.
+
+The backend-enabled Pages configuration is generated only inside GitHub Actions. Supabase URLs, publishable keys, Turnstile site keys, and Hyperdrive IDs are not committed into the repository.

@@ -10,15 +10,20 @@ permissions:
 
 env:
   EZSTAY_PAGES_PROJECT: ezstay
+  EZSTAY_RUNTIME_WORKER: ezstay-runtime
   WRANGLER_VERSION: 4.136.1
+  CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+  CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+  EZSTAY_BACKEND_ENABLE: ${{ secrets.EZSTAY_BACKEND_ENABLE }}
+  EZSTAY_HYPERDRIVE_ID: ${{ secrets.EZSTAY_HYPERDRIVE_ID }}
+  SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+  SUPABASE_PUBLISHABLE_KEY: ${{ secrets.SUPABASE_PUBLISHABLE_KEY }}
+  TURNSTILE_SITE_KEY: ${{ secrets.TURNSTILE_SITE_KEY }}
 
 jobs:
   verify-build-deploy:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
-    env:
-      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+    timeout-minutes: 20
     steps:
       - name: Checkout V2
         uses: actions/checkout@v4
@@ -65,6 +70,17 @@ jobs:
             echo "Cloudflare credentials are not configured; keeping the verified build artifact only."
           fi
 
+      - name: Detect explicit backend promotion gate
+        id: backend_ready
+        shell: bash
+        run: |
+          if [[ "$EZSTAY_BACKEND_ENABLE" == "true"              && -n "$EZSTAY_HYPERDRIVE_ID"              && -n "$SUPABASE_URL"              && -n "$SUPABASE_PUBLISHABLE_KEY"              && -n "$TURNSTILE_SITE_KEY" ]]; then
+            echo "available=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "available=false" >> "$GITHUB_OUTPUT"
+            echo "Backend promotion is disabled or incomplete; deployment remains local-preview."
+          fi
+
       - name: Ensure separate EZStay Pages project exists
         if: steps.cloudflare.outputs.available == 'true'
         shell: bash
@@ -74,16 +90,90 @@ jobs:
           if jq -e --arg name "$EZSTAY_PAGES_PROJECT" '.[] | select(.name == $name)' /tmp/pages-projects.json >/dev/null; then
             echo "Pages project $EZSTAY_PAGES_PROJECT already exists."
           else
-            npx --yes "wrangler@$WRANGLER_VERSION" pages project create "$EZSTAY_PAGES_PROJECT" \
-              --production-branch="v2/ezstay"
+            npx --yes "wrangler@$WRANGLER_VERSION" pages project create "$EZSTAY_PAGES_PROJECT"               --production-branch="v2/ezstay"
           fi
 
-      - name: Deploy EZStay to Cloudflare Pages
+      - name: Deploy local-preview EZStay Pages
+        if: steps.cloudflare.outputs.available == 'true' && steps.backend_ready.outputs.available != 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          npx --yes "wrangler@$WRANGLER_VERSION" pages deploy dist             --project-name="$EZSTAY_PAGES_PROJECT"             --branch="v2/ezstay"             --commit-hash="$GITHUB_SHA"
+
+      - name: Generate private EZStay runtime config
+        if: steps.cloudflare.outputs.available == 'true' && steps.backend_ready.outputs.available == 'true'
+        shell: bash
+        run: |
+          cat > wrangler.ezstay-runtime.generated.jsonc <<EOF
+          {
+            "name":"$EZSTAY_RUNTIME_WORKER",
+            "main":"cloudflare/ezstay-runtime/worker.js",
+            "workers_dev":false,
+            "compatibility_date":"2026-09-25",
+            "compatibility_flags":["nodejs_compat"],
+            "vars":{
+              "EZSTAY_BACKEND_MODE":"configured",
+              "EZSTAY_SCHEDULER_ENABLED":"false"
+            },
+            "hyperdrive":[
+              {"binding":"HYPERDRIVE","id":"$EZSTAY_HYPERDRIVE_ID"}
+            ]
+          }
+          EOF
+
+      - name: Deploy private EZStay runtime Worker
+        if: steps.cloudflare.outputs.available == 'true' && steps.backend_ready.outputs.available == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          npx --yes "wrangler@$WRANGLER_VERSION" deploy             --config wrangler.ezstay-runtime.generated.jsonc
+
+      - name: Generate backend-enabled Pages config
+        if: steps.cloudflare.outputs.available == 'true' && steps.backend_ready.outputs.available == 'true'
+        shell: bash
+        run: |
+          cat > wrangler.jsonc <<EOF
+          {
+            "name":"$EZSTAY_PAGES_PROJECT",
+            "pages_build_output_dir":"./dist",
+            "compatibility_date":"2026-09-25",
+            "vars":{
+              "EZSTAY_BACKEND_MODE":"configured",
+              "EZSTAY_AUTH_REQUIRED":"true",
+              "EZSTAY_SCHEDULER_ENABLED":"false",
+              "SUPABASE_URL":"$SUPABASE_URL",
+              "SUPABASE_PUBLISHABLE_KEY":"$SUPABASE_PUBLISHABLE_KEY",
+              "TURNSTILE_SITE_KEY":"$TURNSTILE_SITE_KEY"
+            },
+            "services":[
+              {"binding":"EZSTAY_RUNTIME","service":"ezstay-runtime"}
+            ]
+          }
+          EOF
+
+      - name: Deploy backend-enabled EZStay Pages
+        if: steps.cloudflare.outputs.available == 'true' && steps.backend_ready.outputs.available == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          npx --yes "wrangler@$WRANGLER_VERSION" pages deploy             --branch="v2/ezstay"             --commit-hash="$GITHUB_SHA"
+
+      - name: Smoke check EZStay Pages
         if: steps.cloudflare.outputs.available == 'true'
         shell: bash
         run: |
           set -euo pipefail
-          npx --yes "wrangler@$WRANGLER_VERSION" pages deploy dist \
-            --project-name="$EZSTAY_PAGES_PROJECT" \
-            --branch="v2/ezstay" \
-            --commit-hash="$GITHUB_SHA"
+          curl --fail --silent --show-error --location --retry 5 --retry-delay 2             "https://$EZSTAY_PAGES_PROJECT.pages.dev/" > /tmp/ezstay.html
+          grep -q 'id="root"' /tmp/ezstay.html
+
+      - name: Verify backend health after promotion
+        if: steps.cloudflare.outputs.available == 'true' && steps.backend_ready.outputs.available == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error --location --retry 5 --retry-delay 2             "https://$EZSTAY_PAGES_PROJECT.pages.dev/api/ezstay/backend-health"             | jq -e '.mode == "configured" and .authConfigured == true and .runtimeConfigured == true and .turnstileConfigured == true'
+
+      - name: Remove generated deployment configs
+        if: always()
+        shell: bash
+        run: rm -f wrangler.jsonc wrangler.ezstay-runtime.generated.jsonc
