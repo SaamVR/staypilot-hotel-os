@@ -60,6 +60,7 @@ test("durable runtime has shared evidence writers", () => {
   assert.match(sql, /insert\s+into\s+ezstay\.automation_run_steps/);
   assert.match(sql, /insert\s+into\s+ezstay\.automation_run_links/);
   assert.match(sql, /insert\s+into\s+ezstay\.audit_events/);
+  assert.match(sql, /function\s+private\.ezstay_materialize_run_evidence/);
 });
 
 test("every flagship durable business function writes execution evidence", () => {
@@ -74,9 +75,7 @@ test("every flagship durable business function writes execution evidence", () =>
     assert.ok(start >= 0, fnName);
     const next = sql.indexOf("create or replace function private.", start + 20);
     const body = sql.slice(start, next >= 0 ? next : sql.length);
-    assert.match(body, /ezstay_record_run_step/, `${fnName} steps`);
-    assert.match(body, /ezstay_record_run_link/, `${fnName} links`);
-    assert.match(body, /ezstay_record_audit_event/, `${fnName} audit`);
+    assert.match(body, /ezstay_materialize_run_evidence/, `${fnName} materializes evidence`);
   }
 });
 
@@ -86,8 +85,7 @@ test("delivery recovery creates a durable recovery run without replaying source 
   const retry = sql.slice(start, next >= 0 ? next : sql.length);
   assert.match(retry, /delivery-recovery/);
   assert.match(retry, /insert\s+into\s+ezstay\.automation_runs/);
-  assert.match(retry, /ezstay_record_run_step/);
-  assert.match(retry, /ezstay_record_run_link/);
+  assert.match(retry, /ezstay_materialize_run_evidence/);
   assert.doesNotMatch(retry, /ezstay_apply_guest_request|ezstay_apply_checkout|ezstay_apply_low_stock/);
 });
 
@@ -97,6 +95,5 @@ test("overdue escalation writes once-only automation runs and evidence", () => {
   const overdue = sql.slice(start, next >= 0 ? next : sql.length);
   assert.match(overdue, /overdue-task-escalation/);
   assert.match(overdue, /insert\s+into\s+ezstay\.automation_runs/);
-  assert.match(overdue, /ezstay_record_run_step/);
-  assert.match(overdue, /ezstay_record_run_link/);
+  assert.match(overdue, /ezstay_materialize_run_evidence/);
 });
