@@ -73,8 +73,8 @@ export default function MarketingLanding({ onExplore, entryBusy = false }) {
       </a>
       <nav aria-label="Presentation navigation">
         <a href="#automation">Automation</a>
-        <a href="#proof">Proof</a>
-        <a href="#architecture">Architecture</a>
+        <a href="#proof">Workflows</a>
+        <a href="#architecture">Controls</a>
       </nav>
       <button onClick={onExplore} disabled={entryBusy}>{entryBusy ? "Preparing demo…" : EZSTAY_ENTRY_CTA}<ArrowRight size={15}/></button>
     </header>
@@ -82,7 +82,7 @@ export default function MarketingLanding({ onExplore, entryBusy = false }) {
     <main>
       <section className="presentation-hero" id="top">
         <div className="presentation-hero-copy">
-          <span className="presentation-kicker"><i/> Working interactive prototype · sample hotel data</span>
+          <span className="presentation-kicker"><i/> Hotel operations automation · live product sandbox</span>
           <h1>Hotel operations that <em>move themselves forward.</em></h1>
           <p className="presentation-lede">
             EZStay turns hotel events into policy-aware workflows: state changes, approvals,
@@ -131,8 +131,8 @@ export default function MarketingLanding({ onExplore, entryBusy = false }) {
 
       <section className="automation-story" id="automation">
         <div className="presentation-section-head">
-          <div><span className="presentation-kicker">Automation, not dashboard theatre</span><h2>Every run follows a visible chain of cause and effect.</h2></div>
-          <p>The workspace is designed around what changed, why it changed, and which evidence proves it—not around disconnected hotel widgets.</p>
+          <div><span className="presentation-kicker">Event-driven operations</span><h2>Every run follows a visible chain of cause and effect.</h2></div>
+          <p>EZStay keeps the operating event, policy decision, resulting state change, and delivery evidence together so teams can see exactly what the system did.</p>
         </div>
         <div className="mechanics-grid">
           {mechanics.map(([label,text,Icon],index)=><article key={label}>
@@ -146,8 +146,8 @@ export default function MarketingLanding({ onExplore, entryBusy = false }) {
 
       <section className="proof-section" id="proof">
         <div className="presentation-section-head">
-          <div><span className="presentation-kicker">Four interactive proofs</span><h2>Show the operation. Show the exception. Show the evidence.</h2></div>
-          <button className="text-cta" onClick={onExplore}>Run them in the demo <ArrowRight size={15}/></button>
+          <div><span className="presentation-kicker">Core workflows</span><h2>Keep routine operations moving without losing control of exceptions.</h2></div>
+          <button className="text-cta" onClick={onExplore}>Open the Workflow Lab <ArrowRight size={15}/></button>
         </div>
         <div className="proof-grid">
           {proofs.map(({number,kicker,title,text,signal,result,icon:Icon})=><article key={number}>
@@ -178,26 +178,26 @@ export default function MarketingLanding({ onExplore, entryBusy = false }) {
       </section>
 
       <section className="integration-boundary">
-        <div><span className="presentation-kicker">Integration-ready, truthfully presented</span><h2>The demo proves orchestration without pretending third-party credentials are connected.</h2></div>
+        <div><span className="presentation-kicker">Integration-ready</span><h2>Connect the systems you already use without giving up operational control.</h2></div>
         <div className="integration-rail">
           <span><Hotel size={17}/> PMS / booking</span>
           <span><MessageSquareText size={17}/> Messaging</span>
           <span><Boxes size={17}/> Suppliers</span>
           <span><Sparkles size={17}/> Future intelligence</span>
         </div>
-        <p>External booking, payment, messaging, and supplier actions are simulated in the public prototype unless explicitly connected. Internal automation state changes are real within the demo sandbox.</p>
+        <p>This public sandbox uses simulated external booking, payment, messaging, and supplier adapters unless explicitly connected. Internal automation state changes remain real within the Northstar workspace.</p>
       </section>
 
       <section className="presentation-final">
-        <span className="presentation-kicker">Open the working system</span>
-        <h2>Don’t watch a product video.<br/>Run the hotel operations yourself.</h2>
+        <span className="presentation-kicker">Explore the workspace</span>
+        <h2>Run Northstar Grand.<br/>Inspect every automation behind it.</h2>
         <button className="presentation-primary" onClick={onExplore} disabled={entryBusy}>{entryBusy ? "Preparing demo…" : EZSTAY_ENTRY_CTA}<ArrowRight size={17}/></button>
       </section>
     </main>
 
     <footer className="presentation-footer">
-      <div className="presentation-brand"><span>EZ</span><div><b>EZStay</b><small>Interactive hotel operations automation prototype</small></div></div>
-      <p>Sample data · simulated external services · inspectable execution</p>
+      <div className="presentation-brand"><span>EZ</span><div><b>EZStay</b><small>Hotel operations automation</small></div></div>
+      <p>Northstar sandbox · sample data · simulated external providers</p>
     </footer>
   </div>;
 }

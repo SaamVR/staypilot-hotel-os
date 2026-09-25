@@ -1,6 +1,6 @@
 export const EZSTAY_ENTRY_CTA = "Explore interactive demo";
 export const EZSTAY_ENTRY_DISCLOSURE =
-  "Interactive prototype with sample hotel data. External booking, payment, and messaging services are simulated unless explicitly connected.";
+  "Sample Northstar Grand workspace with sample hotel data. External booking, payment, and messaging services are simulated unless explicitly connected.";
 
 export function workspaceHash() {
   return "#demo";
