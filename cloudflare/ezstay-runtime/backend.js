@@ -5,6 +5,7 @@ const METHODS = [
   "getSnapshot",
   "runGuestRequest",
   "runCheckout",
+  "completeHousekeeping",
   "runLowStock",
   "resolveApproval",
   "retryDelivery",
