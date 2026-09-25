@@ -186,7 +186,7 @@ export default function EZStayApp() {
       if (result.run) setSelectedRun(result.run);
       if (successMessage) setNotice(successMessage);
     } catch (error) {
-      setNotice(error.message || "Demo command failed");
+      setNotice(error.message || "Command failed");
     } finally {
       setBusy(false);
     }
@@ -238,7 +238,7 @@ export default function EZStayApp() {
 
   const advanceClock = () => execute(
     () => runtime.advanceClock({ idempotencyKey:commandKey("cmd_clock"), minutes:30 }),
-    "Demo time advanced by 30 minutes. SLA rules were evaluated."
+    "Hotel time advanced by 30 minutes. SLA rules were evaluated."
   );
 
   const resetWorkspace = async () => {
@@ -252,7 +252,7 @@ export default function EZStayApp() {
       setSelectedRun(null);
       setActive("command");
       setDemoControlOpen(false);
-      setNotice("Workspace reset to a fresh Northstar demo generation.");
+      setNotice("Northstar workspace reset to the canonical sandbox state.");
     } catch (error) {
       setNotice(error.message || "Workspace reset failed");
     } finally {
@@ -263,12 +263,12 @@ export default function EZStayApp() {
   const showSampleFailure = () => {
     const failed = snapshot.deliveries.find(item => ["Failed","Dead-letter"].includes(item.status));
     if (!failed) {
-      setNotice("The seeded failure has already been recovered. Reset the workspace to restore it.");
+      setNotice("The seeded delivery exception has already been recovered. Reset the workspace to restore it.");
       return;
     }
     setActive("activity");
     setDemoControlOpen(false);
-    setNotice(`Sample failure ${failed.id} is ready for delivery-only recovery.`);
+    setNotice(`Seeded delivery exception ${failed.id} is ready for delivery-only recovery.`);
   };
 
   if (view === "presentation") {
@@ -288,16 +288,16 @@ export default function EZStayApp() {
     </>;
   }
 
-  if (!session || !snapshot) return <div className="app-loading"><span>EZ</span><p>Preparing Northstar demo workspace…</p></div>;
+  if (!session || !snapshot) return <div className="app-loading"><span>EZ</span><p>Preparing Northstar workspace…</p></div>;
 
-  let page = <CommandCenter snapshot={snapshot} onNavigate={setActive} onRunScenario={runScenario} onOpenRun={setSelectedRun} busy={busy}/>;
+  let page = <CommandCenter snapshot={snapshot} onNavigate={setActive} onOpenRun={setSelectedRun}/>;
   if (active === "operations") page = <Operations snapshot={snapshot} onCompleteHousekeeping={completeTurnover} busy={busy}/>;
   if (active === "automations") page = <Automations snapshot={snapshot}/>;
   if (active === "approvals") page = <Approvals snapshot={snapshot} onResolve={resolveApproval} busy={busy}/>;
   if (active === "activity") page = <ActivityPage snapshot={snapshot} onOpenRun={setSelectedRun} onRetry={retryDelivery} busy={busy}/>;
   if (active === "integrations") page = <Integrations/>;
 
-  return <AppShell active={active} onNavigate={setActive} session={session} hotel={snapshot.hotel} roomCount={snapshot.rooms.length} onDemoControl={() => setDemoControlOpen(true)}>
+  return <AppShell active={active} onNavigate={setActive} hotel={snapshot.hotel} roomCount={snapshot.rooms.length} demoNow={snapshot.meta.demoNow} onDemoControl={() => setDemoControlOpen(true)}>
     {notice && <div className="toast-note" role="status">{notice}<button onClick={() => setNotice(null)}>×</button></div>}
     {page}
     <DemoControl
@@ -309,6 +309,7 @@ export default function EZStayApp() {
       onAdvanceClock={advanceClock}
       onReset={resetWorkspace}
       onShowFailure={showSampleFailure}
+      onRunScenario={runScenario}
     />
     <RunInspector run={selectedRun} timeZone={snapshot.hotel.timezone} onClose={() => setSelectedRun(null)} onLinkedRecord={record => {
       const map = { task:"operations", room:"operations", guest_request:"operations", reservation:"operations", approval:"approvals", purchase_request:"approvals", inventory:"operations", delivery:"activity" };

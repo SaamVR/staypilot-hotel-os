@@ -1,6 +1,7 @@
 import { Clock3, Info, RotateCcw, ShieldAlert, X } from "lucide-react";
 import { describeDemoMode } from "../domain/demoControl.js";
 import { formatHotelMoment } from "../ui/format.js";
+import ScenarioLauncher from "./ScenarioLauncher.jsx";
 
 export default function DemoControl({
   open,
@@ -11,16 +12,22 @@ export default function DemoControl({
   onAdvanceClock,
   onReset,
   onShowFailure,
+  onRunScenario,
 }) {
   if (!open) return null;
   const failed = snapshot?.deliveries?.find(item => ["Failed","Dead-letter"].includes(item.status));
   const timeZone = snapshot?.hotel?.timezone || "UTC";
 
+  const runScenario = key => {
+    onClose();
+    onRunScenario?.(key);
+  };
+
   return <div className="drawer-backdrop demo-control-backdrop" onMouseDown={onClose}>
-    <aside className="demo-control-drawer" onMouseDown={event => event.stopPropagation()} aria-label="Demo control">
+    <aside className="demo-control-drawer" onMouseDown={event => event.stopPropagation()} aria-label="Sandbox environment panel">
       <header className="run-head">
-        <div><span className="eyebrow">Environment</span><h2>Northstar sandbox</h2></div>
-        <button className="icon-button" onClick={onClose} aria-label="Close Demo Control"><X size={18}/></button>
+        <div><span className="eyebrow">Environment</span><h2>Northstar sandbox</h2><small className="run-rule-label">Sample data · simulated external providers</small></div>
+        <button className="icon-button" onClick={onClose} aria-label="Close environment"><X size={18}/></button>
       </header>
 
       <section className="demo-status-grid">
@@ -30,12 +37,15 @@ export default function DemoControl({
         <div><span>Generation</span><b>#{session?.resetGeneration ?? 0}</b></div>
       </section>
 
+      <ScenarioLauncher onRun={runScenario} busy={busy}/>
+
       <section className="demo-control-actions">
+        <div className="sandbox-section-heading"><span className="eyebrow">Environment controls</span><h3>Time, recovery & reset</h3></div>
         <button disabled={busy} onClick={onAdvanceClock}>
           <Clock3 size={18}/><div><b>Advance +30 min</b><span>Trigger time-based SLA evaluation immediately.</span></div>
         </button>
         <button disabled={busy || !failed} onClick={onShowFailure}>
-          <ShieldAlert size={18}/><div><b>{failed ? "View sample failure" : "Sample failure recovered"}</b><span>{failed ? "Open the exhausted delivery in Activity." : "Reset the workspace to restore the seeded failed delivery."}</span></div>
+          <ShieldAlert size={18}/><div><b>{failed ? "View seeded delivery exception" : "Seeded exception recovered"}</b><span>{failed ? "Open the exhausted delivery in Activity." : "Reset the workspace to restore the seeded exception."}</span></div>
         </button>
         <button disabled={busy} onClick={onReset} className="danger-control">
           <RotateCcw size={18}/><div><b>Reset workspace</b><span>Create a fresh Northstar generation from the canonical fixture.</span></div>

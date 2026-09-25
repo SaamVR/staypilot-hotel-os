@@ -1,37 +1,25 @@
-import { BedDouble, Box, ChevronDown, MessageSquareText, RotateCcw } from "lucide-react";
+import { BedDouble, Box, MessageSquareText, RotateCcw } from "lucide-react";
 
 const scenarios = [
-  { key:"guest", icon:MessageSquareText, step:"01", title:"Guest request → assigned task", text:"Route a real in-stay request into housekeeping with a linked task and acknowledgement." },
-  { key:"checkout", icon:BedDouble, step:"02", title:"Checkout → room ready", text:"Close the stay, create turnover work, then complete housekeeping to release the room only when readiness rules allow it." },
-  { key:"stock", icon:Box, step:"03", title:"Low stock → approval", text:"Evaluate par level, stop at policy, then let a human authorize the purchase draft." },
-  { key:"recovery", icon:RotateCcw, step:"04", title:"Failure → safe recovery", text:"Retry an exhausted delivery without replaying the hotel action that already succeeded." },
+  { key:"guest", icon:MessageSquareText, step:"01", title:"Guest request → assigned task", text:"Route an in-stay request into Housekeeping with linked work and acknowledgement." },
+  { key:"checkout", icon:BedDouble, step:"02", title:"Checkout → room ready", text:"Close the stay, create turnover work, then release the room only after readiness rules pass." },
+  { key:"stock", icon:Box, step:"03", title:"Low stock → approval", text:"Evaluate par level, stop at policy, then authorize the downstream purchase draft." },
+  { key:"recovery", icon:RotateCcw, step:"04", title:"Failure → safe recovery", text:"Retry an exhausted delivery without replaying the completed hotel action." },
 ];
 
 export default function ScenarioLauncher({ onRun, busy }) {
-  return <section className="scenario-section scenario-section-compact">
-    <details className="workflow-lab">
-      <summary>
-        <div className="workflow-lab-summary">
-          <span className="eyebrow">Controlled workflows</span>
-          <h2>Workflow Lab</h2>
-          <p>4 isolated scenarios · deterministic state · inspectable execution traces</p>
-        </div>
-        <span className="workflow-lab-action">Open lab <ChevronDown size={16}/></span>
-      </summary>
-      <div className="workflow-lab-body">
-        <div className="section-heading">
-          <div><span className="eyebrow">Sandbox controls</span><h2>Run a workflow in this sandbox.</h2></div>
-          <p>Each scenario deliberately changes workspace state and opens the exact execution record behind the result.</p>
-        </div>
-        <div className="scenario-grid">
-          {scenarios.map(({ key, icon:Icon, step, title, text }) => <article className="scenario-card" key={key}>
-            <div className="scenario-top"><span>{step}</span><Icon size={20}/></div>
-            <h3>{title}</h3>
-            <p>{text}</p>
-            <button disabled={busy} onClick={() => onRun(key)}>{busy ? "Running…" : "Run scenario"} <span>→</span></button>
-          </article>)}
-        </div>
-      </div>
-    </details>
+  return <section className="sandbox-workflows">
+    <div className="sandbox-workflow-heading">
+      <span className="eyebrow">Test automations</span>
+      <h3>Controlled workflow tests</h3>
+      <p>Each test uses the current sandbox state and opens the resulting execution trace.</p>
+    </div>
+    <div className="sandbox-scenario-list">
+      {scenarios.map(({ key, icon:Icon, step, title, text }) => <button className="sandbox-scenario-row" key={key} disabled={busy} onClick={() => onRun(key)}>
+        <span className="sandbox-scenario-icon"><Icon size={17}/></span>
+        <span className="sandbox-scenario-copy"><small>{step}</small><b>{title}</b><em>{text}</em></span>
+        <strong>{busy ? "Running…" : "Run"}</strong>
+      </button>)}
+    </div>
   </section>;
 }

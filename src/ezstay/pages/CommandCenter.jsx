@@ -3,7 +3,6 @@ import { deriveHotelMetrics } from "../domain/derive.js";
 import { formatHotelMoment } from "../ui/format.js";
 import AttentionQueue from "../components/AttentionQueue.jsx";
 import AutomationFeed from "../components/AutomationFeed.jsx";
-import ScenarioLauncher from "../components/ScenarioLauncher.jsx";
 
 function guestSummary(rows) {
   const names = rows.map(row => row.guestName?.split(" ")[0]).filter(Boolean);
@@ -12,7 +11,7 @@ function guestSummary(rows) {
   return `${names.slice(0, 2).join(" · ")} +${names.length - 2}`;
 }
 
-export default function CommandCenter({ snapshot, onNavigate, onRunScenario, onOpenRun, busy }) {
+export default function CommandCenter({ snapshot, onNavigate, onOpenRun }) {
   const metrics = deriveHotelMetrics(snapshot);
   const today = String(snapshot.meta?.demoNow || "").slice(0, 10);
   const arrivals = snapshot.reservations.filter(row => row.checkIn === today && row.status !== "Cancelled");
@@ -49,6 +48,5 @@ export default function CommandCenter({ snapshot, onNavigate, onRunScenario, onO
     </section>
 
     <AutomationFeed runs={snapshot.automationRuns} onOpenRun={onOpenRun} timeZone={snapshot.hotel.timezone}/>
-    <ScenarioLauncher onRun={onRunScenario} busy={busy}/>
   </>;
 }

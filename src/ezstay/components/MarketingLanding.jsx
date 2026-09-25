@@ -82,7 +82,7 @@ export default function MarketingLanding({ onExplore, entryBusy = false }) {
     <main>
       <section className="presentation-hero" id="top">
         <div className="presentation-hero-copy">
-          <span className="presentation-kicker"><i/> Hotel operations automation · live product sandbox</span>
+          <span className="presentation-kicker"><i/> Hotel operations automation · sandbox workspace</span>
           <h1>Hotel operations that <em>move themselves forward.</em></h1>
           <p className="presentation-lede">
             EZStay turns hotel events into policy-aware workflows: state changes, approvals,
@@ -147,7 +147,7 @@ export default function MarketingLanding({ onExplore, entryBusy = false }) {
       <section className="proof-section" id="proof">
         <div className="presentation-section-head">
           <div><span className="presentation-kicker">Core workflows</span><h2>Keep routine operations moving without losing control of exceptions.</h2></div>
-          <button className="text-cta" onClick={onExplore}>Open the Workflow Lab <ArrowRight size={15}/></button>
+          <button className="text-cta" onClick={onExplore}>Explore workflow controls <ArrowRight size={15}/></button>
         </div>
         <div className="proof-grid">
           {proofs.map(({number,kicker,title,text,signal,result,icon:Icon})=><article key={number}>

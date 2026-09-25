@@ -60,19 +60,18 @@ async function openLanding(page) {
 async function enterDemo(page) {
   await page.getByRole("button", { name:"Explore interactive demo" }).first().click();
   await page.waitForURL(/#demo$/);
-  await expectVisible(page.getByText("Interactive demo · Sample data"), "workspace demo disclosure should render");
-  await expectVisible(page.getByText("Local preview sandbox"), "local-preview authority label should render");
-  await expectVisible(page.getByRole("heading", { name:"Workflow Lab" }), "workflow lab should render");
+  await expectVisible(page.getByRole("heading", { name:"Command Center" }), "workspace should open on Command Center");
+  await expectVisible(page.getByRole("button", { name:"Sandbox environment" }), "sandbox boundary should remain available");
+  await expectVisible(page.getByText("hotel time"), "workspace chrome should expose hotel time");
 }
 
 async function runScenario(page, title) {
-  const lab = page.locator("details.workflow-lab");
-  const card = page.locator(".scenario-card").filter({ hasText:title });
-  if (!(await card.first().isVisible())) {
-    await lab.locator("summary").click();
-  }
-  await expectVisible(card, `scenario card should render: ${title}`);
-  await card.getByRole("button", { name:/Run scenario/ }).click();
+  await page.getByRole("button", { name:"Sandbox environment" }).click();
+  const panel = page.getByLabel("Sandbox environment panel");
+  await panel.waitFor({ state:"visible" });
+  const row = panel.locator(".sandbox-scenario-row").filter({ hasText:title });
+  await expectVisible(row, `scenario control should render: ${title}`);
+  await row.click();
   const inspector = page.getByLabel("Automation run inspector");
   await inspector.waitFor({ state:"visible" });
   for (const heading of ["Input","Decision","Changes","Delivery","Audit","Linked records"]) {
@@ -156,17 +155,17 @@ try {
   await page.getByRole("button", { name:"Activity" }).click();
 
   await page.reload({ waitUntil:"networkidle" });
-  await expectVisible(page.getByText("Interactive demo · Sample data"), "workspace should survive reload");
+  await expectVisible(page.getByRole("button", { name:"Sandbox environment" }), "workspace should survive reload");
   await page.getByRole("button", { name:"Activity" }).click();
   const persistedDelivery = page.locator(".list-row").filter({ hasText:"DLV-400" });
   await expectVisible(persistedDelivery, "recovered delivery should persist through reload");
   assert.match(await persistedDelivery.innerText(), /Delivered/i);
 
-  await page.getByRole("button", { name:"Demo control" }).first().click();
+  await page.getByRole("button", { name:"Sandbox environment" }).click();
   await expectVisible(page.getByText("Advance +30 min"), "Demo control should expose deterministic clock");
   await screenshot(page, "10-demo-control");
   await page.getByRole("button", { name:"Reset workspace" }).click();
-  await expectVisible(page.getByText("Workspace reset to a fresh Northstar demo generation."), "reset should confirm a fresh generation");
+  await expectVisible(page.getByText("Northstar workspace reset to the canonical sandbox state."), "reset should confirm a fresh generation");
   await page.getByRole("button", { name:"Activity" }).click();
   const resetDelivery = page.locator(".list-row").filter({ hasText:"DLV-400" });
   await expectVisible(resetDelivery, "reset should restore the seeded failed delivery");
@@ -181,7 +180,8 @@ try {
   await screenshot(mobilePage, "12-landing-mobile-390");
   await enterDemo(mobilePage);
   await screenshot(mobilePage, "13-workspace-mobile-390");
-  await expectVisible(mobilePage.getByText("Northstar Grand · Live operations"), "property identity should remain visible on mobile");
+  await expectVisible(mobilePage.getByText("Northstar Grand").first(), "property identity should remain visible on mobile");
+  await expectVisible(mobilePage.getByRole("button", { name:"Sandbox environment" }), "sandbox environment should remain reachable on mobile");
   for (const label of ["Command","Operations","Automations","Approvals","Activity","Integrations"]) {
     const navButton = mobilePage.locator(".primary-nav button").filter({ hasText:label });
     await expectVisible(

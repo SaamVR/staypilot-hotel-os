@@ -33,7 +33,7 @@ test("Command Center reads like an operating workspace rather than a marketing p
 
 test("sandbox workflow controls are visibly secondary to operating state", () => {
   const source = readFileSync("src/ezstay/components/ScenarioLauncher.jsx", "utf8");
-  assert.match(source, /Controlled workflows/);
+  assert.match(source, /Test automations/);
   assert.doesNotMatch(source, /Guided proof/);
 });
 
@@ -73,7 +73,7 @@ test("workspace chrome contains no dead demo-information navigation", () => {
   const shell = readFileSync("src/ezstay/components/AppShell.jsx", "utf8");
   assert.doesNotMatch(shell, /About this demo/);
   assert.doesNotMatch(shell, /Demo property/);
-  assert.match(shell, />Environment</);
+  assert.match(shell, />Sandbox</);
 });
 
 test("public landing markets EZStay as a product while keeping the sandbox boundary explicit", () => {
