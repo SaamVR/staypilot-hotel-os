@@ -1,0 +1,89 @@
+name: Deploy EZStay V2
+
+on:
+  push:
+    branches: ["v2/ezstay"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  EZSTAY_PAGES_PROJECT: ezstay
+  WRANGLER_VERSION: 4.136.1
+
+jobs:
+  verify-build-deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+    steps:
+      - name: Checkout V2
+        uses: actions/checkout@v4
+
+      - name: Use Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+
+      - name: Install
+        run: npm ci
+
+      - name: Verify legacy StayPilot backend
+        run: npm run verify:backend
+
+      - name: Verify EZStay UI and runtime
+        run: npm run verify:ezstay
+
+      - name: Verify EZStay shared backend contract
+        run: |
+          cd portfolio-backend
+          npm run verify
+
+      - name: Build EZStay
+        run: npm run build
+
+      - name: Upload verified Pages bundle
+        uses: actions/upload-artifact@v4
+        with:
+          name: ezstay-pages-dist
+          path: dist
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Detect Cloudflare credentials
+        id: cloudflare
+        shell: bash
+        run: |
+          if [[ -n "$CLOUDFLARE_API_TOKEN" && -n "$CLOUDFLARE_ACCOUNT_ID" ]]; then
+            echo "available=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "available=false" >> "$GITHUB_OUTPUT"
+            echo "Cloudflare credentials are not configured; keeping the verified build artifact only."
+          fi
+
+      - name: Ensure separate EZStay Pages project exists
+        if: steps.cloudflare.outputs.available == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          npx --yes "wrangler@$WRANGLER_VERSION" pages project list --json > /tmp/pages-projects.json
+          if jq -e --arg name "$EZSTAY_PAGES_PROJECT" '.[] | select(.name == $name)' /tmp/pages-projects.json >/dev/null; then
+            echo "Pages project $EZSTAY_PAGES_PROJECT already exists."
+          else
+            npx --yes "wrangler@$WRANGLER_VERSION" pages project create "$EZSTAY_PAGES_PROJECT" \
+              --production-branch="v2/ezstay"
+          fi
+
+      - name: Deploy EZStay to Cloudflare Pages
+        if: steps.cloudflare.outputs.available == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          npx --yes "wrangler@$WRANGLER_VERSION" pages deploy dist \
+            --project-name="$EZSTAY_PAGES_PROJECT" \
+            --branch="v2/ezstay" \
+            --commit-hash="$GITHUB_SHA"
