@@ -203,6 +203,83 @@ export function runCheckout(state, command) {
   });
 }
 
+export function completeHousekeeping(state, command) {
+  assertDemoGeneration(state, command);
+  return withIdempotency(state, command.idempotencyKey, (next, key) => {
+    const task = next.tasks.find(row => row.id === command.taskId);
+    if (!task || task.status === "Done" || task.team !== "Housekeeping" || task.title !== "Full turnover" || !task.roomId) {
+      const run = failedRun(
+        next,
+        key,
+        "room-ready-release",
+        "Housekeeping completion could not be applied.",
+        { taskId:command.taskId },
+        "An open room-turnover housekeeping task was not found."
+      );
+      return { state:next, run };
+    }
+
+    const room = next.rooms.find(row => row.id === task.roomId);
+    if (!room) {
+      const run = failedRun(next, key, "room-ready-release", "Housekeeping completion could not be applied.", { taskId:command.taskId }, "Task room was not found.");
+      return { state:next, run };
+    }
+
+    task.status = "Done";
+    task.completedAt = effectiveNow(next);
+    room.housekeeping = "Clean";
+
+    const sellable = room.occupancy === "Vacant" && room.housekeeping === "Clean" && room.maintenance === "Clear";
+    const maintenanceBlocked = room.maintenance !== "Clear";
+    const summary = sellable
+      ? `Room ${room.number} is Clean and sellable after housekeeping completion.`
+      : maintenanceBlocked
+        ? `Room ${room.number} is Clean but remains unavailable because maintenance is blocked.`
+        : `Room ${room.number} is Clean but remains unavailable because occupancy is ${room.occupancy}.`;
+
+    const run = appendRun(next, {
+      id:runId(key),
+      eventId:eventId(key),
+      ruleKey:"room-ready-release",
+      result:"Success",
+      summary,
+      input:{ taskId:task.id, roomNumber:room.number },
+      decision:{
+        autonomy:"Auto",
+        reason:maintenanceBlocked
+          ? "Housekeeping completion can mark cleanliness, but maintenance authority still blocks sellability."
+          : "Housekeeping completion recalculates readiness from occupancy, cleanliness, and maintenance state.",
+      },
+      changes:[
+        { entityType:"task", entityId:task.id, action:"done" },
+        { entityType:"room", entityId:room.id, action:sellable ? "clean_sellable" : "clean_not_sellable" },
+      ],
+      delivery:[],
+      audit:[
+        makeAudit(next, "Turnover task marked Done."),
+        makeAudit(next, "Room housekeeping marked Clean."),
+        makeAudit(next, sellable ? "Room became sellable." : "Room remains unavailable after readiness evaluation."),
+      ],
+      linkedRecords:[
+        { type:"task", id:task.id, label:`${task.place} · ${task.title}` },
+        { type:"room", id:room.id, label:`Room ${room.number}` },
+      ],
+    });
+
+    next.auditEvents.push({
+      id:`audit_${stableToken(key)}`,
+      hotelId:next.hotel.id,
+      actorKind:"automation",
+      category:"Automation",
+      action:sellable ? "Room released as ready" : "Housekeeping complete; room still blocked",
+      createdAt:effectiveNow(next),
+      sourceEventId:run.eventId,
+    });
+
+    return { state:next, run };
+  });
+}
+
 export function runLowStock(state, command) {
   assertDemoGeneration(state, command);
   return withIdempotency(state, command.idempotencyKey, (next, key) => {
