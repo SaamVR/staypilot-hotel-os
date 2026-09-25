@@ -13,6 +13,17 @@ test("platform has app/user scoped demo command idempotency", () => {
   assert.match(platform, /response\s+jsonb/);
 });
 
+test("first-time demo creation serializes concurrent tabs before active-session lookup", () => {
+  const start = lifecycle.indexOf("create or replace function private.create_ezstay_demo_session");
+  const next = lifecycle.indexOf("create or replace function private.", start + 20);
+  const fn = lifecycle.slice(start, next >= 0 ? next : lifecycle.length);
+  const lockIndex = fn.indexOf("pg_advisory_xact_lock");
+  const activeLookupIndex = fn.indexOf("private.ezstay_active_demo_session");
+  assert.ok(lockIndex >= 0, "transaction-scoped advisory lock is required");
+  assert.ok(activeLookupIndex > lockIndex, "active-session lookup must happen after the lifecycle lock");
+  assert.match(fn, /hashtextextended\s*\(\s*'ezstay-demo-session:'\s*\|\|\s*auth_user_id::text/);
+});
+
 test("start command is retry-safe and delegates to the transactional session creator", () => {
   assert.match(lifecycle, /function\s+private\.ezstay_start_demo_command/);
   const start = lifecycle.indexOf("create or replace function private.ezstay_start_demo_command");
