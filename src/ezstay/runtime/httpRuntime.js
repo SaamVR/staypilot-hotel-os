@@ -29,25 +29,35 @@ async function parseResponse(response) {
   return body;
 }
 
-export function createHttpRuntime({ fetchImpl = globalThis.fetch } = {}) {
+export function createHttpRuntime({ fetchImpl = globalThis.fetch, getAccessToken } = {}) {
   if (typeof fetchImpl !== "function") throw new Error("fetch_required");
 
+  async function authorizationHeader() {
+    if (typeof getAccessToken !== "function") throw new Error("backend_authentication_required");
+    const token = String(await getAccessToken() || "").trim();
+    if (!token) throw new Error("backend_authentication_required");
+    return `Bearer ${token}`;
+  }
+
   async function get(url) {
+    const authorization = await authorizationHeader();
     return parseResponse(await fetchImpl(url, {
       method:"GET",
       cache:"no-store",
-      headers:{ accept:"application/json" },
+      headers:{ accept:"application/json", authorization },
     }));
   }
 
   async function mutate(url, { idempotencyKey, ...body }) {
     if (!idempotencyKey) throw new Error("idempotency_key_required");
+    const authorization = await authorizationHeader();
     return parseResponse(await fetchImpl(url, {
       method:"POST",
       cache:"no-store",
       headers:{
         "content-type":"application/json",
         accept:"application/json",
+        authorization,
         "Idempotency-Key":idempotencyKey,
       },
       body:JSON.stringify(body),

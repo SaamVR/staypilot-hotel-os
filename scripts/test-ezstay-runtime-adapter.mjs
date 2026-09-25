@@ -52,7 +52,7 @@ test("HTTP runtime exposes the namespaced housekeeping completion route", async 
       headers:{ "content-type":"application/json" }
     });
   };
-  const runtime = createHttpRuntime({ fetchImpl });
+  const runtime = createHttpRuntime({ fetchImpl, getAccessToken:async () => "test_access" });
   await runtime.completeHousekeeping({ idempotencyKey:"cmd_ready_1", taskId:"task_turnover_1" });
   assert.equal(calls[0].url, EZSTAY_ROUTES.housekeepingComplete);
   assert.equal(calls[0].options.headers["Idempotency-Key"], "cmd_ready_1");
@@ -67,7 +67,7 @@ test("HTTP runtime uses namespaced route and Idempotency-Key", async () => {
       headers:{ "content-type":"application/json" }
     });
   };
-  const runtime = createHttpRuntime({ fetchImpl });
+  const runtime = createHttpRuntime({ fetchImpl, getAccessToken:async () => "test_access" });
   await runtime.runGuestRequest({ idempotencyKey:"cmd_http_1", request:"Pillows", roomNumber:"108" });
   assert.equal(calls[0].url, EZSTAY_ROUTES.guestRequest);
   assert.equal(calls[0].options.headers["Idempotency-Key"], "cmd_http_1");
