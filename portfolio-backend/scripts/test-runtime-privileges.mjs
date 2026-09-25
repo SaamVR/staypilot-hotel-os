@@ -4,8 +4,9 @@ import { readFileSync } from "node:fs";
 
 const sql = readFileSync("supabase/migrations/20260925060000_ezstay_runtime_role.sql", "utf8").toLowerCase();
 
-test("EZStay runtime role is non-login and non-inheriting", () => {
-  assert.match(sql, /create\s+role\s+ezstay_runtime\s+noinherit\s+nologin|create\s+role\s+ezstay_runtime\s+nologin\s+noinherit/);
+test("EZStay runtime role is a dedicated login role without a committed password", () => {
+  assert.match(sql, /create\s+role\s+ezstay_runtime\s+noinherit\s+login|create\s+role\s+ezstay_runtime\s+login\s+noinherit/);
+  assert.doesNotMatch(sql, /password\s+['"]/);
 });
 
 test("runtime role receives no broad all-table grant", () => {
