@@ -77,7 +77,7 @@ const base = {
     { id:"inv_water", hotelId:HOTEL_ID, item:"Minibar water", category:"F&B", stock:146, par:120, unit:"bottles", unitCost:0.35, supplier:"Fresh Supply" },
   ],
   approvals:[
-    { id:"apr_104", hotelId:HOTEL_ID, type:"Maintenance", title:"Room 207 HVAC invoice", detail:"CoolTech · diagnostic + service", amount:165, status:"Pending", requestedBy:"Sam Rahman", createdAt:"2026-09-25T10:19:00+06:00" },
+    { id:"apr_104", hotelId:HOTEL_ID, type:"Maintenance", title:"Room 207 HVAC service authorization", detail:"CoolTech · diagnostic + service", amount:165, taskId:"task_207_hvac", roomId:"room_207", status:"Pending", requestedBy:"Maintenance desk", createdAt:"2026-09-25T10:19:00+06:00" },
     { id:"apr_103", hotelId:HOTEL_ID, type:"Purchase order", title:"Queen bed sheet restock", detail:"20 sets · Coastal Textile", amount:360, inventoryItemId:"inv_queen_sheets", quantity:20, status:"Pending", requestedBy:"Sam Rahman", createdAt:"2026-09-25T09:56:00+06:00" },
   ],
   purchaseRequests:[],

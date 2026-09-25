@@ -28,3 +28,11 @@
 .backend-entry-backdrop{position:fixed;inset:0;z-index:90;background:rgba(10,16,13,.68);backdrop-filter:blur(10px);display:grid;place-items:center;padding:20px}
 .backend-entry-card{width:min(460px,100%);background:#f8faf8;border:1px solid #d7e0da;border-radius:20px;padding:28px;box-shadow:0 28px 80px rgba(0,0,0,.28);position:relative}.backend-entry-close{position:absolute;top:16px;right:16px;width:34px;height:34px;border:1px solid var(--line);border-radius:9px;background:#fff;display:grid;place-items:center;cursor:pointer}.backend-entry-close:disabled{opacity:.45;cursor:not-allowed}.backend-entry-icon{width:42px;height:42px;border-radius:12px;display:grid;place-items:center;background:var(--emerald-soft);color:var(--emerald);margin-bottom:18px}.backend-entry-card h2{font-size:28px;line-height:1.04;letter-spacing:-.04em;margin:10px 38px 10px 0}.backend-entry-card>p{font-size:12px;line-height:1.65;color:var(--muted);margin:0 0 20px}.turnstile-container{min-height:70px;display:flex;align-items:center;justify-content:center}.backend-entry-status{font-size:10px;color:var(--muted);text-align:center;margin-top:10px}.backend-entry-error,.presentation-entry-error{font-size:10px;line-height:1.5;color:#9c342c;background:#fff1ef;border:1px solid #edc6c0;border-radius:9px;padding:10px 12px}.backend-entry-error{margin-top:12px}.backend-entry-card>small{display:block;font-size:9px;line-height:1.5;color:#87938d;margin-top:14px}.presentation-entry-error{position:fixed;right:18px;bottom:18px;z-index:60;max-width:360px;box-shadow:0 12px 34px rgba(0,0,0,.12)}
 @media(max-width:520px){.backend-entry-backdrop{padding:12px}.backend-entry-card{padding:22px 18px}.backend-entry-card h2{font-size:24px}.presentation-entry-error{left:12px;right:12px;bottom:12px;max-width:none}}
+
+/* Product-story legibility */
+.presentation-brand small,.stage-top,.stage-event small,.presentation-strip,
+.mechanic-number,.proof-grid article>small,.trust-stack article>span,.presentation-footer p{font-size:10px}
+.stage-decision small,.stage-result span,.proof-contract span{font-size:10px}
+.proof-contract b{font-size:10px}
+.mechanics-grid p,.trust-stack p{font-size:11px}
+@media(max-width:720px){.presentation-brand b{font-size:16px}.presentation-disclosure{font-size:11px}.proof-grid p{font-size:12px}}

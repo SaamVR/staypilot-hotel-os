@@ -92,6 +92,22 @@ test("low stock requires approval and approval creates one purchase draft withou
   assert.equal(replay.state.purchaseRequests.length, 1);
 });
 
+test("maintenance approval authorizes linked maintenance work without creating a purchase draft", () => {
+  const initial = createNorthstarSeed();
+  const result = resolveApproval(initial, {
+    idempotencyKey:"cmd_approve_maintenance",
+    approvalId:"apr_104",
+    decision:"Approved",
+    resetGeneration:0,
+  });
+  const task = result.state.tasks.find(row => row.id === "task_207_hvac");
+  assert.equal(result.state.purchaseRequests.length, 0);
+  assert.equal(task.status, "In progress");
+  assert.equal(task.metadata?.authorization, "Approved");
+  assert.match(result.run.summary, /maintenance|authorized/i);
+  assert.ok(result.run.linkedRecords.some(row => row.type === "task" && row.id === task.id));
+});
+
 test("delivery retry does not replay business mutations", () => {
   const initial = createNorthstarSeed();
   const before = {
@@ -114,6 +130,13 @@ test("advancing demo clock escalates an overdue task once", () => {
   const escalationsAfterSecond = second.state.automationRuns.filter(run => run.ruleKey === "overdue-task-escalation").length;
   assert.ok(escalationsAfterFirst >= 1);
   assert.equal(escalationsAfterSecond, escalationsAfterFirst);
+  const escalationRun = first.state.automationRuns.find(run => run.ruleKey === "overdue-task-escalation");
+  const deliveryRef = escalationRun?.delivery?.[0];
+  const outboxDelivery = first.state.deliveries.find(row => row.id === deliveryRef?.id);
+  assert.ok(outboxDelivery, "escalation delivery must be present in the shared outbox");
+  assert.equal(outboxDelivery.runId, escalationRun.id);
+  assert.equal(outboxDelivery.status, "Delivered");
+  assert.match(outboxDelivery.channel, /operations alert/i);
 });
 
 test("stale demo generation is rejected", () => {
@@ -123,4 +146,24 @@ test("stale demo generation is rejected", () => {
     () => runGuestRequest(initial, { idempotencyKey:"cmd_stale", request:"Water", roomNumber:"108", resetGeneration:1 }),
     /stale_demo_generation/
   );
+});
+
+test("flagship local-preview workflows append operator-visible audit events", () => {
+  const initial = createNorthstarSeed();
+  const checkout = runCheckout(initial, { idempotencyKey:"cmd_audit_checkout", reservationId:"res_1047", resetGeneration:0 });
+  assert.ok(checkout.state.auditEvents.some(row => row.action === "Checkout turnover completed"));
+
+  const low = runLowStock(checkout.state, { idempotencyKey:"cmd_audit_stock", inventoryItemId:"inv_queen_sheets", resetGeneration:0 });
+  assert.ok(low.state.auditEvents.some(row => row.action === "Low-stock approval requested"));
+
+  const approvalId = low.run.linkedRecords.find(row => row.type === "approval").id;
+  const approval = resolveApproval(low.state, { idempotencyKey:"cmd_audit_approval", approvalId, decision:"Approved", resetGeneration:0 });
+  assert.ok(approval.state.auditEvents.some(row => row.action === "Approval decision executed"));
+
+  const recovery = retryDelivery(approval.state, { idempotencyKey:"cmd_audit_retry", deliveryId:"DLV-400", resetGeneration:0 });
+  assert.ok(recovery.state.auditEvents.some(row => row.action === "Delivery recovered"));
+
+  const clock = advanceDemoClock(recovery.state, { idempotencyKey:"cmd_audit_clock", minutes:30, resetGeneration:0 });
+  assert.ok(clock.state.auditEvents.some(row => row.action === "Demo clock advanced"));
+  assert.ok(clock.state.auditEvents.some(row => row.action === "Overdue task escalated"));
 });

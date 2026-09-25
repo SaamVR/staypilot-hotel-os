@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { Clock3, Info, RotateCcw, ShieldAlert, X } from "lucide-react";
 import { describeDemoMode } from "../domain/demoControl.js";
 import { formatHotelMoment } from "../ui/format.js";
@@ -14,6 +15,13 @@ export default function DemoControl({
   onShowFailure,
   onRunScenario,
 }) {
+  useEffect(() => {
+    if (!open) return undefined;
+    const onKeyDown = event => { if (event.key === "Escape") onClose(); };
+    globalThis.addEventListener?.("keydown", onKeyDown);
+    return () => globalThis.removeEventListener?.("keydown", onKeyDown);
+  }, [open, onClose]);
+
   if (!open) return null;
   const failed = snapshot?.deliveries?.find(item => ["Failed","Dead-letter"].includes(item.status));
   const timeZone = snapshot?.hotel?.timezone || "UTC";
@@ -23,11 +31,16 @@ export default function DemoControl({
     onRunScenario?.(key);
   };
 
+  const advanceClock = () => {
+    onClose();
+    onAdvanceClock?.();
+  };
+
   return <div className="drawer-backdrop demo-control-backdrop" onMouseDown={onClose}>
-    <aside className="demo-control-drawer" onMouseDown={event => event.stopPropagation()} aria-label="Sandbox environment panel">
+    <aside className="demo-control-drawer" role="dialog" aria-modal="true" aria-labelledby="sandbox-environment-title" onMouseDown={event => event.stopPropagation()}>
       <header className="run-head">
-        <div><span className="eyebrow">Environment</span><h2>Northstar sandbox</h2><small className="run-rule-label">Sample data · simulated external providers</small></div>
-        <button className="icon-button" onClick={onClose} aria-label="Close environment"><X size={18}/></button>
+        <div><span className="eyebrow">Environment</span><h2 id="sandbox-environment-title">Northstar sandbox</h2><small className="run-rule-label">Sample data · simulated external providers</small></div>
+        <button autoFocus className="icon-button" onClick={onClose} aria-label="Close environment"><X size={18}/></button>
       </header>
 
       <section className="demo-status-grid">
@@ -41,7 +54,7 @@ export default function DemoControl({
 
       <section className="demo-control-actions">
         <div className="sandbox-section-heading"><span className="eyebrow">Environment controls</span><h3>Time, recovery & reset</h3></div>
-        <button disabled={busy} onClick={onAdvanceClock}>
+        <button disabled={busy} onClick={advanceClock}>
           <Clock3 size={18}/><div><b>Advance +30 min</b><span>Trigger time-based SLA evaluation immediately.</span></div>
         </button>
         <button disabled={busy || !failed} onClick={onShowFailure}>

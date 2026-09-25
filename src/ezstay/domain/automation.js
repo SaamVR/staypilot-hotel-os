@@ -22,6 +22,25 @@ function appendRun(state, run) {
   return run;
 }
 
+function appendAuditEvent(state, key, action, {
+  actorKind = "automation",
+  category = "Automation",
+  sourceEventId = eventId(key),
+  createdAt = effectiveNow(state),
+} = {}) {
+  const audit = {
+    id:`audit_${stableToken(sourceEventId)}_${stableToken(action)}`,
+    hotelId:state.hotel.id,
+    actorKind,
+    category,
+    action,
+    createdAt,
+    sourceEventId,
+  };
+  state.auditEvents = [...(state.auditEvents || []), audit];
+  return audit;
+}
+
 function failedRun(state, key, ruleKey, summary, input, reason) {
   return appendRun(state, {
     id:runId(key),
@@ -199,6 +218,7 @@ export function runCheckout(state, command) {
         { type:"task", id:task.id, label:`Room ${room.number} · Full turnover` },
       ],
     });
+    appendAuditEvent(next, key, "Checkout turnover completed", { sourceEventId:event });
     return { state:next, run };
   });
 }
@@ -330,6 +350,7 @@ export function runLowStock(state, command) {
         { type:"approval", id:approval.id, label:approval.title },
       ],
     });
+    appendAuditEvent(next, key, "Low-stock approval requested", { sourceEventId:run.eventId });
     return { state:next, run };
   });
 }
@@ -349,6 +370,9 @@ export function resolveApproval(state, command) {
 
     const changes = [{ entityType:"approval", entityId:approval.id, action:approval.status.toLowerCase() }];
     const links = [{ type:"approval", id:approval.id, label:approval.title }];
+    const audit = [makeAudit(next, `Approval marked ${approval.status}.`)];
+    let followUpKind = null;
+    let maintenanceTask = null;
 
     if (approved && approval.inventoryItemId) {
       const purchase = {
@@ -365,6 +389,42 @@ export function resolveApproval(state, command) {
       next.purchaseRequests.push(purchase);
       changes.push({ entityType:"purchase_request", entityId:purchase.id, action:"created" });
       links.push({ type:"purchase_request", id:purchase.id, label:`Purchase draft · ${purchase.quantity} units` });
+      audit.push(makeAudit(next, "Purchase draft created; inventory remains unchanged until receipt."));
+      followUpKind = "purchase";
+    } else if (approved && approval.type === "Maintenance") {
+      maintenanceTask = next.tasks.find(row => row.id === approval.taskId)
+        || next.tasks.find(row => row.roomId === approval.roomId && row.team === "Maintenance" && row.status !== "Done");
+
+      if (!maintenanceTask) {
+        const room = next.rooms.find(row => row.id === approval.roomId);
+        maintenanceTask = {
+          id:`task_approval_${stableToken(key)}`,
+          hotelId:next.hotel.id,
+          reservationId:null,
+          roomId:room?.id || null,
+          place:room ? `Room ${room.number}` : "Maintenance",
+          title:approval.title.replace(/ invoice$/i, " service"),
+          team:"Maintenance",
+          dueAt:new Date(new Date(effectiveNow(next)).getTime() + 60 * 60_000).toISOString(),
+          status:"In progress",
+          automated:false,
+          sourceEventId:eventId(key),
+          metadata:{},
+        };
+        next.tasks.push(maintenanceTask);
+      }
+
+      maintenanceTask.status = "In progress";
+      maintenanceTask.metadata = {
+        ...(maintenanceTask.metadata || {}),
+        authorization:"Approved",
+        authorizationApprovalId:approval.id,
+        authorizedAt:effectiveNow(next),
+      };
+      changes.push({ entityType:"task", entityId:maintenanceTask.id, action:"authorized" });
+      links.push({ type:"task", id:maintenanceTask.id, label:`${maintenanceTask.place} · ${maintenanceTask.title}` });
+      audit.push(makeAudit(next, "Linked maintenance work authorized and moved to In progress."));
+      followUpKind = "maintenance";
     }
 
     const run = appendRun(next, {
@@ -372,18 +432,26 @@ export function resolveApproval(state, command) {
       eventId:eventId(key),
       ruleKey:"approval-executor",
       result:"Success",
-      summary:approved
-        ? approval.inventoryItemId
+      summary:!approved
+        ? "Approval rejected; no authorized follow-up was created."
+        : followUpKind === "purchase"
           ? "Approval accepted and purchase draft created."
-          : "Approval accepted; authorized work may proceed."
-        : "Approval rejected; no authorized follow-up was created.",
-      input:{ approvalId:approval.id, decision:command.decision },
+          : followUpKind === "maintenance"
+            ? `Maintenance approved; ${maintenanceTask.place} · ${maintenanceTask.title} is authorized and in progress.`
+            : "Approval accepted; authorized work may proceed.",
+      input:{
+        approvalId:approval.id,
+        decision:command.decision,
+        ...(followUpKind ? { followUpType:followUpKind } : {}),
+        ...(maintenanceTask ? { taskId:maintenanceTask.id } : {}),
+      },
       decision:{ autonomy:"Auto", reason:"The human decision is authoritative for the pending approval." },
       changes,
       delivery:[],
-      audit:[makeAudit(next, `Approval marked ${approval.status}.`)],
+      audit,
       linkedRecords:links,
     });
+    appendAuditEvent(next, key, "Approval decision executed", { sourceEventId:run.eventId });
     return { state:next, run };
   });
 }
@@ -415,6 +483,7 @@ export function retryDelivery(state, command) {
       audit:[makeAudit(next, "Delivery-only retry succeeded; source business mutation was not replayed.")],
       linkedRecords:[{ type:"delivery", id:delivery.id, label:delivery.channel }],
     });
+    appendAuditEvent(next, key, "Delivery recovered", { category:"Recovery", sourceEventId:run.eventId });
     return { state:next, run };
   });
 }
@@ -437,8 +506,21 @@ export function advanceDemoClock(state, command) {
       ) {
         task.escalatedAt = newNow.toISOString();
         newlyEscalated.push(task);
+        const escalationRunId = `RUN-ESC-${task.id}`;
+        const escalationDelivery = {
+          id:`DLV-ESC-${task.id}`,
+          hotelId:next.hotel.id,
+          runId:escalationRunId,
+          channel:"Demo operations alert",
+          status:"Delivered",
+          attempts:1,
+          lastError:null,
+          createdAt:newNow.toISOString(),
+          deliveredAt:newNow.toISOString(),
+        };
+        next.deliveries.push(escalationDelivery);
         appendRun(next, {
-          id:`RUN-ESC-${task.id}`,
+          id:escalationRunId,
           eventId:`evt_overdue_${task.id}`,
           ruleKey:"overdue-task-escalation",
           result:"Success",
@@ -446,9 +528,16 @@ export function advanceDemoClock(state, command) {
           input:{ taskId:task.id, dueAt:task.dueAt },
           decision:{ autonomy:"Auto", reason:"Task crossed its configured SLA deadline." },
           changes:[{ entityType:"task", entityId:task.id, action:"escalated" }],
-          delivery:[{ id:`DLV-ESC-${task.id}`, status:"Delivered" }],
+          delivery:[{ id:escalationDelivery.id, status:escalationDelivery.status }],
           audit:[makeAudit(next, "Overdue task escalated once.")],
-          linkedRecords:[{ type:"task", id:task.id, label:`${task.place} · ${task.title}` }],
+          linkedRecords:[
+            { type:"task", id:task.id, label:`${task.place} · ${task.title}` },
+            { type:"delivery", id:escalationDelivery.id, label:escalationDelivery.channel },
+          ],
+        });
+        appendAuditEvent(next, key, "Overdue task escalated", {
+          sourceEventId:`evt_overdue_${task.id}`,
+          createdAt:newNow.toISOString(),
         });
       }
     }
@@ -465,6 +554,12 @@ export function advanceDemoClock(state, command) {
       delivery:[],
       audit:[makeAudit(next, `Demo clock advanced by ${minutes} minutes.`)],
       linkedRecords:newlyEscalated.map(task => ({ type:"task", id:task.id, label:`${task.place} · ${task.title}` })),
+    });
+    appendAuditEvent(next, key, "Demo clock advanced", {
+      actorKind:"system",
+      category:"Demo",
+      sourceEventId:run.eventId,
+      createdAt:newNow.toISOString(),
     });
     return { state:next, run };
   });
