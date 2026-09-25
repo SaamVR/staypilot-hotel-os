@@ -1,4 +1,4 @@
-import { BedDouble, Box, MessageSquareText, RotateCcw } from "lucide-react";
+import { BedDouble, Box, ChevronDown, MessageSquareText, RotateCcw } from "lucide-react";
 
 const scenarios = [
   { key:"guest", icon:MessageSquareText, step:"01", title:"Guest request → assigned task", text:"Route a real in-stay request into housekeeping with a linked task and acknowledgement." },
@@ -8,18 +8,30 @@ const scenarios = [
 ];
 
 export default function ScenarioLauncher({ onRun, busy }) {
-  return <section className="scenario-section">
-    <div className="section-heading">
-      <div><span className="eyebrow">Controlled workflows</span><h2>Run a workflow in this sandbox.</h2></div>
-      <p>These controls exercise the operating model deliberately. Each action changes workspace state and opens the exact execution record behind it.</p>
-    </div>
-    <div className="scenario-grid">
-      {scenarios.map(({ key, icon:Icon, step, title, text }) => <article className="scenario-card" key={key}>
-        <div className="scenario-top"><span>{step}</span><Icon size={20}/></div>
-        <h3>{title}</h3>
-        <p>{text}</p>
-        <button disabled={busy} onClick={() => onRun(key)}>{busy ? "Running…" : "Run scenario"} <span>→</span></button>
-      </article>)}
-    </div>
+  return <section className="scenario-section scenario-section-compact">
+    <details className="workflow-lab">
+      <summary>
+        <div className="workflow-lab-summary">
+          <span className="eyebrow">Controlled workflows</span>
+          <h2>Workflow Lab</h2>
+          <p>4 isolated scenarios · deterministic state · inspectable execution traces</p>
+        </div>
+        <span className="workflow-lab-action">Open lab <ChevronDown size={16}/></span>
+      </summary>
+      <div className="workflow-lab-body">
+        <div className="section-heading">
+          <div><span className="eyebrow">Sandbox controls</span><h2>Run a workflow in this sandbox.</h2></div>
+          <p>Each scenario deliberately changes workspace state and opens the exact execution record behind the result.</p>
+        </div>
+        <div className="scenario-grid">
+          {scenarios.map(({ key, icon:Icon, step, title, text }) => <article className="scenario-card" key={key}>
+            <div className="scenario-top"><span>{step}</span><Icon size={20}/></div>
+            <h3>{title}</h3>
+            <p>{text}</p>
+            <button disabled={busy} onClick={() => onRun(key)}>{busy ? "Running…" : "Run scenario"} <span>→</span></button>
+          </article>)}
+        </div>
+      </div>
+    </details>
   </section>;
 }

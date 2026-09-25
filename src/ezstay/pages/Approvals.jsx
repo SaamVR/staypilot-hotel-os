@@ -30,7 +30,7 @@ export default function Approvals({ snapshot, onResolve, busy }) {
     : 0;
 
   return <div className="page-stack">
-    <div className="page-header"><span className="eyebrow">Human authority</span><h1>Approvals</h1><p>Policy-bound work pauses here. Every decision is recorded as part of the automation run instead of disappearing into a generic confirmation dialog.</p></div>
+    <div className="page-header"><span className="eyebrow">Human authority</span><h1>Approvals</h1><p>Policy-bound work pauses here for an authorized decision. Context, outcome, and downstream effects remain traceable in the same execution history.</p></div>
 
     <section className="approval-summary-strip" aria-label="Approval queue summary">
       <div><small>Waiting decisions</small><b>{pending.length}</b><span>policy gates requiring a person</span></div>

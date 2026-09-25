@@ -62,11 +62,15 @@ async function enterDemo(page) {
   await page.waitForURL(/#demo$/);
   await expectVisible(page.getByText("Interactive demo · Sample data"), "workspace demo disclosure should render");
   await expectVisible(page.getByText("Local preview sandbox"), "local-preview authority label should render");
-  await expectVisible(page.getByText("Run a workflow in this sandbox."), "controlled workflow section should render");
+  await expectVisible(page.getByRole("heading", { name:"Workflow Lab" }), "workflow lab should render");
 }
 
 async function runScenario(page, title) {
+  const lab = page.locator("details.workflow-lab");
   const card = page.locator(".scenario-card").filter({ hasText:title });
+  if (!(await card.first().isVisible())) {
+    await lab.locator("summary").click();
+  }
   await expectVisible(card, `scenario card should render: ${title}`);
   await card.getByRole("button", { name:/Run scenario/ }).click();
   const inspector = page.getByLabel("Automation run inspector");
