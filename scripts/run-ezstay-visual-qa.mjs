@@ -144,8 +144,9 @@ try {
   await screenshot(mobilePage, "09-workspace-mobile-390");
   await expectVisible(mobilePage.getByText("Northstar Grand · Operations command"), "property identity should remain visible on mobile");
   for (const label of ["Command","Operations","Automations","Approvals","Activity","Integrations"]) {
+    const navButton = mobilePage.locator(".primary-nav button").filter({ hasText:label });
     await expectVisible(
-      mobilePage.locator(".primary-nav button").filter({ hasText:label }),
+      navButton.locator("span"),
       `mobile navigation label should remain visible: ${label}`
     );
   }
