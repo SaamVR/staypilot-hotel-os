@@ -283,6 +283,109 @@ begin
 end;
 $$;
 
+create or replace function private.ezstay_complete_housekeeping(
+  target_hotel_id uuid,
+  target_event_id text,
+  target_task_id uuid
+)
+returns uuid
+language plpgsql
+security definer
+set search_path = ''
+as $
+declare
+  task_row ezstay.tasks;
+  room_row ezstay.rooms;
+  run_uuid uuid := gen_random_uuid();
+  actual_run_id uuid;
+  room_sellable boolean;
+  summary_text text;
+begin
+  select id into actual_run_id
+  from ezstay.automation_runs
+  where hotel_id = target_hotel_id
+    and event_id = target_event_id
+    and rule_key = 'room-ready-release';
+
+  if actual_run_id is not null then
+    return actual_run_id;
+  end if;
+
+  select *
+  into task_row
+  from ezstay.tasks
+  where hotel_id = target_hotel_id
+    and id = target_task_id
+    and status <> 'Done'
+    and team = 'Housekeeping'
+    and title = 'Full turnover'
+    and room_id is not null
+  for update;
+
+  if task_row.id is null then
+    raise exception 'open_turnover_task_not_found';
+  end if;
+
+  select *
+  into room_row
+  from ezstay.rooms
+  where hotel_id = target_hotel_id
+    and id = task_row.room_id
+  for update;
+
+  if room_row.id is null then
+    raise exception 'turnover_room_not_found';
+  end if;
+
+  update ezstay.tasks
+  set status = 'Done',
+      updated_at = now()
+  where hotel_id = target_hotel_id
+    and id = task_row.id;
+
+  update ezstay.rooms
+  set housekeeping = 'Clean',
+      updated_at = now()
+  where hotel_id = target_hotel_id
+    and id = room_row.id;
+
+  room_sellable := room_row.occupancy = 'Vacant' and room_row.maintenance = 'Clear';
+  summary_text := case
+    when room_sellable then
+      'Room ' || room_row.number || ' is Clean and sellable after housekeeping completion.'
+    when room_row.maintenance <> 'Clear' then
+      'Room ' || room_row.number || ' is Clean but remains unavailable because maintenance is blocked.'
+    else
+      'Room ' || room_row.number || ' is Clean but remains unavailable because occupancy is ' || room_row.occupancy || '.'
+  end;
+
+  insert into ezstay.automation_runs (
+    id, hotel_id, event_id, event_type, rule_key, result, summary, input, decision
+  ) values (
+    run_uuid, target_hotel_id, target_event_id, 'housekeeping.completed',
+    'room-ready-release', 'Success', summary_text,
+    jsonb_build_object('task_id', target_task_id, 'room_id', room_row.id),
+    jsonb_build_object(
+      'autonomy', 'Auto',
+      'reason', case
+        when room_row.maintenance <> 'Clear'
+          then 'Housekeeping completion changes cleanliness but maintenance still blocks sellability.'
+        else 'Readiness is recalculated from occupancy, cleanliness, and maintenance state.'
+      end
+    )
+  )
+  on conflict (hotel_id, event_id, rule_key) do nothing;
+
+  select id into actual_run_id
+  from ezstay.automation_runs
+  where hotel_id = target_hotel_id
+    and event_id = target_event_id
+    and rule_key = 'room-ready-release';
+
+  return actual_run_id;
+end;
+$;
+
 create or replace function private.ezstay_apply_low_stock(
   target_hotel_id uuid,
   target_event_id text,
@@ -533,6 +636,7 @@ revoke execute on function private.ezstay_finish_inbound_event(uuid, text, text,
 revoke execute on function private.ezstay_record_command(uuid, text, text, text, uuid, jsonb) from public, anon, authenticated;
 revoke execute on function private.ezstay_apply_guest_request(uuid, text, text, text) from public, anon, authenticated;
 revoke execute on function private.ezstay_apply_checkout(uuid, text, uuid) from public, anon, authenticated;
+revoke execute on function private.ezstay_complete_housekeeping(uuid, text, uuid) from public, anon, authenticated;
 revoke execute on function private.ezstay_apply_low_stock(uuid, text, uuid) from public, anon, authenticated;
 revoke execute on function private.ezstay_resolve_approval(uuid, text, uuid, text) from public, anon, authenticated;
 revoke execute on function private.ezstay_retry_delivery(uuid, uuid, text) from public, anon, authenticated;
