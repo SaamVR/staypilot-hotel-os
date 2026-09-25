@@ -41,7 +41,7 @@ function fakeClientFactory() {
     async query(text, values = []) {
       this.queries.push({ text, values });
       const normalized = text.replace(/\s+/g, " ").trim().toLowerCase();
-      if (normalized.includes("create_ezstay_demo_session")) {
+      if (normalized.includes("ezstay_start_demo_command")) {
         return { rows:[{
           id:SESSION_ID, tenant_id:HOTEL_ID, seed_version:"northstar-v2",
           reset_generation:0, demo_now:"2026-09-25T04:30:00.000Z",
@@ -141,7 +141,8 @@ test("start demo uses private session and snapshot functions and returns backend
   const client = fake.instances[0];
   assert.equal(client.connected, true);
   assert.equal(client.ended, true);
-  assert.match(client.queries[0].text, /private\.create_ezstay_demo_session/i);
+  assert.match(client.queries[0].text, /private\.ezstay_start_demo_command/i);
+  assert.deepEqual(client.queries[0].values, [USER_ID, "cmd_test_1"]);
   assert.match(client.queries[1].text, /private\.ezstay_snapshot/i);
 });
 
