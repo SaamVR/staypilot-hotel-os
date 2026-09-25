@@ -28,6 +28,29 @@ async function screenshot(page, name) {
 }
 
 async function openLanding(page) {
+  await page.route("**/api/ezstay/backend-health", route => route.fulfill({
+    status:200,
+    contentType:"application/json",
+    body:JSON.stringify({
+      ok:true,
+      app:"ezstay",
+      contractVersion:"ezstay-backend-v1",
+      mode:"not_configured",
+      authConfigured:false,
+      runtimeConfigured:false,
+      turnstileConfigured:false,
+      schedulerEnabled:false,
+    }),
+  }));
+  await page.route("**/api/ezstay/public-config", route => route.fulfill({
+    status:200,
+    contentType:"application/json",
+    body:JSON.stringify({
+      app:"ezstay",
+      contractVersion:"ezstay-backend-v1",
+      mode:"not_configured",
+    }),
+  }));
   await page.goto(baseURL, { waitUntil:"networkidle" });
   await expectVisible(page.getByText("Hotel operations that", { exact:false }), "landing hero should render");
   await expectVisible(page.getByRole("button", { name:"Explore interactive demo" }).first(), "landing CTA should render");
@@ -108,7 +131,7 @@ try {
   await screenshot(page, "06-activity-recovery");
 
   await page.getByRole("button", { name:"Demo control" }).first().click();
-  await expectVisible(page.getByText("Advance demo time"), "Demo control should expose deterministic clock");
+  await expectVisible(page.getByText("Advance +30 min"), "Demo control should expose deterministic clock");
   await screenshot(page, "07-demo-control");
   await desktop.close();
 
