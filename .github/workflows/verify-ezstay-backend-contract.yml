@@ -1,0 +1,27 @@
+name: Verify EZStay Backend Contract
+
+on:
+  push:
+    branches: ["feature/ezstay-backend-contract"]
+  pull_request:
+    paths:
+      - "portfolio-backend/**"
+      - ".github/workflows/verify-ezstay-backend-contract.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: portfolio-backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Verify backend contract layout
+        run: node scripts/verify-layout.mjs
