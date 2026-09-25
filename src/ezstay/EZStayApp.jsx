@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import MarketingLanding from "./components/MarketingLanding.jsx";
 import BackendEntryGate from "./components/BackendEntryGate.jsx";
 import { resolveEzstayView, workspaceHash } from "./domain/entry.js";
+import { resolveScenarioTargets } from "./domain/scenarioTargets.js";
 import AppShell from "./components/AppShell.jsx";
 import RunInspector from "./components/RunInspector.jsx";
 import DemoControl from "./components/DemoControl.jsx";
@@ -192,20 +193,30 @@ export default function EZStayApp() {
   }
 
   const runScenario = key => {
+    const targets = resolveScenarioTargets(snapshot);
     if (key === "guest") return execute(
       () => runtime.runGuestRequest({ idempotencyKey:commandKey("cmd_guest"), request:"Extra pillows requested", roomNumber:"108" }),
       "Guest request routed to Housekeeping."
     );
     if (key === "checkout") return execute(
-      () => runtime.runCheckout({ idempotencyKey:commandKey("cmd_checkout"), reservationId:"res_1047" }),
+      () => {
+        if (!targets.checkoutReservationId) throw new Error("checkout_target_unavailable");
+        return runtime.runCheckout({ idempotencyKey:commandKey("cmd_checkout"), reservationId:targets.checkoutReservationId });
+      },
       "Checkout recorded. Complete the turnover in Operations to release the room."
     );
     if (key === "stock") return execute(
-      () => runtime.runLowStock({ idempotencyKey:commandKey("cmd_stock"), inventoryItemId:"inv_queen_sheets" }),
+      () => {
+        if (!targets.lowStockInventoryItemId) throw new Error("low_stock_target_unavailable");
+        return runtime.runLowStock({ idempotencyKey:commandKey("cmd_stock"), inventoryItemId:targets.lowStockInventoryItemId });
+      },
       "Low-stock policy stopped for approval."
     );
     if (key === "recovery") return execute(
-      () => runtime.retryDelivery({ idempotencyKey:commandKey("cmd_retry"), deliveryId:"DLV-400" }),
+      () => {
+        if (!targets.failedDeliveryId) throw new Error("failed_delivery_unavailable");
+        return runtime.retryDelivery({ idempotencyKey:commandKey("cmd_retry"), deliveryId:targets.failedDeliveryId });
+      },
       "Delivery recovered without replaying the source action."
     );
   };
