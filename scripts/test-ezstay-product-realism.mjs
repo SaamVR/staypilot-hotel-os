@@ -12,7 +12,7 @@ test("workspace references are compact but remain identifiable", () => {
   assert.equal(shortReference("RUN-2818"), "RUN-2818");
   assert.equal(
     shortReference("RUN-EST_651EF979-C062-4113-9DB9-66CEBBBE60D0", 12, 6),
-    "RUN-EST_651…BE60D0",
+    "RUN-EST_651E…BE60D0",
   );
 });
 
