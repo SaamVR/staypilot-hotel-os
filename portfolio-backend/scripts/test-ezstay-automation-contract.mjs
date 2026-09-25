@@ -28,7 +28,7 @@ test("room-ready completion marks housekeeping clean without clearing maintenanc
   const fn = sql.match(/create\s+or\s+replace\s+function\s+private\.ezstay_complete_housekeeping[\s\S]*?\$\$;/)?.[0] || "";
   assert.match(fn, /set\s+status\s*=\s*'Done'/i);
   assert.match(fn, /housekeeping\s*=\s*'Clean'/i);
-  assert.doesNotMatch(fn, /maintenance\s*=\s*'Clear'/i);
+  assert.doesNotMatch(fn, /set\s+maintenance\s*=/i);
   assert.match(fn, /room-ready-release/);
 });
 
