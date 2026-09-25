@@ -38,9 +38,24 @@ test("incompatible preview contract is discarded", async () => {
 
 test("local preview runtime exposes the frozen adapter surface", () => {
   const runtime = createLocalPreviewRuntime({ storage:memoryStorage() });
-  for (const name of ["getSession","startDemo","resetDemo","runGuestRequest","runCheckout","runLowStock","resolveApproval","retryDelivery","advanceClock","getRun"]) {
+  for (const name of ["getSession","startDemo","resetDemo","runGuestRequest","runCheckout","completeHousekeeping","runLowStock","resolveApproval","retryDelivery","advanceClock","getRun"]) {
     assert.equal(typeof runtime[name], "function", name);
   }
+});
+
+test("HTTP runtime exposes the namespaced housekeeping completion route", async () => {
+  const calls = [];
+  const fetchImpl = async (url, options = {}) => {
+    calls.push({ url, options });
+    return new Response(JSON.stringify({ run:{ id:"RUN-READY" }, snapshot:{} }), {
+      status:200,
+      headers:{ "content-type":"application/json" }
+    });
+  };
+  const runtime = createHttpRuntime({ fetchImpl });
+  await runtime.completeHousekeeping({ idempotencyKey:"cmd_ready_1", taskId:"task_turnover_1" });
+  assert.equal(calls[0].url, EZSTAY_ROUTES.housekeepingComplete);
+  assert.equal(calls[0].options.headers["Idempotency-Key"], "cmd_ready_1");
 });
 
 test("HTTP runtime uses namespaced route and Idempotency-Key", async () => {
