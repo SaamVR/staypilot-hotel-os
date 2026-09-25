@@ -4,6 +4,7 @@ import { createNorthstarSeed } from "../src/ezstay/domain/seed.js";
 import {
   runGuestRequest,
   runCheckout,
+  completeHousekeeping,
   runLowStock,
   resolveApproval,
   retryDelivery,
@@ -39,6 +40,41 @@ test("checkout changes room state and creates one turnover task", () => {
   assert.equal(room.occupancy, "Vacant");
   assert.equal(room.housekeeping, "Dirty");
   assert.equal(result.state.tasks.filter(task => task.sourceEventId === result.run.eventId).length, 1);
+});
+
+test("housekeeping completion closes turnover work and releases a clear room", () => {
+  const initial = createNorthstarSeed();
+  const checkout = runCheckout(initial, { idempotencyKey:"cmd_checkout_ready", reservationId:"res_1047", resetGeneration:0 });
+  const turnover = checkout.state.tasks.find(task => task.sourceEventId === checkout.run.eventId);
+  const completed = completeHousekeeping(checkout.state, {
+    idempotencyKey:"cmd_housekeeping_ready",
+    taskId:turnover.id,
+    resetGeneration:0,
+  });
+  const room = completed.state.rooms.find(row => row.id === "room_108");
+  const task = completed.state.tasks.find(row => row.id === turnover.id);
+  assert.equal(task.status, "Done");
+  assert.equal(room.housekeeping, "Clean");
+  assert.equal(room.maintenance, "Clear");
+  assert.match(completed.run.summary, /sellable/i);
+  assert.equal(completed.run.ruleKey, "room-ready-release");
+});
+
+test("housekeeping completion keeps a maintenance-blocked room unavailable", () => {
+  const initial = createNorthstarSeed();
+  const checkout = runCheckout(initial, { idempotencyKey:"cmd_checkout_blocked", reservationId:"res_1047", resetGeneration:0 });
+  const turnover = checkout.state.tasks.find(task => task.sourceEventId === checkout.run.eventId);
+  const room = checkout.state.rooms.find(row => row.id === "room_108");
+  room.maintenance = "Out of order";
+  const completed = completeHousekeeping(checkout.state, {
+    idempotencyKey:"cmd_housekeeping_blocked",
+    taskId:turnover.id,
+    resetGeneration:0,
+  });
+  const resultRoom = completed.state.rooms.find(row => row.id === "room_108");
+  assert.equal(resultRoom.housekeeping, "Clean");
+  assert.equal(resultRoom.maintenance, "Out of order");
+  assert.match(completed.run.summary, /maintenance/i);
 });
 
 test("low stock requires approval and approval creates one purchase draft without receiving stock", () => {
