@@ -290,6 +290,22 @@ Storage key: `ezstay:v2:demo`.
 
 - [ ] **Step 3: Implement HTTP adapter with explicit route map**
 
+Use exactly:
+```js
+const ROUTES = {
+  session: "/api/ezstay/demo/session",
+  startDemo: "/api/ezstay/demo/start",
+  resetDemo: "/api/ezstay/demo/reset",
+  snapshot: "/api/ezstay/snapshot",
+  guestRequest: "/api/ezstay/scenarios/guest-request",
+  checkout: "/api/ezstay/scenarios/checkout",
+  lowStock: "/api/ezstay/scenarios/low-stock",
+  retryDelivery: "/api/ezstay/deliveries/retry",
+  advanceClock: "/api/ezstay/demo/clock/advance",
+  run: runId => `/api/ezstay/automation-runs/${encodeURIComponent(runId)}`
+};
+```
+
 Every mutation sets:
 ```js
 headers: {
