@@ -391,6 +391,7 @@ grant execute on function private.ezstay_finish_inbound_event(uuid, text, text, 
 grant execute on function private.ezstay_record_command(uuid, text, text, text, uuid, jsonb) to ezstay_runtime;
 grant execute on function private.ezstay_apply_guest_request(uuid, text, text, text) to ezstay_runtime;
 grant execute on function private.ezstay_apply_checkout(uuid, text, uuid) to ezstay_runtime;
+grant execute on function private.ezstay_complete_housekeeping(uuid, text, uuid) to ezstay_runtime;
 grant execute on function private.ezstay_apply_low_stock(uuid, text, uuid) to ezstay_runtime;
 grant execute on function private.ezstay_resolve_approval(uuid, text, uuid, text) to ezstay_runtime;
 grant execute on function private.ezstay_retry_delivery(uuid, uuid, text) to ezstay_runtime;
