@@ -1275,7 +1275,6 @@ begin
   return result;
 end;
 $;
-
 revoke execute on function private.ezstay_claim_inbound_events(text, integer) from public, anon, authenticated;
 revoke execute on function private.ezstay_finish_inbound_event(uuid, text, text, integer) from public, anon, authenticated;
 revoke execute on function private.ezstay_record_command(uuid, text, text, text, uuid, jsonb) from public, anon, authenticated;
