@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { X, ArrowUpRight } from "lucide-react";
 import StatusBadge from "./StatusBadge.jsx";
 import { formatHotelMoment, shortReference } from "../ui/format.js";
@@ -15,15 +16,22 @@ function humanize(value) {
 }
 
 export default function RunInspector({ run, onClose, onLinkedRecord, timeZone = "UTC" }) {
+  useEffect(() => {
+    if (!run) return undefined;
+    const onKeyDown = event => { if (event.key === "Escape") onClose(); };
+    globalThis.addEventListener?.("keydown", onKeyDown);
+    return () => globalThis.removeEventListener?.("keydown", onKeyDown);
+  }, [run, onClose]);
+
   if (!run) return null;
   const tone = run.result === "Success" ? "success" : run.result === "Approval" ? "warning" : run.result === "Failed" ? "danger" : "neutral";
   const audit = (run.audit || []).slice(-1)[0];
   const effectiveAt = audit?.effectiveAt || audit?.at;
   return <div className="drawer-backdrop" onMouseDown={onClose}>
-    <aside className="run-drawer" onMouseDown={event => event.stopPropagation()} aria-label="Automation run inspector">
+    <aside className="run-drawer" role="dialog" aria-modal="true" aria-labelledby="run-inspector-title" onMouseDown={event => event.stopPropagation()}>
       <header className="run-head">
-        <div><span className="eyebrow">Automation run</span><h2 title={run.id}>{shortReference(run.id, 13, 6)}</h2><small className="run-rule-label">{humanize(run.ruleKey)}</small></div>
-        <button className="icon-button" onClick={onClose} aria-label="Close run inspector"><X size={18}/></button>
+        <div><span className="eyebrow">Automation run</span><h2 id="run-inspector-title" title={run.id}>{shortReference(run.id, 13, 6)}</h2><small className="run-rule-label">{humanize(run.ruleKey)}</small></div>
+        <button autoFocus className="icon-button" onClick={onClose} aria-label="Close run inspector"><X size={18}/></button>
       </header>
       <div className="run-summary"><StatusBadge tone={tone}>{run.result}</StatusBadge><p>{run.summary}</p></div>
       <div className="run-facts">

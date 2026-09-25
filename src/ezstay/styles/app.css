@@ -71,3 +71,59 @@
 
 @media(max-width:780px){.operator-card{display:none}.operator-filter-bar{overflow-x:auto;flex-wrap:nowrap;padding-bottom:2px}.operator-filter-bar button{flex:0 0 auto}.automation-filter-bar>small{width:100%;margin-left:0}.integration-contract>summary{grid-template-columns:auto 1fr}.integration-card-status{grid-column:2;justify-items:start}.adapter-contract-grid{grid-template-columns:1fr}}
 @media(max-width:520px){.operator-filter-bar button,.automation-filter-bar button{font-size:8px;padding:6px 7px}.integration-contract>summary{padding:14px}}
+
+
+/* Practical-product audit refinements */
+.approval-view-filter{margin:0}
+.integration-grid{align-items:start}
+.integration-contract>summary{grid-template-columns:auto minmax(0,1fr)}
+.integration-title-row{display:flex;align-items:flex-start;justify-content:space-between;gap:10px}
+.integration-title-row h2{margin-right:auto}
+.integration-inspect{display:flex;align-items:center;gap:5px;width:max-content;margin-top:11px;font-size:8px;font-weight:850;letter-spacing:.06em;text-transform:uppercase;color:var(--emerald)}
+.integration-inspect svg{transition:none}
+.integration-contract[open] .integration-inspect svg{transform:rotate(180deg)}
+.ez-shell button:focus-visible,.ez-shell summary:focus-visible,.ez-shell a:focus-visible,.ez-presentation button:focus-visible,.ez-presentation a:focus-visible{outline:2px solid var(--emerald-2);outline-offset:2px}
+@media (prefers-reduced-motion:no-preference){
+  .drawer-backdrop{animation:ezstay-backdrop-in .14s ease-out}
+  .toast-note{animation:ezstay-toast-in .18s ease-out}
+  @keyframes ezstay-backdrop-in{from{background:rgba(9,14,12,0);backdrop-filter:blur(0)}to{background:rgba(9,14,12,.52);backdrop-filter:blur(2px)}}
+  @keyframes ezstay-toast-in{from{transform:translateY(-6px);opacity:.55}to{transform:none;opacity:1}}
+}
+@media(max-width:780px){.integration-title-row{align-items:flex-start}.integration-title-row .status-badge{flex:0 0 auto}}
+
+.core-workflow-tag.configured{color:var(--muted);font-weight:750}
+
+/* Practical-product legibility and control density */
+body:has(.drawer-backdrop){overflow:hidden}
+.integration-grid{grid-template-columns:repeat(2,minmax(0,1fr));align-items:start}
+.adapter-contract-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+.adapter-contract-wide{grid-column:1/-1}
+.integration-card h2{font-size:16px}.integration-card p{font-size:12px;line-height:1.5}
+.status-badge{font-size:10px}
+.rule-detail-grid small{font-size:10px}.rule-detail-grid b{font-size:11px}
+.integration-detail small,.adapter-contract-grid small{font-size:10px}
+.integration-detail b,.adapter-contract-grid b{font-size:11px}
+.integration-inspect{font-size:10px}
+.approval-context-grid small,.purchase-meta small,.run-facts small{font-size:10px!important}
+.approval-context-grid b,.purchase-meta b,.run-facts b{font-size:11px!important}
+.operator-filter-bar button,.automation-filter-bar button{font-size:10px}
+.operator-filter-bar button span,.automation-filter-bar button span{font-size:9px}
+.approval-summary-strip small,.activity-summary-strip small,.integration-summary-strip small{font-size:10px}
+.approval-summary-strip span,.activity-summary-strip span,.integration-summary-strip span{font-size:10px;line-height:1.4}
+.sandbox-scenario-copy small{font-size:9px}.sandbox-scenario-copy em{font-size:10px}
+.audit-panel{padding:20px}.audit-row{min-height:58px}
+@media (prefers-reduced-motion:no-preference){.integration-inspect svg{transition:transform .16s ease}}
+@media(max-width:780px){.integration-grid{grid-template-columns:1fr}.adapter-contract-grid{grid-template-columns:1fr}.adapter-contract-wide{grid-column:auto}}
+@media(max-width:520px){.primary-nav button{min-height:44px;padding:6px 1px;font-size:9px}.primary-nav button span{font-size:9px}.workspace-topbar{top:60px}.operator-filter-bar button,.automation-filter-bar button{font-size:9px}}
+.operations-detail-panel,.guest-request-panel{padding:20px}
+.record-row-meta{min-width:150px;align-items:flex-end}
+.record-row-meta small{display:block;font-size:10px;color:var(--muted);text-align:right;white-space:nowrap}
+.record-focus{outline:2px solid var(--emerald-2);outline-offset:-2px;background:var(--emerald-soft)!important}
+@media (prefers-reduced-motion:no-preference){
+  .record-focus{animation:ezstay-record-focus .48s ease-out}
+  @keyframes ezstay-record-focus{from{box-shadow:0 0 0 8px rgba(20,114,85,.16)}to{box-shadow:0 0 0 0 rgba(20,114,85,0)}}
+}
+@media(max-width:780px){.record-row{align-items:flex-start}.record-row-meta{min-width:0;align-items:flex-end}}
+@media(max-width:520px){.primary-nav button{min-height:48px}.primary-nav button span{font-size:10px}.record-row{display:grid;grid-template-columns:1fr auto}.record-row-meta small{white-space:normal}}
+.page-stack,.split-grid,.split-grid>.panel{min-width:0}
+@media(max-width:780px){.operator-filter-bar{max-width:100%;min-width:0}}

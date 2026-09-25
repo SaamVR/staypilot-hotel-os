@@ -8,7 +8,8 @@ test("Operations exposes practical room and work filters without changing state 
   for (const label of ["All rooms","Needs attention","Reserved","Blocked"]) assert.match(source, new RegExp(label));
   for (const label of ["All teams","Housekeeping","Maintenance","Front desk"]) assert.match(source, new RegExp(label));
   assert.match(source, /filteredRooms/);
-  assert.match(source, /filteredTasks/);
+  assert.match(source, /taskViews/);
+  assert.match(source, /visibleTasks/);
 });
 
 test("Automations can be filtered by authority instead of acting like a static poster grid", () => {
@@ -21,7 +22,7 @@ test("Automations can be filtered by authority instead of acting like a static p
 
 test("Integrations expose inspectable adapter contracts while keeping credential state truthful", () => {
   const source = readFileSync("src/ezstay/pages/Integrations.jsx", "utf8");
-  assert.match(source, /Inspect adapter/);
+  assert.match(source, /Adapter contract/);
   assert.match(source, /Not connected/);
   assert.match(source, /Transport/);
   assert.match(source, /Event scope/);

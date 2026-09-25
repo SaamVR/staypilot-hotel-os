@@ -2,7 +2,7 @@ import { useState } from "react";
 import StatusBadge from "../components/StatusBadge.jsx";
 import { formatHotelClock } from "../ui/format.js";
 
-const core = new Set(["guest-request-router","checkout-turnover","low-stock-replenishment","approval-executor"]);
+const core = new Set(["guest-request-router","checkout-turnover","room-ready-release","low-stock-replenishment","approval-executor"]);
 const authorityFilters = ["All rules","Auto","Policy","Approval"];
 
 export default function Automations({ snapshot }) {
@@ -11,7 +11,7 @@ export default function Automations({ snapshot }) {
   const filteredRules = snapshot.automationRules.filter(rule => authority === "All rules" || rule.autonomy === authority);
 
   return <div className="page-stack">
-    <div className="page-header"><span className="eyebrow">Automation control</span><h1>Automations</h1><p>Twelve operational rules share the same hotel state. Filter by authority to see what runs automatically, what is policy-bound, and what must stop for approval.</p></div>
+    <div className="page-header"><span className="eyebrow">Automation registry</span><h1>Automations</h1><p>Twelve configured operational rules share the same hotel state. Core workflows are interactive in this sandbox; the remaining rules show enabled configuration until their source event adapters are connected.</p></div>
     <div className="automation-filter-bar" aria-label="Automation authority filters">
       {authorityFilters.map(label => <button key={label} className={authority === label ? "active" : ""} onClick={() => setAuthority(label)}>{label}<span>{label === "All rules" ? snapshot.automationRules.length : snapshot.automationRules.filter(rule => rule.autonomy === label).length}</span></button>)}
       <small>{filteredRules.length} rules shown</small>
@@ -28,7 +28,7 @@ export default function Automations({ snapshot }) {
           <div><small>Last run</small><b>{lastRun ? lastRun.result : "No run"}</b></div>
           <div><small>Observed</small><b>{lastAt ? formatHotelClock(lastAt, snapshot.hotel.timezone) : "Waiting for event"}</b></div>
         </div>
-        {core.has(rule.key) && <small className="core-workflow-tag">Core workflow</small>}
+        <small className={`core-workflow-tag ${core.has(rule.key) ? "" : "configured"}`}>{core.has(rule.key) ? "Interactive sandbox workflow" : "Configured rule"}</small>
       </article>;
     })}</div>
   </div>;

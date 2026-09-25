@@ -37,6 +37,7 @@ export default function EZStayApp() {
   const [session, setSession] = useState(null);
   const [snapshot, setSnapshot] = useState(null);
   const [selectedRun, setSelectedRun] = useState(null);
+  const [focusedRecord, setFocusedRecord] = useState(null);
   const [demoControlOpen, setDemoControlOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState(null);
@@ -48,6 +49,7 @@ export default function EZStayApp() {
   });
 
   const entryBusy = ["checking","verifying"].includes(entryGate.phase);
+  const navigate = key => { setActive(key); setFocusedRecord(null); };
 
   useEffect(() => {
     const onHashChange = () => setView(resolveEzstayView(globalThis.location?.hash || ""));
@@ -60,6 +62,7 @@ export default function EZStayApp() {
     setSession(result.session);
     setSnapshot(result.snapshot);
     setSelectedRun(null);
+    setFocusedRecord(null);
     setEntryGate({ phase:"idle", config:null, error:null, challengeKey:0 });
     setWorkspaceHash();
     setView("workspace");
@@ -184,7 +187,7 @@ export default function EZStayApp() {
         } : previous);
       }
       if (result.run) setSelectedRun(result.run);
-      if (successMessage) setNotice(successMessage);
+      if (successMessage) setNotice(typeof successMessage === "function" ? successMessage(result) : successMessage);
     } catch (error) {
       setNotice(error.message || "Command failed");
     } finally {
@@ -228,7 +231,7 @@ export default function EZStayApp() {
 
   const resolveApproval = (approvalId, decision) => execute(
     () => runtime.resolveApproval({ idempotencyKey:commandKey("cmd_approval"), approvalId, decision }),
-    decision === "Approved" ? "Approval executed and purchase draft created." : "Approval rejected."
+    result => result.run?.summary || (decision === "Approved" ? "Approval executed." : "Approval rejected.")
   );
 
   const retryDelivery = deliveryId => execute(
@@ -250,6 +253,7 @@ export default function EZStayApp() {
       setSession(result.session);
       setSnapshot(result.snapshot);
       setSelectedRun(null);
+      setFocusedRecord(null);
       setActive("command");
       setDemoControlOpen(false);
       setNotice("Northstar workspace reset to the canonical sandbox state.");
@@ -258,6 +262,13 @@ export default function EZStayApp() {
     } finally {
       setBusy(false);
     }
+  };
+
+  const handleLinkedRecord = record => {
+    const map = { task:"operations", room:"operations", guest_request:"operations", reservation:"operations", approval:"approvals", purchase_request:"approvals", inventory:"operations", delivery:"activity" };
+    setFocusedRecord(record);
+    setActive(map[record.type] || "activity");
+    setSelectedRun(null);
   };
 
   const showSampleFailure = () => {
@@ -290,14 +301,14 @@ export default function EZStayApp() {
 
   if (!session || !snapshot) return <div className="app-loading"><span>EZ</span><p>Preparing Northstar workspace…</p></div>;
 
-  let page = <CommandCenter snapshot={snapshot} onNavigate={setActive} onOpenRun={setSelectedRun}/>;
-  if (active === "operations") page = <Operations snapshot={snapshot} onCompleteHousekeeping={completeTurnover} busy={busy}/>;
+  let page = <CommandCenter snapshot={snapshot} onNavigate={navigate} onOpenRun={setSelectedRun}/>;
+  if (active === "operations") page = <Operations snapshot={snapshot} onCompleteHousekeeping={completeTurnover} busy={busy} focusRecord={focusedRecord}/>;
   if (active === "automations") page = <Automations snapshot={snapshot}/>;
-  if (active === "approvals") page = <Approvals snapshot={snapshot} onResolve={resolveApproval} busy={busy}/>;
-  if (active === "activity") page = <ActivityPage snapshot={snapshot} onOpenRun={setSelectedRun} onRetry={retryDelivery} busy={busy}/>;
+  if (active === "approvals") page = <Approvals snapshot={snapshot} onResolve={resolveApproval} busy={busy} focusRecord={focusedRecord}/>;
+  if (active === "activity") page = <ActivityPage snapshot={snapshot} onOpenRun={setSelectedRun} onRetry={retryDelivery} busy={busy} focusRecord={focusedRecord}/>;
   if (active === "integrations") page = <Integrations/>;
 
-  return <AppShell active={active} onNavigate={setActive} hotel={snapshot.hotel} roomCount={snapshot.rooms.length} demoNow={snapshot.meta.demoNow} operatorName={snapshot.approvals.find(item => item.requestedBy)?.requestedBy || "Sam Rahman"} onDemoControl={() => setDemoControlOpen(true)}>
+  return <AppShell active={active} onNavigate={navigate} hotel={snapshot.hotel} roomCount={snapshot.rooms.length} demoNow={snapshot.meta.demoNow} operatorName="Sam Rahman" onDemoControl={() => setDemoControlOpen(true)}>
     {notice && <div className="toast-note" role="status">{notice}<button onClick={() => setNotice(null)}>×</button></div>}
     {page}
     <DemoControl
@@ -311,10 +322,6 @@ export default function EZStayApp() {
       onShowFailure={showSampleFailure}
       onRunScenario={runScenario}
     />
-    <RunInspector run={selectedRun} timeZone={snapshot.hotel.timezone} onClose={() => setSelectedRun(null)} onLinkedRecord={record => {
-      const map = { task:"operations", room:"operations", guest_request:"operations", reservation:"operations", approval:"approvals", purchase_request:"approvals", inventory:"operations", delivery:"activity" };
-      setActive(map[record.type] || "activity");
-      setSelectedRun(null);
-    }}/>
+    <RunInspector run={selectedRun} timeZone={snapshot.hotel.timezone} onClose={() => setSelectedRun(null)} onLinkedRecord={handleLinkedRecord}/>
   </AppShell>;
 }

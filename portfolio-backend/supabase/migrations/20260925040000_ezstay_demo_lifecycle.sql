@@ -235,8 +235,8 @@ begin
     status, requested_by_actor, payload, created_at
   ) values
     (
-      target_hotel_id, null, 'Maintenance', 'Room 207 HVAC invoice',
-      'CoolTech · diagnostic + service', 165, null, 'Pending', 'Sam Rahman',
+      target_hotel_id, null, 'Maintenance', 'Room 207 HVAC service authorization',
+      'CoolTech · diagnostic + service', 165, null, 'Pending', 'Maintenance desk',
       '{"fixture_key":"apr_104","room_fixture_key":"room_207"}'::jsonb,
       target_demo_now - interval '11 minutes'
     ),

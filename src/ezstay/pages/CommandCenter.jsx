@@ -21,13 +21,13 @@ export default function CommandCenter({ snapshot, onNavigate, onOpenRun }) {
   return <>
     <section className="command-hero command-hero-product">
       <div className="hero-copy">
-        <span className="eyebrow">{snapshot.hotel.name} · Live operations</span>
+        <span className="eyebrow">{snapshot.hotel.name} · Operations workspace</span>
         <h1>Command Center</h1>
         <p>{formatHotelMoment(snapshot.meta.demoNow, snapshot.hotel.timezone)} · {snapshot.hotel.timezone}. Exceptions, room readiness, and human decisions are surfaced here while routine work continues through automation.</p>
       </div>
       <div className="hero-proof">
-        <span><i className="pulse-dot"/> Automation online</span>
-        <b>{activeRules}/{snapshot.automationRules.length} rules active</b>
+        <span><i className="pulse-dot"/> Automation engine active</span>
+        <b>{activeRules}/{snapshot.automationRules.length} rules enabled</b>
         <small>{metrics.failedDeliveries} delivery exception · {metrics.pendingApprovals} decisions waiting</small>
       </div>
     </section>

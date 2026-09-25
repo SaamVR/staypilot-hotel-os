@@ -21,7 +21,7 @@ test("durable Northstar fixture carries the four presentation tasks", () => {
 });
 
 test("durable Northstar fixture carries both pending human gates", () => {
-  assert.match(sql, /Room 207 HVAC invoice/);
+  assert.match(sql, /Room 207 HVAC service authorization/);
   assert.match(sql, /Queen bed sheet restock/);
 });
 
