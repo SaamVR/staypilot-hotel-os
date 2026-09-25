@@ -392,7 +392,7 @@ returns platform.demo_sessions
 language plpgsql
 security definer
 set search_path = ''
-as $
+as $reset$
 declare
   ezstay_app_id uuid;
   command_row platform.demo_command_idempotency;
@@ -477,7 +477,7 @@ begin
 
   return result_session;
 end;
-$;
+$reset$;
 revoke execute on function private.ezstay_active_demo_session(uuid) from public, anon, authenticated;
 revoke execute on function private.seed_ezstay_northstar_v2(uuid, uuid, timestamptz) from public, anon, authenticated;
 revoke execute on function private.create_ezstay_demo_session(uuid, timestamptz) from public, anon, authenticated;
