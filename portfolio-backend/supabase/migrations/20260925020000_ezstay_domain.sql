@@ -382,3 +382,75 @@ create unique index if not exists approvals_source_event_once_idx
 create unique index if not exists purchase_requests_source_event_once_idx
   on ezstay.purchase_requests (hotel_id, source_event_id)
   where source_event_id is not null;
+
+-- Foreign-key support indexes. PostgreSQL does not automatically index the
+-- referencing side of a foreign key; keep reset/cleanup and parent changes
+-- from scanning unrelated tenant rows.
+create index if not exists hotels_demo_session_idx
+  on ezstay.hotels (demo_session_id)
+  where demo_session_id is not null;
+
+create index if not exists reservations_hotel_room_idx
+  on ezstay.reservations (hotel_id, room_id)
+  where room_id is not null;
+
+create index if not exists guest_requests_hotel_reservation_idx
+  on ezstay.guest_requests (hotel_id, reservation_id)
+  where reservation_id is not null;
+
+create index if not exists guest_requests_hotel_room_idx
+  on ezstay.guest_requests (hotel_id, room_id)
+  where room_id is not null;
+
+create index if not exists tasks_hotel_reservation_idx
+  on ezstay.tasks (hotel_id, reservation_id)
+  where reservation_id is not null;
+
+create index if not exists tasks_hotel_room_idx
+  on ezstay.tasks (hotel_id, room_id)
+  where room_id is not null;
+
+create index if not exists approvals_hotel_inventory_idx
+  on ezstay.approvals (hotel_id, inventory_item_id)
+  where inventory_item_id is not null;
+
+create index if not exists approvals_requested_by_user_idx
+  on ezstay.approvals (requested_by_user)
+  where requested_by_user is not null;
+
+create index if not exists approvals_resolved_by_idx
+  on ezstay.approvals (resolved_by)
+  where resolved_by is not null;
+
+create index if not exists purchase_requests_hotel_approval_idx
+  on ezstay.purchase_requests (hotel_id, approval_id)
+  where approval_id is not null;
+
+create index if not exists purchase_requests_hotel_inventory_idx
+  on ezstay.purchase_requests (hotel_id, inventory_item_id)
+  where inventory_item_id is not null;
+
+create index if not exists automation_runs_hotel_rule_idx
+  on ezstay.automation_runs (hotel_id, rule_id)
+  where rule_id is not null;
+
+create index if not exists automation_runs_hotel_inbound_event_idx
+  on ezstay.automation_runs (hotel_id, inbound_event_id)
+  where inbound_event_id is not null;
+
+create index if not exists deliveries_hotel_run_idx
+  on ezstay.deliveries (hotel_id, run_id)
+  where run_id is not null;
+
+create index if not exists deliveries_hotel_endpoint_idx
+  on ezstay.deliveries (hotel_id, endpoint_id)
+  where endpoint_id is not null;
+
+create index if not exists audit_events_actor_user_idx
+  on ezstay.audit_events (actor_user_id)
+  where actor_user_id is not null;
+
+create index if not exists command_idempotency_hotel_run_idx
+  on ezstay.command_idempotency (hotel_id, run_id)
+  where run_id is not null;
+
