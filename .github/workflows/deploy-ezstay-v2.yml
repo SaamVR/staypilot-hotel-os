@@ -173,6 +173,30 @@ jobs:
           set -euo pipefail
           curl --fail --silent --show-error --location --retry 5 --retry-delay 2             "https://$EZSTAY_PAGES_PROJECT.pages.dev/api/ezstay/backend-health"             | jq -e '.mode == "configured" and .authConfigured == true and .runtimeConfigured == true and .turnstileConfigured == true'
 
+      - name: Report promotion outcome
+        if: always()
+        shell: bash
+        run: |
+          {
+            echo "## EZStay V2 promotion"
+            echo
+            echo "- Commit: \`$GITHUB_SHA\`"
+            echo "- Verification/build: completed before promotion checks"
+            if [[ "${{ steps.cloudflare.outputs.available }}" == "true" ]]; then
+              echo "- Pages publication: attempted"
+              if [[ "${{ steps.backend_ready.outputs.available }}" == "true" ]]; then
+                echo "- Runtime mode: backend-enabled promotion path"
+              else
+                echo "- Runtime mode: local-preview promotion path"
+              fi
+              echo "- Smoke check: required by this workflow"
+            else
+              echo "- Pages publication: **NOT ATTEMPTED**"
+              echo "- Reason: Cloudflare deployment credentials are unavailable to GitHub Actions"
+              echo "- Output: verified build artifact only (\`ezstay-pages-dist\`)"
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+
       - name: Remove generated deployment configs
         if: always()
         shell: bash
