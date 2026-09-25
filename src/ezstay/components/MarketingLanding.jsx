@@ -31,9 +31,9 @@ const proofs = [
     number:"02",
     kicker:"Room turnover",
     title:"Checkout changes what the hotel can sell.",
-    text:"Checkout closes the stay, moves the room to Vacant + Dirty, and creates turnover work from the same event—without a second manual handoff.",
+    text:"Checkout closes the stay, moves the room to Vacant + Dirty, creates turnover work, then housekeeping completion recalculates whether the room is actually sellable.",
     signal:"guest.checked_out",
-    result:"Room state + turnover task",
+    result:"Dirty → turnover → Clean / ready",
     icon:Hotel,
   },
   {
