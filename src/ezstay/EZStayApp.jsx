@@ -1,4 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
+import MarketingLanding from "./components/MarketingLanding.jsx";
+import { resolveEzstayView, workspaceHash } from "./domain/entry.js";
 import AppShell from "./components/AppShell.jsx";
 import RunInspector from "./components/RunInspector.jsx";
 import DemoControl from "./components/DemoControl.jsx";
@@ -17,6 +19,7 @@ function commandKey(prefix) {
 
 export default function EZStayApp() {
   const runtime = useMemo(() => createRuntime({ mode:"local-preview" }), []);
+  const [view, setView] = useState(() => resolveEzstayView(globalThis.location?.hash || ""));
   const [active, setActive] = useState("command");
   const [session, setSession] = useState(null);
   const [snapshot, setSnapshot] = useState(null);
@@ -26,6 +29,13 @@ export default function EZStayApp() {
   const [notice, setNotice] = useState(null);
 
   useEffect(() => {
+    const onHashChange = () => setView(resolveEzstayView(globalThis.location?.hash || ""));
+    globalThis.addEventListener?.("hashchange", onHashChange);
+    return () => globalThis.removeEventListener?.("hashchange", onHashChange);
+  }, []);
+
+  useEffect(() => {
+    if (view !== "workspace") return undefined;
     let live = true;
     runtime.getSession().then(result => {
       if (!live) return;
@@ -35,7 +45,12 @@ export default function EZStayApp() {
       if (live) setNotice(error.message);
     });
     return () => { live = false; };
-  }, [runtime]);
+  }, [runtime, view]);
+
+  const enterWorkspace = () => {
+    if (globalThis.location) globalThis.location.hash = workspaceHash();
+    setView("workspace");
+  };
 
   async function execute(work, successMessage) {
     if (busy) return;
@@ -123,6 +138,8 @@ export default function EZStayApp() {
     setDemoControlOpen(false);
     setNotice(`Sample failure ${failed.id} is ready for delivery-only recovery.`);
   };
+
+  if (view === "presentation") return <MarketingLanding onExplore={enterWorkspace}/>;
 
   if (!session || !snapshot) return <div className="app-loading"><span>EZ</span><p>Preparing Northstar demo workspace…</p></div>;
 
