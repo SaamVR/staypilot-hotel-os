@@ -13,6 +13,17 @@ test("platform has app/user scoped demo command idempotency", () => {
   assert.match(platform, /response\s+jsonb/);
 });
 
+test("start command is retry-safe and delegates to the transactional session creator", () => {
+  assert.match(lifecycle, /function\s+private\.ezstay_start_demo_command/);
+  const start = lifecycle.indexOf("create or replace function private.ezstay_start_demo_command");
+  const next = lifecycle.indexOf("create or replace function private.", start + 20);
+  const fn = lifecycle.slice(start, next >= 0 ? next : lifecycle.length);
+  assert.match(fn, /demo_command_idempotency/);
+  assert.match(fn, /create_ezstay_demo_session/);
+  assert.match(fn, /command_type[^\n]*demo\.start|demo\.start/);
+  assert.match(fn, /session_id/);
+});
+
 test("reset command replays a stored generation instead of resetting again", () => {
   assert.match(lifecycle, /function\s+private\.ezstay_reset_demo_command/);
   const start = lifecycle.indexOf("create or replace function private.ezstay_reset_demo_command");
@@ -38,8 +49,11 @@ test("clock command is bounded, retry-safe, and evaluates overdue work at new de
 });
 
 test("restricted runtime role can execute command wrappers but has no platform table grant", () => {
+  assert.match(runtimeRole, /grant\s+execute\s+on\s+function\s+private\.ezstay_start_demo_command/);
   assert.match(runtimeRole, /grant\s+execute\s+on\s+function\s+private\.ezstay_reset_demo_command/);
   assert.match(runtimeRole, /grant\s+execute\s+on\s+function\s+private\.ezstay_advance_demo_clock_command/);
+  assert.doesNotMatch(runtimeRole, /grant\s+execute\s+on\s+function\s+private\.create_ezstay_demo_session/);
+  assert.doesNotMatch(runtimeRole, /grant\s+execute\s+on\s+function\s+private\.reset_ezstay_demo_session/);
   assert.doesNotMatch(runtimeRole, /grant\s+(?:select|insert|update|delete|all)[^;]*platform\.demo_command_idempotency/);
 });
 
