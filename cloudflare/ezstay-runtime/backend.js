@@ -12,7 +12,7 @@ const METHODS = [
   "getRun",
 ];
 
-function unavailable() {
+async function unavailable() {
   throw new Error("backend_not_configured");
 }
 
