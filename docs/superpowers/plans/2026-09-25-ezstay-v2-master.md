@@ -38,6 +38,7 @@ export const ezstayRuntime = {
   runGuestRequest: async ({ idempotencyKey, request, roomNumber }) => ({ run, snapshot }),
   runCheckout: async ({ idempotencyKey, reservationId }) => ({ run, snapshot }),
   runLowStock: async ({ idempotencyKey, inventoryItemId }) => ({ run, snapshot }),
+  resolveApproval: async ({ idempotencyKey, approvalId, decision }) => ({ run, snapshot }),
   retryDelivery: async ({ idempotencyKey, deliveryId }) => ({ run, snapshot }),
   advanceClock: async ({ idempotencyKey, minutes }) => ({ run, snapshot }),
   getRun: async (runId) => ({ run }),
@@ -88,6 +89,7 @@ GET  /api/ezstay/snapshot
 POST /api/ezstay/scenarios/guest-request
 POST /api/ezstay/scenarios/checkout
 POST /api/ezstay/scenarios/low-stock
+POST /api/ezstay/approvals/resolve
 POST /api/ezstay/deliveries/retry
 POST /api/ezstay/demo/clock/advance
 GET  /api/ezstay/automation-runs/:runId
@@ -224,7 +226,11 @@ Lane A
   src/App.jsx
   src/main.jsx
   src/styles.css
-  scripts/test-ezstay-*.mjs
+  scripts/test-ezstay-contract.mjs
+  scripts/test-ezstay-seed.mjs
+  scripts/test-ezstay-automation.mjs
+  scripts/test-ezstay-runtime-adapter.mjs
+  scripts/test-ezstay-reset.mjs
 
 Lane B
   SaamVR/portfolio-backend/**
@@ -234,7 +240,13 @@ Lane C
   functions/api/ezstay/**
   functions/_shared/ezstay/**
   cloudflare/ezstay-runtime/**
-  scripts/test-ezstay-runtime*.mjs
+  scripts/test-ezstay-http.mjs
+  scripts/test-ezstay-gateway.mjs
+  scripts/test-ezstay-runtime-worker.mjs
+  scripts/test-ezstay-auth.mjs
+  scripts/test-ezstay-scheduler.mjs
+  scripts/test-ezstay-delivery-retry.mjs
+  scripts/test-ezstay-compatibility.mjs
 ```
 
 Do not allow two lanes to edit `package.json` concurrently. Lane A owns package/script edits first; Lane C rebases after Gate 1.
