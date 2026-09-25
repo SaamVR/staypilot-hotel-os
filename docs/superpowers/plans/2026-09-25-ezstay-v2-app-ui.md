@@ -201,6 +201,7 @@ git commit -m "feat: add canonical Northstar V2 demo fixture"
 runGuestRequest(state, command)
 runCheckout(state, command)
 runLowStock(state, command)
+resolveApproval(state, command)
 retryDelivery(state, command)
 advanceDemoClock(state, command)
 ```
@@ -247,7 +248,7 @@ export function withIdempotency(state, key, execute) {
 Business rules:
 - guest request creates one request, one task, one run and one delivery;
 - checkout closes reservation, marks room Vacant + Dirty and creates one turnover task;
-- low stock creates approval and only creates purchase draft after approval transition represented in fixture flow;
+- low stock creates an approval; `resolveApproval(... decision:"Approved")` creates exactly one purchase draft while inventory remains unchanged until a separate receipt event;
 - failed delivery retry never calls source business transition;
 - overdue escalation is generated once per task/SLA crossing.
 
@@ -300,6 +301,7 @@ const ROUTES = {
   guestRequest: "/api/ezstay/scenarios/guest-request",
   checkout: "/api/ezstay/scenarios/checkout",
   lowStock: "/api/ezstay/scenarios/low-stock",
+  resolveApproval: "/api/ezstay/approvals/resolve",
   retryDelivery: "/api/ezstay/deliveries/retry",
   advanceClock: "/api/ezstay/demo/clock/advance",
   run: runId => `/api/ezstay/automation-runs/${encodeURIComponent(runId)}`
@@ -384,7 +386,7 @@ git commit -m "feat: build EZStay automation command center"
 
 - [ ] **Step 1: Operations shows rooms/requests/tasks without duplicate dashboard KPIs**
 - [ ] **Step 2: Automations shows 12-rule catalog but visually spotlights four showcase flows**
-- [ ] **Step 3: Approvals makes pending purchase approval actionable**
+- [ ] **Step 3: Approvals resolves the pending purchase approval through `runtime.resolveApproval({ idempotencyKey, approvalId, decision:"Approved" })` and opens the resulting purchase draft**
 - [ ] **Step 4: Activity groups business events, automation runs, and delivery attempts**
 - [ ] **Step 5: Integrations presents simulated provider surfaces without editable real secret forms**
 - [ ] **Step 6: Build and commit**
