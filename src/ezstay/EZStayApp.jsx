@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import AppShell from "./components/AppShell.jsx";
 import RunInspector from "./components/RunInspector.jsx";
+import DemoControl from "./components/DemoControl.jsx";
 import CommandCenter from "./pages/CommandCenter.jsx";
 import Operations from "./pages/Operations.jsx";
 import Automations from "./pages/Automations.jsx";
@@ -20,6 +21,7 @@ export default function EZStayApp() {
   const [session, setSession] = useState(null);
   const [snapshot, setSnapshot] = useState(null);
   const [selectedRun, setSelectedRun] = useState(null);
+  const [demoControlOpen, setDemoControlOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState(null);
 
@@ -41,7 +43,14 @@ export default function EZStayApp() {
     setNotice(null);
     try {
       const result = await work();
-      if (result.snapshot) setSnapshot(result.snapshot);
+      if (result.snapshot) {
+        setSnapshot(result.snapshot);
+        setSession(previous => previous ? {
+          ...previous,
+          demoNow:result.snapshot.meta?.demoNow ?? previous.demoNow,
+          resetGeneration:result.snapshot.meta?.resetGeneration ?? previous.resetGeneration,
+        } : previous);
+      }
       if (result.run) setSelectedRun(result.run);
       if (successMessage) setNotice(successMessage);
     } catch (error) {
@@ -80,6 +89,41 @@ export default function EZStayApp() {
     "Delivery retry completed."
   );
 
+  const advanceClock = () => execute(
+    () => runtime.advanceClock({ idempotencyKey:commandKey("cmd_clock"), minutes:30 }),
+    "Demo time advanced by 30 minutes. SLA rules were evaluated."
+  );
+
+  const resetWorkspace = async () => {
+    if (busy) return;
+    setBusy(true);
+    setNotice(null);
+    try {
+      const result = await runtime.resetDemo({ idempotencyKey:commandKey("cmd_reset") });
+      setSession(result.session);
+      setSnapshot(result.snapshot);
+      setSelectedRun(null);
+      setActive("command");
+      setDemoControlOpen(false);
+      setNotice("Workspace reset to a fresh Northstar demo generation.");
+    } catch (error) {
+      setNotice(error.message || "Workspace reset failed");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const showSampleFailure = () => {
+    const failed = snapshot.deliveries.find(item => ["Failed","Dead-letter"].includes(item.status));
+    if (!failed) {
+      setNotice("The seeded failure has already been recovered. Reset the workspace to restore it.");
+      return;
+    }
+    setActive("activity");
+    setDemoControlOpen(false);
+    setNotice(`Sample failure ${failed.id} is ready for delivery-only recovery.`);
+  };
+
   if (!session || !snapshot) return <div className="app-loading"><span>EZ</span><p>Preparing Northstar demo workspace…</p></div>;
 
   let page = <CommandCenter snapshot={snapshot} onNavigate={setActive} onRunScenario={runScenario} onOpenRun={setSelectedRun} busy={busy}/>;
@@ -89,9 +133,19 @@ export default function EZStayApp() {
   if (active === "activity") page = <ActivityPage snapshot={snapshot} onOpenRun={setSelectedRun} onRetry={retryDelivery} busy={busy}/>;
   if (active === "integrations") page = <Integrations/>;
 
-  return <AppShell active={active} onNavigate={setActive} session={session} onDemoControl={() => setNotice("Demo controls are being prepared in the next V2 checkpoint.")}>
+  return <AppShell active={active} onNavigate={setActive} session={session} onDemoControl={() => setDemoControlOpen(true)}>
     {notice && <div className="toast-note" role="status">{notice}<button onClick={() => setNotice(null)}>×</button></div>}
     {page}
+    <DemoControl
+      open={demoControlOpen}
+      session={session}
+      snapshot={snapshot}
+      busy={busy}
+      onClose={() => setDemoControlOpen(false)}
+      onAdvanceClock={advanceClock}
+      onReset={resetWorkspace}
+      onShowFailure={showSampleFailure}
+    />
     <RunInspector run={selectedRun} onClose={() => setSelectedRun(null)} onLinkedRecord={record => {
       const map = { task:"operations", room:"operations", guest_request:"operations", reservation:"operations", approval:"approvals", purchase_request:"approvals", inventory:"operations", delivery:"activity" };
       setActive(map[record.type] || "activity");
