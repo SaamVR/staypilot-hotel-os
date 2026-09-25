@@ -82,7 +82,7 @@ export default function EZStayApp() {
     );
     if (key === "checkout") return execute(
       () => runtime.runCheckout({ idempotencyKey:commandKey("cmd_checkout"), reservationId:"res_1047" }),
-      "Checkout turnover created."
+      "Checkout recorded. Complete the turnover in Operations to release the room."
     );
     if (key === "stock") return execute(
       () => runtime.runLowStock({ idempotencyKey:commandKey("cmd_stock"), inventoryItemId:"inv_queen_sheets" }),
@@ -93,6 +93,11 @@ export default function EZStayApp() {
       "Delivery recovered without replaying the source action."
     );
   };
+
+  const completeTurnover = taskId => execute(
+    () => runtime.completeHousekeeping({ idempotencyKey:commandKey("cmd_housekeeping"), taskId }),
+    "Housekeeping completed and room readiness recalculated."
+  );
 
   const resolveApproval = (approvalId, decision) => execute(
     () => runtime.resolveApproval({ idempotencyKey:commandKey("cmd_approval"), approvalId, decision }),
@@ -144,7 +149,7 @@ export default function EZStayApp() {
   if (!session || !snapshot) return <div className="app-loading"><span>EZ</span><p>Preparing Northstar demo workspace…</p></div>;
 
   let page = <CommandCenter snapshot={snapshot} onNavigate={setActive} onRunScenario={runScenario} onOpenRun={setSelectedRun} busy={busy}/>;
-  if (active === "operations") page = <Operations snapshot={snapshot}/>;
+  if (active === "operations") page = <Operations snapshot={snapshot} onCompleteHousekeeping={completeTurnover} busy={busy}/>;
   if (active === "automations") page = <Automations snapshot={snapshot}/>;
   if (active === "approvals") page = <Approvals snapshot={snapshot} onResolve={resolveApproval} busy={busy}/>;
   if (active === "activity") page = <ActivityPage snapshot={snapshot} onOpenRun={setSelectedRun} onRetry={retryDelivery} busy={busy}/>;
