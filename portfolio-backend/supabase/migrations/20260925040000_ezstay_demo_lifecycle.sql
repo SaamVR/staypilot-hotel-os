@@ -383,7 +383,104 @@ begin
 end;
 $$;
 
+
+create or replace function private.ezstay_reset_demo_command(
+  target_user_id uuid,
+  target_idempotency_key text
+)
+returns platform.demo_sessions
+language plpgsql
+security definer
+set search_path = ''
+as $
+declare
+  ezstay_app_id uuid;
+  command_row platform.demo_command_idempotency;
+  current_session platform.demo_sessions;
+  result_session platform.demo_sessions;
+  request_hash text := encode(digest('ezstay:demo.reset:v1', 'sha256'), 'hex');
+  replay_session_id uuid;
+begin
+  if target_user_id is null then
+    raise exception 'authenticated_user_required';
+  end if;
+
+  if nullif(trim(target_idempotency_key), '') is null then
+    raise exception 'idempotency_key_required';
+  end if;
+
+  select id into ezstay_app_id
+  from platform.applications
+  where key = 'ezstay'
+    and status = 'active';
+
+  if ezstay_app_id is null then
+    raise exception 'ezstay_application_not_registered';
+  end if;
+
+  insert into platform.demo_command_idempotency (
+    app_id, user_id, idempotency_key, command_type, request_hash
+  ) values (
+    ezstay_app_id, target_user_id, target_idempotency_key, 'demo.reset', request_hash
+  )
+  on conflict (app_id, user_id, idempotency_key) do nothing;
+
+  select *
+  into command_row
+  from platform.demo_command_idempotency
+  where app_id = ezstay_app_id
+    and user_id = target_user_id
+    and idempotency_key = target_idempotency_key
+  for update;
+
+  if command_row.command_type <> 'demo.reset'
+     or command_row.request_hash <> request_hash then
+    raise exception 'idempotency_key_payload_mismatch';
+  end if;
+
+  if command_row.response ? 'session_id' then
+    replay_session_id := (command_row.response ->> 'session_id')::uuid;
+
+    select *
+    into result_session
+    from platform.demo_sessions
+    where id = replay_session_id
+      and app_id = ezstay_app_id
+      and user_id = target_user_id;
+
+    if result_session.id is null then
+      raise exception 'reset_replay_session_not_found';
+    end if;
+
+    return result_session;
+  end if;
+
+  current_session := private.ezstay_active_demo_session(target_user_id);
+  if current_session.id is null then
+    raise exception 'active_demo_session_required';
+  end if;
+
+  result_session := private.reset_ezstay_demo_session(
+    target_user_id,
+    current_session.id,
+    current_session.reset_generation
+  );
+
+  update platform.demo_command_idempotency
+  set response = jsonb_build_object(
+    'session_id', result_session.id,
+    'tenant_id', result_session.tenant_id,
+    'reset_generation', result_session.reset_generation,
+    'demo_now', result_session.demo_now
+  )
+  where id = command_row.id;
+
+  return result_session;
+end;
+$;
+
 revoke execute on function private.ezstay_active_demo_session(uuid) from public, anon, authenticated;
 revoke execute on function private.seed_ezstay_northstar_v2(uuid, uuid, timestamptz) from public, anon, authenticated;
 revoke execute on function private.create_ezstay_demo_session(uuid, timestamptz) from public, anon, authenticated;
 revoke execute on function private.reset_ezstay_demo_session(uuid, uuid, integer) from public, anon, authenticated;
+revoke execute on function private.ezstay_reset_demo_command(uuid, text) from public, anon, authenticated;

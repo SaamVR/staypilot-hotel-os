@@ -1162,6 +1162,120 @@ revoke execute on function private.ezstay_record_run_step(uuid, uuid, integer, t
 revoke execute on function private.ezstay_record_run_link(uuid, uuid, text, text, text) from public, anon, authenticated;
 revoke execute on function private.ezstay_record_audit_event(uuid, text, text, text, text, jsonb, timestamptz) from public, anon, authenticated;
 revoke execute on function private.ezstay_materialize_run_evidence(uuid, uuid) from public, anon, authenticated;
+
+create or replace function private.ezstay_advance_demo_clock_command(
+  target_user_id uuid,
+  target_idempotency_key text,
+  target_minutes integer default 30
+)
+returns jsonb
+language plpgsql
+security definer
+set search_path = ''
+as $
+declare
+  ezstay_app_id uuid;
+  command_row platform.demo_command_idempotency;
+  active_session platform.demo_sessions;
+  bounded_minutes integer := greatest(1, least(coalesce(target_minutes, 30), 240));
+  request_hash text;
+  advanced_now timestamptz;
+  escalated_count integer := 0;
+  result jsonb;
+begin
+  if target_user_id is null then
+    raise exception 'authenticated_user_required';
+  end if;
+
+  if nullif(trim(target_idempotency_key), '') is null then
+    raise exception 'idempotency_key_required';
+  end if;
+
+  request_hash := encode(
+    digest('ezstay:demo.clock:v1:' || bounded_minutes::text, 'sha256'),
+    'hex'
+  );
+
+  select id into ezstay_app_id
+  from platform.applications
+  where key = 'ezstay'
+    and status = 'active';
+
+  if ezstay_app_id is null then
+    raise exception 'ezstay_application_not_registered';
+  end if;
+
+  insert into platform.demo_command_idempotency (
+    app_id, user_id, idempotency_key, command_type, request_hash
+  ) values (
+    ezstay_app_id, target_user_id, target_idempotency_key, 'demo.clock.advance', request_hash
+  )
+  on conflict (app_id, user_id, idempotency_key) do nothing;
+
+  select *
+  into command_row
+  from platform.demo_command_idempotency
+  where app_id = ezstay_app_id
+    and user_id = target_user_id
+    and idempotency_key = target_idempotency_key
+  for update;
+
+  if command_row.command_type <> 'demo.clock.advance'
+     or command_row.request_hash <> request_hash then
+    raise exception 'idempotency_key_payload_mismatch';
+  end if;
+
+  if command_row.response is not null then
+    return command_row.response;
+  end if;
+
+  active_session := private.ezstay_active_demo_session(target_user_id);
+  if active_session.id is null then
+    raise exception 'active_demo_session_required';
+  end if;
+
+  select *
+  into active_session
+  from platform.demo_sessions
+  where id = active_session.id
+    and user_id = target_user_id
+    and status = 'active'
+    and expires_at > now()
+  for update;
+
+  if active_session.id is null then
+    raise exception 'active_demo_session_required';
+  end if;
+
+  advanced_now := active_session.demo_now + make_interval(mins => bounded_minutes);
+
+  update platform.demo_sessions
+  set demo_now = advanced_now,
+      last_activity_at = now()
+  where id = active_session.id;
+
+  escalated_count := private.ezstay_evaluate_overdue_tasks(
+    active_session.tenant_id,
+    advanced_now
+  );
+
+  result := jsonb_build_object(
+    'session_id', active_session.id,
+    'hotel_id', active_session.tenant_id,
+    'reset_generation', active_session.reset_generation,
+    'demo_now', advanced_now,
+    'minutes', bounded_minutes,
+    'escalated_count', escalated_count
+  );
+
+  update platform.demo_command_idempotency
+  set response = result
+  where id = command_row.id;
+
+  return result;
+end;
+$;
+
 revoke execute on function private.ezstay_claim_inbound_events(text, integer) from public, anon, authenticated;
 revoke execute on function private.ezstay_finish_inbound_event(uuid, text, text, integer) from public, anon, authenticated;
 revoke execute on function private.ezstay_record_command(uuid, text, text, text, uuid, jsonb) from public, anon, authenticated;
@@ -1172,3 +1286,4 @@ revoke execute on function private.ezstay_apply_low_stock(uuid, text, uuid) from
 revoke execute on function private.ezstay_resolve_approval(uuid, text, uuid, text) from public, anon, authenticated;
 revoke execute on function private.ezstay_retry_delivery(uuid, uuid, text) from public, anon, authenticated;
 revoke execute on function private.ezstay_evaluate_overdue_tasks(uuid, timestamptz) from public, anon, authenticated;
+revoke execute on function private.ezstay_advance_demo_clock_command(uuid, text, integer) from public, anon, authenticated;

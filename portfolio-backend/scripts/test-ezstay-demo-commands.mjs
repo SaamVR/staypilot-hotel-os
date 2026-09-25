@@ -4,6 +4,7 @@ import { readFileSync } from "node:fs";
 
 const platform = readFileSync("supabase/migrations/20260925010000_platform_foundation.sql", "utf8").toLowerCase();
 const lifecycle = readFileSync("supabase/migrations/20260925040000_ezstay_demo_lifecycle.sql", "utf8").toLowerCase();
+const automation = readFileSync("supabase/migrations/20260925050000_ezstay_automation_runtime.sql", "utf8").toLowerCase();
 const runtimeRole = readFileSync("supabase/migrations/20260925060000_ezstay_runtime_role.sql", "utf8").toLowerCase();
 
 test("platform has app/user scoped demo command idempotency", () => {
@@ -24,10 +25,10 @@ test("reset command replays a stored generation instead of resetting again", () 
 });
 
 test("clock command is bounded, retry-safe, and evaluates overdue work at new demo time", () => {
-  assert.match(lifecycle, /function\s+private\.ezstay_advance_demo_clock_command/);
-  const start = lifecycle.indexOf("create or replace function private.ezstay_advance_demo_clock_command");
-  const next = lifecycle.indexOf("revoke execute", start);
-  const fn = lifecycle.slice(start, next >= 0 ? next : lifecycle.length);
+  assert.match(automation, /function\s+private\.ezstay_advance_demo_clock_command/);
+  const start = automation.indexOf("create or replace function private.ezstay_advance_demo_clock_command");
+  const next = automation.indexOf("revoke execute", start);
+  const fn = automation.slice(start, next >= 0 ? next : automation.length);
   assert.match(fn, /demo_command_idempotency/);
   assert.match(fn, /greatest\s*\(1/);
   assert.match(fn, /least\s*\(/);

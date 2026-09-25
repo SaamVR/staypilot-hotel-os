@@ -65,6 +65,22 @@ create table if not exists platform.demo_sessions (
   check (expires_at > started_at)
 );
 
+
+create table if not exists platform.demo_command_idempotency (
+  id uuid primary key default gen_random_uuid(),
+  app_id uuid not null references platform.applications(id) on delete cascade,
+  user_id uuid not null references auth.users(id) on delete cascade,
+  idempotency_key text not null,
+  command_type text not null,
+  request_hash text not null,
+  response jsonb,
+  created_at timestamptz not null default now(),
+  unique (app_id, user_id, idempotency_key)
+);
+
+create index if not exists demo_command_idempotency_user_idx
+  on platform.demo_command_idempotency (user_id, app_id, created_at);
+
 create index if not exists app_memberships_user_id_idx
   on platform.app_memberships (user_id);
 
