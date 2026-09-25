@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import MarketingLanding from "./components/MarketingLanding.jsx";
+import BackendEntryGate from "./components/BackendEntryGate.jsx";
 import { resolveEzstayView, workspaceHash } from "./domain/entry.js";
 import AppShell from "./components/AppShell.jsx";
 import RunInspector from "./components/RunInspector.jsx";
@@ -11,14 +12,25 @@ import Approvals from "./pages/Approvals.jsx";
 import ActivityPage from "./pages/Activity.jsx";
 import Integrations from "./pages/Integrations.jsx";
 import { createRuntime } from "./runtime/index.js";
+import {
+  createBackendSandboxRuntime,
+  fetchEzstayBackendHealth,
+  fetchEzstayPublicConfig,
+  selectEzstayRuntimeMode,
+} from "./runtime/bootstrap.js";
 
 function commandKey(prefix) {
   const token = globalThis.crypto?.randomUUID?.() || Math.random().toString(36).slice(2);
   return `${prefix}_${token}`;
 }
 
+function setWorkspaceHash() {
+  if (globalThis.location) globalThis.location.hash = workspaceHash();
+}
+
 export default function EZStayApp() {
-  const runtime = useMemo(() => createRuntime({ mode:"local-preview" }), []);
+  const localRuntime = useMemo(() => createRuntime({ mode:"local-preview" }), []);
+  const [runtime, setRuntime] = useState(localRuntime);
   const [view, setView] = useState(() => resolveEzstayView(globalThis.location?.hash || ""));
   const [active, setActive] = useState("command");
   const [session, setSession] = useState(null);
@@ -27,6 +39,14 @@ export default function EZStayApp() {
   const [demoControlOpen, setDemoControlOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState(null);
+  const [entryGate, setEntryGate] = useState({
+    phase:"idle",
+    config:null,
+    error:null,
+    challengeKey:0,
+  });
+
+  const entryBusy = ["checking","verifying"].includes(entryGate.phase);
 
   useEffect(() => {
     const onHashChange = () => setView(resolveEzstayView(globalThis.location?.hash || ""));
@@ -34,23 +54,119 @@ export default function EZStayApp() {
     return () => globalThis.removeEventListener?.("hashchange", onHashChange);
   }, []);
 
-  useEffect(() => {
-    if (view !== "workspace") return undefined;
-    let live = true;
-    runtime.getSession().then(result => {
-      if (!live) return;
-      setSession(result.session);
-      setSnapshot(result.snapshot);
-    }).catch(error => {
-      if (live) setNotice(error.message);
-    });
-    return () => { live = false; };
-  }, [runtime, view]);
-
-  const enterWorkspace = () => {
-    if (globalThis.location) globalThis.location.hash = workspaceHash();
+  function applyWorkspace(result, selectedRuntime) {
+    setRuntime(selectedRuntime);
+    setSession(result.session);
+    setSnapshot(result.snapshot);
+    setSelectedRun(null);
+    setEntryGate({ phase:"idle", config:null, error:null, challengeKey:0 });
+    setWorkspaceHash();
     setView("workspace");
-  };
+  }
+
+  useEffect(() => {
+    if (view !== "workspace" || (session && snapshot)) return undefined;
+    let live = true;
+
+    (async () => {
+      const health = await fetchEzstayBackendHealth();
+      const mode = selectEzstayRuntimeMode(health);
+      if (!live) return;
+
+      if (mode === "local-preview") {
+        const result = await localRuntime.getSession();
+        if (live) applyWorkspace(result, localRuntime);
+        return;
+      }
+
+      const config = await fetchEzstayPublicConfig();
+      if (!live) return;
+      if (config?.mode !== "configured") throw new Error("backend_not_configured");
+
+      try {
+        const backend = await createBackendSandboxRuntime({ config });
+        const result = await backend.runtime.startDemo({ idempotencyKey:commandKey("cmd_start_resume") });
+        if (live) applyWorkspace(result, backend.runtime);
+      } catch (error) {
+        if (!live) return;
+        if (error?.message === "captcha_token_required") {
+          if (globalThis.location) globalThis.location.hash = "#top";
+          setView("presentation");
+          setEntryGate({
+            phase:"challenge",
+            config,
+            error:null,
+            challengeKey:Date.now(),
+          });
+          return;
+        }
+        throw error;
+      }
+    })().catch(error => {
+      if (!live) return;
+      if (globalThis.location) globalThis.location.hash = "#top";
+      setView("presentation");
+      setEntryGate(previous => ({
+        ...previous,
+        phase:"idle",
+        error:error?.message || "Backend demo is unavailable.",
+      }));
+    });
+
+    return () => { live = false; };
+  }, [localRuntime, session, snapshot, view]);
+
+  async function enterWorkspace() {
+    if (entryBusy) return;
+    setEntryGate({ phase:"checking", config:null, error:null, challengeKey:entryGate.challengeKey });
+    try {
+      const health = await fetchEzstayBackendHealth();
+      const mode = selectEzstayRuntimeMode(health);
+      if (mode === "local-preview") {
+        const result = await localRuntime.getSession();
+        applyWorkspace(result, localRuntime);
+        return;
+      }
+
+      const config = await fetchEzstayPublicConfig();
+      if (config?.mode !== "configured" || !config.turnstileSiteKey) {
+        throw new Error("backend_not_configured");
+      }
+
+      setEntryGate({
+        phase:"challenge",
+        config,
+        error:null,
+        challengeKey:entryGate.challengeKey + 1,
+      });
+    } catch (error) {
+      setEntryGate(previous => ({
+        ...previous,
+        phase:"idle",
+        error:error?.message || "Demo entry could not be prepared.",
+      }));
+    }
+  }
+
+  async function completeBackendEntry(captchaToken) {
+    if (entryGate.phase !== "challenge" || !entryGate.config) return;
+    setEntryGate(previous => ({ ...previous, phase:"verifying", error:null }));
+    try {
+      const backend = await createBackendSandboxRuntime({
+        config:entryGate.config,
+        captchaToken,
+      });
+      const result = await backend.runtime.startDemo({ idempotencyKey:commandKey("cmd_start") });
+      applyWorkspace(result, backend.runtime);
+    } catch (error) {
+      setEntryGate(previous => ({
+        ...previous,
+        phase:"challenge",
+        error:error?.message || "Demo verification failed.",
+        challengeKey:previous.challengeKey + 1,
+      }));
+    }
+  }
 
   async function execute(work, successMessage) {
     if (busy) return;
@@ -144,7 +260,22 @@ export default function EZStayApp() {
     setNotice(`Sample failure ${failed.id} is ready for delivery-only recovery.`);
   };
 
-  if (view === "presentation") return <MarketingLanding onExplore={enterWorkspace}/>;
+  if (view === "presentation") {
+    return <>
+      <MarketingLanding onExplore={enterWorkspace} entryBusy={entryBusy}/>
+      <BackendEntryGate
+        key={entryGate.challengeKey}
+        open={["challenge","verifying"].includes(entryGate.phase)}
+        siteKey={entryGate.config?.turnstileSiteKey}
+        busy={entryGate.phase === "verifying"}
+        error={entryGate.error}
+        onToken={completeBackendEntry}
+        onError={message => setEntryGate(previous => ({ ...previous, error:message }))}
+        onCancel={() => setEntryGate(previous => ({ ...previous, phase:"idle", config:null, error:null }))}
+      />
+      {entryGate.phase === "idle" && entryGate.error && <div className="presentation-entry-error" role="alert">{entryGate.error}</div>}
+    </>;
+  }
 
   if (!session || !snapshot) return <div className="app-loading"><span>EZ</span><p>Preparing Northstar demo workspace…</p></div>;
 

@@ -64,7 +64,7 @@ const mechanics = [
   ["Evidence", "Trace every decision", Braces],
 ];
 
-export default function MarketingLanding({ onExplore }) {
+export default function MarketingLanding({ onExplore, entryBusy = false }) {
   return <div className="ez-presentation">
     <header className="presentation-nav">
       <a className="presentation-brand" href="#top" aria-label="EZStay home">
@@ -76,7 +76,7 @@ export default function MarketingLanding({ onExplore }) {
         <a href="#proof">Proof</a>
         <a href="#architecture">Architecture</a>
       </nav>
-      <button onClick={onExplore}>{EZSTAY_ENTRY_CTA}<ArrowRight size={15}/></button>
+      <button onClick={onExplore} disabled={entryBusy}>{entryBusy ? "Preparing demo…" : EZSTAY_ENTRY_CTA}<ArrowRight size={15}/></button>
     </header>
 
     <main>
@@ -89,8 +89,8 @@ export default function MarketingLanding({ onExplore }) {
             safe delivery, recovery, and an execution trail you can inspect instead of trust blindly.
           </p>
           <div className="presentation-actions">
-            <button className="presentation-primary" onClick={onExplore}>
-              {EZSTAY_ENTRY_CTA}<ArrowRight size={17}/>
+            <button className="presentation-primary" onClick={onExplore} disabled={entryBusy}>
+              {entryBusy ? "Preparing demo…" : EZSTAY_ENTRY_CTA}<ArrowRight size={17}/>
             </button>
             <a href="#automation">See how automation works</a>
           </div>
@@ -191,7 +191,7 @@ export default function MarketingLanding({ onExplore }) {
       <section className="presentation-final">
         <span className="presentation-kicker">Open the working system</span>
         <h2>Don’t watch a product video.<br/>Run the hotel operations yourself.</h2>
-        <button className="presentation-primary" onClick={onExplore}>{EZSTAY_ENTRY_CTA}<ArrowRight size={17}/></button>
+        <button className="presentation-primary" onClick={onExplore} disabled={entryBusy}>{entryBusy ? "Preparing demo…" : EZSTAY_ENTRY_CTA}<ArrowRight size={17}/></button>
       </section>
     </main>
 
