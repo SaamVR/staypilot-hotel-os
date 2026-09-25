@@ -26,6 +26,11 @@ test("anonymous and authenticated roles receive no direct internal schema grants
   assert.match(sql, /revoke\s+all\s+on\s+schema\s+ezstay\s+from\s+authenticated/);
 });
 
+test("private function execution is deny-by-default for current and future functions", () => {
+  assert.match(sql, /revoke\s+execute\s+on\s+all\s+functions\s+in\s+schema\s+private\s+from\s+public,\s*anon,\s*authenticated/);
+  assert.match(sql, /alter\s+default\s+privileges\s+for\s+role\s+postgres\s+in\s+schema\s+private\s+revoke\s+execute\s+on\s+functions\s+from\s+public,\s*anon,\s*authenticated/);
+});
+
 test("RLS helpers are callable only by authenticated policy evaluation", () => {
   assert.match(sql, /revoke\s+all\s+on\s+schema\s+private\s+from\s+public/);
   assert.match(sql, /revoke\s+all\s+on\s+schema\s+private\s+from\s+anon/);
