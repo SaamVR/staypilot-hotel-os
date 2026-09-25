@@ -23,5 +23,5 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
-      - name: Verify backend contract layout
-        run: node scripts/verify-layout.mjs
+      - name: Verify backend contract
+        run: npm run verify
