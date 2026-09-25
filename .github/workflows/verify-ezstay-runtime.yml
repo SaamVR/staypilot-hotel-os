@@ -1,0 +1,27 @@
+name: Verify EZStay Runtime
+
+on:
+  push:
+    branches: ["feature/ezstay-runtime"]
+  pull_request:
+    paths:
+      - "functions/api/ezstay/**"
+      - "functions/_shared/ezstay/**"
+      - "cloudflare/ezstay-runtime/**"
+      - "scripts/test-ezstay-*.mjs"
+      - ".github/workflows/verify-ezstay-runtime.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Verify EZStay runtime contracts
+        run: node --test scripts/test-ezstay-*.mjs
