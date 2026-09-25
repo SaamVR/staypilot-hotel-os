@@ -22,7 +22,7 @@ async function expectVisible(locator, description) {
 }
 
 async function screenshot(page, name) {
-  const path = \`\${outDir}/\${name}.png\`;
+  const path = `${outDir}/${name}.png`;
   await page.screenshot({ path, fullPage:true });
   report.pages.push({ name, url:page.url(), path });
 }
@@ -44,12 +44,12 @@ async function enterDemo(page) {
 
 async function runScenario(page, title) {
   const card = page.locator(".scenario-card").filter({ hasText:title });
-  await expectVisible(card, \`scenario card should render: \${title}\`);
+  await expectVisible(card, `scenario card should render: ${title}`);
   await card.getByRole("button", { name:/Run scenario/ }).click();
   const inspector = page.getByLabel("Automation run inspector");
   await inspector.waitFor({ state:"visible" });
   for (const heading of ["Input","Decision","Changes","Delivery","Audit","Linked records"]) {
-    await expectVisible(inspector.getByRole("heading", { name:heading }), \`inspector section should render: \${heading}\`);
+    await expectVisible(inspector.getByRole("heading", { name:heading }), `inspector section should render: ${heading}`);
   }
   return inspector;
 }
@@ -140,6 +140,6 @@ try {
   throw error;
 } finally {
   report.finishedAt = new Date().toISOString();
-  await writeFile(\`\${outDir}/report.json\`, JSON.stringify(report, null, 2));
+  await writeFile(`${outDir}/report.json`, JSON.stringify(report, null, 2));
   await browser.close();
 }
