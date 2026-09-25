@@ -20,7 +20,7 @@
 - Pages gateway never holds a global Supabase service-role key.
 - Scheduler defaults disabled.
 - Delivery retry cannot invoke original business mutation.
-- Turnstile is required for public demo creation when production mode is enabled.
+- In backend-sandbox mode, anonymous Supabase Auth is protected by Turnstile CAPTCHA; the Cloudflare gateway validates the resulting bearer identity and applies app-level rate limiting.
 
 ## Review Focus
 
@@ -58,6 +58,7 @@
 - Create: `functions/api/ezstay/scenarios/guest-request.js`
 - Create: `functions/api/ezstay/scenarios/checkout.js`
 - Create: `functions/api/ezstay/scenarios/low-stock.js`
+- Create: `functions/api/ezstay/approvals/resolve.js`
 - Create: `functions/api/ezstay/deliveries/retry.js`
 - Create: `functions/api/ezstay/demo/clock/advance.js`
 - Create: `functions/api/ezstay/automation-runs/[runId].js`
@@ -65,7 +66,7 @@
 
 **Interfaces:**
 - Gateway delegates to `env.EZSTAY_RUNTIME.fetch(request)`.
-- Public paths are exactly `/api/ezstay/demo/session`, `/api/ezstay/demo/start`, `/api/ezstay/demo/reset`, `/api/ezstay/snapshot`, `/api/ezstay/scenarios/guest-request`, `/api/ezstay/scenarios/checkout`, `/api/ezstay/scenarios/low-stock`, `/api/ezstay/deliveries/retry`, `/api/ezstay/demo/clock/advance`, and `/api/ezstay/automation-runs/:runId`.
+- Public paths are exactly `/api/ezstay/demo/session`, `/api/ezstay/demo/start`, `/api/ezstay/demo/reset`, `/api/ezstay/snapshot`, `/api/ezstay/scenarios/guest-request`, `/api/ezstay/scenarios/checkout`, `/api/ezstay/scenarios/low-stock`, `/api/ezstay/approvals/resolve`, `/api/ezstay/deliveries/retry`, `/api/ezstay/demo/clock/advance`, and `/api/ezstay/automation-runs/:runId`.
 
 - [ ] **Step 1: Write tests with a fake Service Binding**
 - [ ] **Step 2: Missing `EZSTAY_RUNTIME` returns `503 { code:"ezstay_runtime_not_configured" }`**
@@ -91,6 +92,7 @@ handleResetDemo(ctx)
 handleGuestRequest(ctx)
 handleCheckout(ctx)
 handleLowStock(ctx)
+handleResolveApproval(ctx)
 handleRetryDelivery(ctx)
 handleAdvanceClock(ctx)
 handleGetRun(ctx)
@@ -102,20 +104,26 @@ handleGetRun(ctx)
 - [ ] **Step 4: Default adapter throws `backend_not_configured` unless test binding is supplied**
 - [ ] **Step 5: Verify and commit**
 
-### Task C4: Add demo-start abuse boundary and Turnstile verifier
+### Task C4: Add backend-sandbox anonymous Auth and gateway identity validation
 
 **Files:**
-- Create: `functions/_shared/ezstay/turnstile.js`
+- Create: `src/ezstay/runtime/authClient.js`
+- Create: `functions/_shared/ezstay/auth.js`
 - Modify: `functions/api/ezstay/demo/start.js`
-- Create: `scripts/test-ezstay-turnstile.mjs`
+- Create: `scripts/test-ezstay-auth.mjs`
+- Modify after Lane A Gate 1: `package.json`, `package-lock.json`
 
 **Interfaces:**
-- `verifyTurnstile({ token, secret, remoteIp, fetchImpl }) -> { success:boolean }`.
+- Browser: `signInDemo({ captchaToken }) -> { accessToken, userId }`.
+- Gateway: `requireAuthenticatedUser(request, env, fetchImpl) -> { userId, isAnonymous }`.
 
-- [ ] **Step 1: Test missing production secret/token rejects demo creation**
-- [ ] **Step 2: Test local-preview/dev mode does not pretend verification succeeded; it reports `turnstile_required:false` only under explicit development configuration**
-- [ ] **Step 3: Implement server-side Siteverify call with no token logging**
-- [ ] **Step 4: Verify and commit**
+- [ ] **Step 1: Add pinned `@supabase/supabase-js` dependency after Lane A owns the initial package edits**
+- [ ] **Step 2: Test that backend-sandbox demo start rejects a missing bearer token before runtime delegation**
+- [ ] **Step 3: Implement browser anonymous sign-in using Supabase Auth with the Turnstile `captchaToken`; the token is validated by Supabase Auth and is never logged**
+- [ ] **Step 4: Implement gateway identity validation against Supabase Auth using the publishable key plus the caller bearer token; do not use `service_role`**
+- [ ] **Step 5: Require `isAnonymous === true` for public sandbox creation while allowing permanent users only through explicit app membership paths**
+- [ ] **Step 6: Keep local-preview mode independent of Supabase Auth and visibly labeled local-preview**
+- [ ] **Step 7: Verify and commit**
 
 ### Task C5: Add scheduler and delivery-only recovery
 
