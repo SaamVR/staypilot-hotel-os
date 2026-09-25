@@ -7,6 +7,10 @@ const SESSION_ID = "22222222-2222-4222-8222-222222222222";
 const HOTEL_ID = "33333333-3333-4333-8333-333333333333";
 const RUN_ID = "44444444-4444-4444-8444-444444444444";
 const RESERVATION_ID = "55555555-5555-4555-8555-555555555555";
+const TASK_ID = "66666666-6666-4666-8666-666666666666";
+const INVENTORY_ID = "77777777-7777-4777-8777-777777777777";
+const APPROVAL_ID = "88888888-8888-4888-8888-888888888888";
+const DELIVERY_ID = "99999999-9999-4999-8999-999999999999";
 
 function context({ body = {}, idempotencyKey = "cmd_test_1", anonymous = true, runId = null } = {}) {
   return {
@@ -68,8 +72,16 @@ function fakeClientFactory() {
       if (normalized.includes("ezstay_apply_guest_request")) {
         return { rows:[{ run_id:RUN_ID }] };
       }
-      if (normalized.includes("ezstay_apply_checkout")) {
+      if (
+        normalized.includes("ezstay_apply_checkout") ||
+        normalized.includes("ezstay_complete_housekeeping") ||
+        normalized.includes("ezstay_apply_low_stock") ||
+        normalized.includes("ezstay_resolve_approval")
+      ) {
         return { rows:[{ run_id:RUN_ID }] };
+      }
+      if (normalized.includes("ezstay_retry_delivery")) {
+        return { rows:[{ ezstay_retry_delivery:{ delivery_id:DELIVERY_ID } }] };
       }
       if (normalized.includes("ezstay_run_scheduled_work")) {
         return { rows:[{ result:{ processed_sessions:2, escalated_tasks:1, batch_size:5 } }] };
@@ -85,7 +97,12 @@ function fakeClientFactory() {
         return { rows:[{ snapshot:{
           meta:{ seedVersion:"northstar-v2", backendContractVersion:"ezstay-backend-v1", demoNow:"2026-09-25T04:30:00.000Z", resetGeneration:0 },
           hotel:{ id:HOTEL_ID, name:"Northstar Grand" },
-          reservations:[], inventory:[], deliveries:[], automationRuns:[],
+          reservations:[], inventory:[], deliveries:[{ id:DELIVERY_ID, status:"Delivered" }],
+          automationRuns:[{
+            id:RUN_ID, eventId:"cmd_retry_1", ruleKey:"delivery-recovery",
+            result:"Success", summary:"Delivery recovered", input:{}, decision:{},
+            changes:[], delivery:[{ id:DELIVERY_ID, status:"Delivered" }], audit:[], linkedRecords:[],
+          }],
         } }] };
       }
       throw new Error(`unexpected_query:${normalized}`);
@@ -185,4 +202,56 @@ test("scheduled work is the only adapter path that does not require a user ident
   const result = await backend.runScheduledWork({ batchSize:5 });
   assert.deepEqual(result, { processed_sessions:2, escalated_tasks:1, batch_size:5 });
   assert.match(fake.instances[0].queries[0].text, /private\.ezstay_run_scheduled_work/i);
+});
+
+test("housekeeping, low-stock, and approval commands stay behind private parameterized functions", async () => {
+  const fake = fakeClientFactory();
+  const backend = createHyperdriveBackend(
+    { HYPERDRIVE:{ connectionString:"postgres://restricted@example/db" } },
+    { ClientImpl:fake.ClientImpl }
+  );
+
+  await backend.completeHousekeeping(context({
+    body:{ taskId:TASK_ID },
+    idempotencyKey:"cmd_housekeeping_1",
+  }));
+  await backend.runLowStock(context({
+    body:{ inventoryItemId:INVENTORY_ID },
+    idempotencyKey:"cmd_stock_1",
+  }));
+  await backend.resolveApproval(context({
+    body:{ approvalId:APPROVAL_ID, decision:"Approved" },
+    idempotencyKey:"cmd_approval_1",
+  }));
+
+  const queries = fake.instances.flatMap(client => client.queries);
+  const housekeeping = queries.find(row => /ezstay_complete_housekeeping/i.test(row.text));
+  const lowStock = queries.find(row => /ezstay_apply_low_stock/i.test(row.text));
+  const approval = queries.find(row => /ezstay_resolve_approval/i.test(row.text));
+  assert.deepEqual(housekeeping.values, [HOTEL_ID, "cmd_housekeeping_1", TASK_ID]);
+  assert.deepEqual(lowStock.values, [HOTEL_ID, "cmd_stock_1", INVENTORY_ID]);
+  assert.deepEqual(approval.values, [HOTEL_ID, "cmd_approval_1", APPROVAL_ID, "Approved"]);
+  for (const query of queries) assert.doesNotMatch(query.text, /\b(insert|update|delete)\b/i);
+});
+
+test("delivery retry and run lookup remain hotel-scoped through the active session", async () => {
+  const fake = fakeClientFactory();
+  const backend = createHyperdriveBackend(
+    { HYPERDRIVE:{ connectionString:"postgres://restricted@example/db" } },
+    { ClientImpl:fake.ClientImpl }
+  );
+
+  const recovered = await backend.retryDelivery(context({
+    body:{ deliveryId:DELIVERY_ID },
+    idempotencyKey:"cmd_retry_1",
+  }));
+  assert.equal(recovered.run.ruleKey, "delivery-recovery");
+
+  const fetched = await backend.getRun(context({ runId:RUN_ID }));
+  assert.equal(fetched.run.id, RUN_ID);
+
+  const queries = fake.instances.flatMap(client => client.queries);
+  assert.ok(queries.some(row => /ezstay_retry_delivery/i.test(row.text)));
+  const runQuery = queries.find(row => /ezstay_get_run/i.test(row.text));
+  assert.deepEqual(runQuery.values, [HOTEL_ID, RUN_ID]);
 });
