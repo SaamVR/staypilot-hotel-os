@@ -8,7 +8,7 @@ on:
       - "functions/api/ezstay/**"
       - "functions/_shared/ezstay/**"
       - "cloudflare/ezstay-runtime/**"
-      - "scripts/test-ezstay-http.mjs"
+      - "scripts/test-ezstay-*.mjs"
       - ".github/workflows/verify-ezstay-runtime.yml"
 
 permissions:
@@ -23,5 +23,5 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
-      - name: Verify EZStay runtime HTTP contract
-        run: node --test scripts/test-ezstay-http.mjs
+      - name: Verify EZStay runtime contracts
+        run: node --test scripts/test-ezstay-*.mjs
