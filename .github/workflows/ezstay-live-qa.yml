@@ -1,0 +1,43 @@
+name: EZStay Live QA
+
+on:
+  push:
+    branches: ["feature/ezstay-live-qa"]
+
+permissions:
+  contents: read
+
+jobs:
+  live-qa:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+
+      - name: Install project dependencies
+        run: npm ci
+
+      - name: Install pinned Playwright runtime
+        run: |
+          npm install --no-save --package-lock=false playwright@1.63.0
+          npx playwright install --with-deps chromium
+
+      - name: Run full EZStay story against live Cloudflare Pages
+        env:
+          EZSTAY_QA_URL: https://ezstay.pages.dev
+          EZSTAY_QA_OUT: qa-artifacts
+        run: node scripts/run-ezstay-visual-qa.mjs
+
+      - name: Upload live browser evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ezstay-live-qa
+          path: qa-artifacts
+          if-no-files-found: warn
+          retention-days: 7
