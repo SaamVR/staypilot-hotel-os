@@ -125,7 +125,7 @@ returns void
 language plpgsql
 security definer
 set search_path = ''
-as $
+as $$
 begin
   insert into ezstay.automation_run_steps (
     hotel_id, run_id, step_index, stage, message, payload, effective_at
@@ -135,7 +135,7 @@ begin
   )
   on conflict (hotel_id, run_id, step_index) do nothing;
 end;
-$;
+$$;
 
 create or replace function private.ezstay_record_run_link(
   target_hotel_id uuid,
@@ -148,7 +148,7 @@ returns void
 language plpgsql
 security definer
 set search_path = ''
-as $
+as $$
 begin
   if not exists (
     select 1
@@ -166,7 +166,7 @@ begin
     );
   end if;
 end;
-$;
+$$;
 
 create or replace function private.ezstay_record_audit_event(
   target_hotel_id uuid,
@@ -181,7 +181,7 @@ returns void
 language plpgsql
 security definer
 set search_path = ''
-as $
+as $$
 begin
   if not exists (
     select 1
@@ -199,7 +199,7 @@ begin
     );
   end if;
 end;
-$;
+$$;
 
 create or replace function private.ezstay_materialize_run_evidence(
   target_hotel_id uuid,
@@ -209,7 +209,7 @@ returns void
 language plpgsql
 security definer
 set search_path = ''
-as $
+as $$
 declare
   run_row ezstay.automation_runs;
   request_row ezstay.guest_requests;
@@ -569,7 +569,7 @@ begin
       );
   end case;
 end;
-$;
+$$;
 
 create or replace function private.ezstay_apply_guest_request(
   target_hotel_id uuid,
@@ -660,7 +660,7 @@ begin
   perform private.ezstay_materialize_run_evidence(target_hotel_id, existing_run_id);
   return existing_run_id;
 end;
-$;
+$$;
 
 create or replace function private.ezstay_apply_checkout(
   target_hotel_id uuid,
@@ -742,7 +742,7 @@ begin
   perform private.ezstay_materialize_run_evidence(target_hotel_id, actual_run_id);
   return actual_run_id;
 end;
-$;
+$$;
 
 create or replace function private.ezstay_complete_housekeeping(
   target_hotel_id uuid,
@@ -753,7 +753,7 @@ returns uuid
 language plpgsql
 security definer
 set search_path = ''
-as $
+as $$
 declare
   task_row ezstay.tasks;
   room_row ezstay.rooms;
@@ -843,6 +843,7 @@ begin
     and event_id = target_event_id
     and rule_key = 'room-ready-release';
 
+  perform private.ezstay_materialize_run_evidence(target_hotel_id, actual_run_id);
   return actual_run_id;
 end;
 $;
@@ -923,7 +924,7 @@ begin
   perform private.ezstay_materialize_run_evidence(target_hotel_id, actual_run_id);
   return actual_run_id;
 end;
-$;
+$$;
 
 create or replace function private.ezstay_resolve_approval(
   target_hotel_id uuid,
@@ -1013,7 +1014,7 @@ begin
   perform private.ezstay_materialize_run_evidence(target_hotel_id, actual_run_id);
   return actual_run_id;
 end;
-$;
+$$;
 
 create or replace function private.ezstay_retry_delivery(
   target_hotel_id uuid,
