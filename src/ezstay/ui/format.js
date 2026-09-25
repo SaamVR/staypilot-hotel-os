@@ -21,13 +21,14 @@ export function formatHotelMoment(value, timeZone = "UTC") {
   if (!value) return "—";
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return String(value);
-  const day = new Intl.DateTimeFormat("en-GB", {
+  const parts = new Intl.DateTimeFormat("en-US", {
     day:"2-digit",
     month:"short",
     year:"numeric",
     timeZone,
-  }).format(date);
-  return `${day} · ${formatHotelClock(value, timeZone)}`;
+  }).formatToParts(date);
+  const part = type => parts.find(item => item.type === type)?.value || "";
+  return `${part("day")} ${part("month")} ${part("year")} · ${formatHotelClock(value, timeZone)}`;
 }
 
 export function minutesBetween(later, earlier) {
