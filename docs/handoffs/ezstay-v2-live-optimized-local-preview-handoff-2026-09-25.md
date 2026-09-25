@@ -249,6 +249,37 @@ Do not interpret that ENOSPC event as a product/build failure.
 
 ---
 
+
+## Turnstile provisioned, not activated
+
+Cloudflare Turnstile widget:
+
+`EZStay Demo`
+
+Mode:
+
+`managed`
+
+Authorized hostnames:
+
+- `ezstay.pages.dev` — Cloudflare hostname management also authorizes its subdomains / deployment previews;
+- `localhost`;
+- `127.0.0.1`.
+
+Public sitekey:
+
+`0x4AAAAAAFDbgiO7_Z4oNSz0`
+
+The widget secret is **not** stored in Git or this handoff. It is retained only on `samvr` at:
+
+`~/.config/ezstay/turnstile-widget.json`
+
+with restrictive file permissions.
+
+The Turnstile sitekey has deliberately **not** been wired into Pages/backend mode yet. Activation should happen together with Supabase anonymous Auth configuration so the system does not enter a partial backend state.
+
+---
+
 ## Next execution boundary
 
 Further meaningful production work requires the user-selected shared Supabase project access.
