@@ -1,5 +1,4 @@
 import { createHttpRuntime } from "./httpRuntime.js";
-import { createSupabaseAnonymousAuth } from "./supabaseAnonymousAuth.js";
 
 export function selectEzstayRuntimeMode(health) {
   return health?.mode === "configured" &&
@@ -42,7 +41,7 @@ export function fetchEzstayPublicConfig({
 export async function createBackendSandboxRuntime({
   config,
   captchaToken,
-  createAuthImpl = createSupabaseAnonymousAuth,
+  createAuthImpl,
   createHttpRuntimeImpl = createHttpRuntime,
 } = {}) {
   if (
@@ -53,7 +52,13 @@ export async function createBackendSandboxRuntime({
     throw new Error("backend_not_configured");
   }
 
-  const auth = createAuthImpl({
+  let authFactory = createAuthImpl;
+  if (!authFactory) {
+    const { createSupabaseAnonymousAuth } = await import("./supabaseAnonymousAuth.js");
+    authFactory = createSupabaseAnonymousAuth;
+  }
+
+  const auth = authFactory({
     supabaseUrl:config.supabaseUrl,
     publishableKey:config.supabasePublishableKey,
   });
