@@ -47,6 +47,13 @@ revoke execute on function private.ezstay_has_role(uuid, text[]) from public;
 revoke execute on function private.ezstay_has_role(uuid, text[]) from anon;
 revoke execute on function private.ezstay_has_role(uuid, text[]) from authenticated;
 
+-- Functions default to EXECUTE for PUBLIC in PostgreSQL. Lock the private
+-- schema down for both existing and future functions before regranting the
+-- two helpers that RLS policies intentionally call.
+revoke execute on all functions in schema private from public, anon, authenticated;
+alter default privileges for role postgres in schema private
+  revoke execute on functions from public, anon, authenticated;
+
 -- RLS policies reference these helpers explicitly. Keep the private schema
 -- unexposed while allowing authenticated policy evaluation to resolve and
 -- execute only these two membership helpers.
