@@ -28,6 +28,7 @@ const staticRoutes = new Map([
   ["GET /api/ezstay/snapshot", "getSnapshot"],
   ["POST /api/ezstay/scenarios/guest-request", "runGuestRequest"],
   ["POST /api/ezstay/scenarios/checkout", "runCheckout"],
+  ["POST /api/ezstay/scenarios/housekeeping-complete", "completeHousekeeping"],
   ["POST /api/ezstay/scenarios/low-stock", "runLowStock"],
   ["POST /api/ezstay/approvals/resolve", "resolveApproval"],
   ["POST /api/ezstay/deliveries/retry", "retryDelivery"],
