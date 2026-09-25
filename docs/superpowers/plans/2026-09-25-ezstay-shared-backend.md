@@ -157,7 +157,7 @@ $$;
 - Produces: `private.create_ezstay_demo_session(...)`, `private.reset_ezstay_demo_session(...)`.
 
 - [ ] **Step 1: Mirror the frontend fixture IDs/relationships in SQL fixture source**
-- [ ] **Step 2: Write integrity assertions for room/reservation/task/inventory relationships**
+- [ ] **Step 2: Write integrity assertions for room/reservation/task/inventory relationships and assert an expired demo session is denied even when its Auth user still exists**
 - [ ] **Step 3: Implement replacement-generation reset: seed new generation, switch active pointer, expire old generation**
 - [ ] **Step 4: Make reset idempotent through command key/generation**
 - [ ] **Step 5: Verify and commit**
@@ -175,6 +175,7 @@ $$;
   - guest-request effect;
   - checkout effect;
   - low-stock approval;
+  - approval resolution -> purchase draft;
   - delivery-only retry;
   - overdue evaluation.
 
@@ -182,7 +183,7 @@ $$;
 - [ ] **Step 2: Ensure outbound HTTP is not performed inside transactions**
 - [ ] **Step 3: Use source-event unique constraints for business effects**
 - [ ] **Step 4: Make delivery redrive independent of source business mutation**
-- [ ] **Step 5: Test duplicate event, duplicate command, failed delivery, and overdue once-only behavior**
+- [ ] **Step 5: Test duplicate event, duplicate command, approval resolution creates one purchase draft without changing inventory, failed delivery, overdue once-only behavior, and stale-generation clock/reset races**
 - [ ] **Step 6: Verify and commit**
 
 ### Task B7: Add restricted EZStay runtime-role contract and migration safety checks
