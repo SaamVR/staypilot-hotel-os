@@ -6,7 +6,7 @@
 
 **Architecture:** Pages Functions are thin same-origin gateways. Privileged commands are delegated to a private EZStay Worker through a Service Binding; the Worker talks to the future backend through an app-scoped database adapter/Hyperdrive and owns scheduler/delivery orchestration. No live binding is enabled until the user supplies Supabase access.
 
-**Tech Stack:** Cloudflare Pages Functions, Workers, Service Bindings, Cron Triggers, Hyperdrive later, Node.js contract tests.
+**Tech Stack:** Cloudflare Pages Functions, Workers, Service Bindings, Cron Triggers, Hyperdrive after the live-access gate, Node.js contract tests.
 
 **Spec:** `docs/superpowers/specs/2026-09-25-ezstay-v2-automation-platform-design.md`
 
@@ -65,6 +65,7 @@
 
 **Interfaces:**
 - Gateway delegates to `env.EZSTAY_RUNTIME.fetch(request)`.
+- Public paths are exactly `/api/ezstay/demo/session`, `/api/ezstay/demo/start`, `/api/ezstay/demo/reset`, `/api/ezstay/snapshot`, `/api/ezstay/scenarios/guest-request`, `/api/ezstay/scenarios/checkout`, `/api/ezstay/scenarios/low-stock`, `/api/ezstay/deliveries/retry`, `/api/ezstay/demo/clock/advance`, and `/api/ezstay/automation-runs/:runId`.
 
 - [ ] **Step 1: Write tests with a fake Service Binding**
 - [ ] **Step 2: Missing `EZSTAY_RUNTIME` returns `503 { code:"ezstay_runtime_not_configured" }`**
