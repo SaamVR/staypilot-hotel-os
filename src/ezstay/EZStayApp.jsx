@@ -297,7 +297,7 @@ export default function EZStayApp() {
   if (active === "activity") page = <ActivityPage snapshot={snapshot} onOpenRun={setSelectedRun} onRetry={retryDelivery} busy={busy}/>;
   if (active === "integrations") page = <Integrations/>;
 
-  return <AppShell active={active} onNavigate={setActive} hotel={snapshot.hotel} roomCount={snapshot.rooms.length} demoNow={snapshot.meta.demoNow} onDemoControl={() => setDemoControlOpen(true)}>
+  return <AppShell active={active} onNavigate={setActive} hotel={snapshot.hotel} roomCount={snapshot.rooms.length} demoNow={snapshot.meta.demoNow} operatorName={snapshot.approvals.find(item => item.requestedBy)?.requestedBy || "Sam Rahman"} onDemoControl={() => setDemoControlOpen(true)}>
     {notice && <div className="toast-note" role="status">{notice}<button onClick={() => setNotice(null)}>×</button></div>}
     {page}
     <DemoControl

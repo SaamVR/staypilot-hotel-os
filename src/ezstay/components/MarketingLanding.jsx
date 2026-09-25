@@ -82,7 +82,7 @@ export default function MarketingLanding({ onExplore, entryBusy = false }) {
     <main>
       <section className="presentation-hero" id="top">
         <div className="presentation-hero-copy">
-          <span className="presentation-kicker"><i/> Hotel operations automation · sandbox workspace</span>
+          <span className="presentation-kicker"><i/> Hotel operations automation</span>
           <h1>Hotel operations that <em>move themselves forward.</em></h1>
           <p className="presentation-lede">
             EZStay turns hotel events into policy-aware workflows: state changes, approvals,
