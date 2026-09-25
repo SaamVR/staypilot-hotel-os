@@ -90,6 +90,8 @@ try {
   await screenshot(page, "01-landing-desktop");
 
   await enterDemo(page);
+  await expectVisible(page.locator(".operator-card").filter({ hasText:"Sam Rahman" }), "desktop workspace should expose the Northstar operator identity");
+  await expectVisible(page.locator(".operator-card").filter({ hasText:"Owner" }), "desktop operator role should be visible");
   await screenshot(page, "02-command-center-desktop");
 
   let inspector = await runScenario(page, "Guest request → assigned task");
@@ -107,6 +109,17 @@ try {
   await expectVisible(turnover, "room 108 turnover task should exist");
   await expectVisible(turnover.getByRole("button", { name:"Complete turnover" }), "turnover completion action should render");
   await screenshot(page, "04-operations-turnover");
+
+  await page.getByRole("button", { name:"Needs attention" }).click();
+  await expectVisible(page.locator(".room-tile").filter({ hasText:"108" }), "dirty room 108 should remain in the needs-attention filter");
+  await expectVisible(page.locator(".room-tile").filter({ hasText:"207" }), "blocked room 207 should remain in the needs-attention filter");
+  await page.getByRole("button", { name:"All rooms" }).click();
+
+  await page.getByRole("button", { name:"Maintenance" }).click();
+  await expectVisible(page.locator(".list-row").filter({ hasText:"Room 207 · HVAC inspection" }), "maintenance team filter should isolate maintenance work");
+  await screenshot(page, "04b-operations-filtered");
+  await page.getByRole("button", { name:"All teams" }).click();
+
   await turnover.getByRole("button", { name:"Complete turnover" }).click();
   inspector = page.getByLabel("Automation run inspector");
   await inspector.waitFor({ state:"visible" });
@@ -145,11 +158,22 @@ try {
   await page.getByRole("button", { name:"Automations" }).click();
   await expectVisible(page.getByRole("heading", { name:"Automations" }), "Automations page should render");
   await expectVisible(page.getByText("Last run").first(), "automation cards should expose execution state");
-  await screenshot(page, "08-automations");
+  await page.getByRole("button", { name:/Policy/ }).click();
+  await expectVisible(page.getByText("Occupancy rate guard"), "policy filter should include occupancy guard");
+  await expectVisible(page.getByText("Low-stock replenishment"), "policy filter should include replenishment policy");
+  await screenshot(page, "08-automations-policy");
+  await page.getByRole("button", { name:/All rules/ }).click();
+  await screenshot(page, "08b-automations-all");
 
   await page.getByRole("button", { name:"Integrations" }).click();
   await expectVisible(page.getByRole("heading", { name:"Integrations" }), "Integrations page should render");
   await expectVisible(page.getByText("Live credentials"), "integration boundary should be explicit");
+  const pmsAdapter = page.locator("details.integration-contract").filter({ hasText:"PMS / booking engine" });
+  await pmsAdapter.locator("summary").click();
+  await expectVisible(pmsAdapter.getByText("Transport"), "adapter inspection should expose transport");
+  await expectVisible(pmsAdapter.getByText("Event scope"), "adapter inspection should expose event scope");
+  await expectVisible(pmsAdapter.getByText("Credentials"), "adapter inspection should expose credential requirements");
+  await expectVisible(pmsAdapter.getByText("Webhook + REST"), "PMS adapter transport should be explicit");
   await screenshot(page, "09-integrations");
 
   await page.getByRole("button", { name:"Activity" }).click();
