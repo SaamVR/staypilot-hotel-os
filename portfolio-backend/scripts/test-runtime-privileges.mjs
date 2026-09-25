@@ -26,6 +26,8 @@ test("runtime role can execute only the approved EZStay private operations", () 
     "ezstay_resolve_approval",
     "ezstay_retry_delivery",
     "ezstay_evaluate_overdue_tasks",
+    "ezstay_snapshot",
+    "ezstay_get_run",
   ]) {
     assert.match(sql, new RegExp(`grant\\s+execute\\s+on\\s+function\\s+private\\.${fn}`));
   }
