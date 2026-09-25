@@ -180,7 +180,7 @@ try {
   await screenshot(mobilePage, "12-landing-mobile-390");
   await enterDemo(mobilePage);
   await screenshot(mobilePage, "13-workspace-mobile-390");
-  await expectVisible(mobilePage.getByText("Northstar Grand").first(), "property identity should remain visible on mobile");
+  await expectVisible(mobilePage.locator(".workspace-context b").filter({ hasText:"Northstar Grand" }), "property identity should remain visible on mobile");
   await expectVisible(mobilePage.getByRole("button", { name:"Sandbox environment" }), "sandbox environment should remain reachable on mobile");
   for (const label of ["Command","Operations","Automations","Approvals","Activity","Integrations"]) {
     const navButton = mobilePage.locator(".primary-nav button").filter({ hasText:label });
