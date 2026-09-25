@@ -2,7 +2,7 @@ import StatusBadge from "../components/StatusBadge.jsx";
 
 const roomTone = room => room.maintenance !== "Clear" ? "danger" : room.housekeeping !== "Clean" ? "warning" : room.occupancy === "Vacant" ? "success" : "blue";
 
-export default function Operations({ snapshot }) {
+export default function Operations({ snapshot, onCompleteHousekeeping, busy }) {
   return <div className="page-stack">
     <div className="page-header"><span className="eyebrow">Live hotel state</span><h1>Operations</h1><p>Rooms, service requests, and tasks share the same operational state the automation engine reads and changes.</p></div>
     <section className="split-grid">
@@ -12,7 +12,7 @@ export default function Operations({ snapshot }) {
       </article>
       <article className="panel">
         <div className="panel-heading"><div><span className="eyebrow">Service board</span><h2>Open tasks</h2></div><small>{snapshot.tasks.filter(task => task.status !== "Done").length} open</small></div>
-        <div className="list-table">{snapshot.tasks.map(task => <div className="list-row" key={task.id}><div><b>{task.place} · {task.title}</b><span>{task.team} · due {new Date(task.dueAt).toLocaleTimeString([], {hour:"2-digit",minute:"2-digit"})}</span></div><StatusBadge tone={task.escalatedAt ? "danger" : "neutral"}>{task.escalatedAt ? "Escalated" : task.status}</StatusBadge></div>)}</div>
+        <div className="list-table">{snapshot.tasks.map(task => <div className="list-row" key={task.id}><div><b>{task.place} · {task.title}</b><span>{task.team} · due {new Date(task.dueAt).toLocaleTimeString([], {hour:"2-digit",minute:"2-digit"})}</span></div><div className="row-actions"><StatusBadge tone={task.escalatedAt ? "danger" : task.status === "Done" ? "success" : "neutral"}>{task.escalatedAt && task.status !== "Done" ? "Escalated" : task.status}</StatusBadge>{task.team === "Housekeeping" && task.title === "Full turnover" && task.status !== "Done" && <button disabled={busy} onClick={() => onCompleteHousekeeping(task.id)}>Complete turnover</button>}</div></div>)}</div>
       </article>
     </section>
     <section className="panel">
