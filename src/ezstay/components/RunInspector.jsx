@@ -14,7 +14,7 @@ function humanize(value) {
     .join(" ");
 }
 
-export default function RunInspector({ run, onClose, onLinkedRecord }) {
+export default function RunInspector({ run, onClose, onLinkedRecord, timeZone = "UTC" }) {
   if (!run) return null;
   const tone = run.result === "Success" ? "success" : run.result === "Approval" ? "warning" : run.result === "Failed" ? "danger" : "neutral";
   const audit = (run.audit || []).slice(-1)[0];
@@ -30,7 +30,7 @@ export default function RunInspector({ run, onClose, onLinkedRecord }) {
         <div><small>Authority</small><b>{run.decision?.autonomy || "—"}</b></div>
         <div><small>State changes</small><b>{(run.changes || []).length}</b></div>
         <div><small>Deliveries</small><b>{(run.delivery || []).length}</b></div>
-        <div><small>Effective</small><b>{effectiveAt ? formatHotelMoment(effectiveAt, "Asia/Dhaka") : "—"}</b></div>
+        <div><small>Effective</small><b>{effectiveAt ? formatHotelMoment(effectiveAt, timeZone) : "—"}</b></div>
       </div>
       <section><h3>Input</h3><JsonBlock value={run.input}/></section>
       <section><h3>Decision</h3><div className="decision-card"><b>{run.decision?.autonomy}</b><p>{run.decision?.reason}</p></div></section>

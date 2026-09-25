@@ -297,7 +297,7 @@ export default function EZStayApp() {
   if (active === "activity") page = <ActivityPage snapshot={snapshot} onOpenRun={setSelectedRun} onRetry={retryDelivery} busy={busy}/>;
   if (active === "integrations") page = <Integrations/>;
 
-  return <AppShell active={active} onNavigate={setActive} session={session} onDemoControl={() => setDemoControlOpen(true)}>
+  return <AppShell active={active} onNavigate={setActive} session={session} hotel={snapshot.hotel} roomCount={snapshot.rooms.length} onDemoControl={() => setDemoControlOpen(true)}>
     {notice && <div className="toast-note" role="status">{notice}<button onClick={() => setNotice(null)}>×</button></div>}
     {page}
     <DemoControl
@@ -310,7 +310,7 @@ export default function EZStayApp() {
       onReset={resetWorkspace}
       onShowFailure={showSampleFailure}
     />
-    <RunInspector run={selectedRun} onClose={() => setSelectedRun(null)} onLinkedRecord={record => {
+    <RunInspector run={selectedRun} timeZone={snapshot.hotel.timezone} onClose={() => setSelectedRun(null)} onLinkedRecord={record => {
       const map = { task:"operations", room:"operations", guest_request:"operations", reservation:"operations", approval:"approvals", purchase_request:"approvals", inventory:"operations", delivery:"activity" };
       setActive(map[record.type] || "activity");
       setSelectedRun(null);

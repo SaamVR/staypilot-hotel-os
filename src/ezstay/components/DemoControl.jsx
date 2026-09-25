@@ -1,16 +1,6 @@
 import { Clock3, Info, RotateCcw, ShieldAlert, X } from "lucide-react";
 import { describeDemoMode } from "../domain/demoControl.js";
-
-function formatDemoTime(value) {
-  if (!value) return "Unavailable";
-  try {
-    return new Intl.DateTimeFormat("en", {
-      month:"short", day:"numeric", hour:"numeric", minute:"2-digit",
-    }).format(new Date(value));
-  } catch {
-    return value;
-  }
-}
+import { formatHotelMoment } from "../ui/format.js";
 
 export default function DemoControl({
   open,
@@ -24,16 +14,17 @@ export default function DemoControl({
 }) {
   if (!open) return null;
   const failed = snapshot?.deliveries?.find(item => ["Failed","Dead-letter"].includes(item.status));
+  const timeZone = snapshot?.hotel?.timezone || "UTC";
 
   return <div className="drawer-backdrop demo-control-backdrop" onMouseDown={onClose}>
     <aside className="demo-control-drawer" onMouseDown={event => event.stopPropagation()} aria-label="Demo control">
       <header className="run-head">
-        <div><span className="eyebrow">Demo control</span><h2>Northstar sandbox</h2></div>
+        <div><span className="eyebrow">Environment</span><h2>Northstar sandbox</h2></div>
         <button className="icon-button" onClick={onClose} aria-label="Close Demo Control"><X size={18}/></button>
       </header>
 
       <section className="demo-status-grid">
-        <div><span>Demo time</span><b>{formatDemoTime(snapshot?.meta?.demoNow || session?.demoNow)}</b></div>
+        <div><span>Hotel time</span><b>{formatHotelMoment(snapshot?.meta?.demoNow || session?.demoNow, timeZone)}</b></div>
         <div><span>Runtime</span><b>{describeDemoMode(session?.mode)}</b></div>
         <div><span>Seed</span><b>{session?.seedVersion}</b></div>
         <div><span>Generation</span><b>#{session?.resetGeneration ?? 0}</b></div>
@@ -52,7 +43,7 @@ export default function DemoControl({
       </section>
 
       <section className="technical-details-card">
-        <div className="technical-details-head"><Info size={17}/><div><b>Technical details</b><span>What this public demo is proving</span></div></div>
+        <div className="technical-details-head"><Info size={17}/><div><b>Environment details</b><span>Runtime and safety boundaries</span></div></div>
         <dl>
           <div><dt>Backend contract</dt><dd>{session?.backendContractVersion}</dd></div>
           <div><dt>Idempotency</dt><dd>Command key + Event ID</dd></div>
