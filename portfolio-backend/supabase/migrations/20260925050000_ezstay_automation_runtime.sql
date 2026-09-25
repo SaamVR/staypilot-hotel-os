@@ -221,6 +221,7 @@ declare
   purchase_row ezstay.purchase_requests;
   delivery_row ezstay.deliveries;
   effective_at timestamptz := now();
+  evidence_step integer;
 begin
   select *
   into run_row
@@ -520,6 +521,36 @@ begin
       );
       perform private.ezstay_record_audit_event(
         target_hotel_id, 'automation', 'Recovery', 'Delivery recovered',
+        run_row.event_id, jsonb_build_object('run_id',run_row.id), effective_at
+      );
+
+    when 'demo-clock' then
+      evidence_step := 0;
+      for task_row in
+        select *
+        from ezstay.tasks
+        where hotel_id = target_hotel_id
+          and escalated_at = nullif(run_row.input ->> 'to','')::timestamptz
+        order by due_at, id
+      loop
+        perform private.ezstay_record_run_step(
+          target_hotel_id, run_row.id, evidence_step, 'change',
+          'Task escalated during deterministic clock advancement.',
+          jsonb_build_object('entityType','task','entityId',task_row.id,'action','escalated'),
+          effective_at
+        );
+        perform private.ezstay_record_run_link(
+          target_hotel_id, run_row.id, 'task', task_row.id::text, task_row.title
+        );
+        evidence_step := evidence_step + 1;
+      end loop;
+
+      perform private.ezstay_record_run_step(
+        target_hotel_id, run_row.id, 80, 'audit', 'Demo clock advancement recorded.',
+        run_row.input, effective_at
+      );
+      perform private.ezstay_record_audit_event(
+        target_hotel_id, 'system', 'Demo', 'Demo clock advanced',
         run_row.event_id, jsonb_build_object('run_id',run_row.id), effective_at
       );
 
@@ -1181,6 +1212,8 @@ declare
   request_hash text;
   advanced_now timestamptz;
   escalated_count integer := 0;
+  clock_run_id uuid := gen_random_uuid();
+  actual_clock_run_id uuid;
   result jsonb;
 begin
   if target_user_id is null then
@@ -1259,13 +1292,46 @@ begin
     advanced_now
   );
 
+  insert into ezstay.automation_runs (
+    id, hotel_id, event_id, event_type, rule_key, result, summary, input, decision
+  ) values (
+    clock_run_id,
+    active_session.tenant_id,
+    target_idempotency_key,
+    'demo.clock_advanced',
+    'demo-clock',
+    'Success',
+    'Demo clock advanced by ' || bounded_minutes || ' minutes.',
+    jsonb_build_object(
+      'minutes', bounded_minutes,
+      'from', active_session.demo_now,
+      'to', advanced_now,
+      'escalated_count', escalated_count
+    ),
+    '{"autonomy":"Auto","reason":"Demo Control requested deterministic time advancement."}'::jsonb
+  )
+  on conflict (hotel_id, event_id, rule_key) do nothing;
+
+  select id
+  into actual_clock_run_id
+  from ezstay.automation_runs
+  where hotel_id = active_session.tenant_id
+    and event_id = target_idempotency_key
+    and rule_key = 'demo-clock';
+
+  perform private.ezstay_materialize_run_evidence(
+    active_session.tenant_id,
+    actual_clock_run_id
+  );
+
   result := jsonb_build_object(
     'session_id', active_session.id,
     'hotel_id', active_session.tenant_id,
     'reset_generation', active_session.reset_generation,
     'demo_now', advanced_now,
     'minutes', bounded_minutes,
-    'escalated_count', escalated_count
+    'escalated_count', escalated_count,
+    'run_id', actual_clock_run_id
   );
 
   update platform.demo_command_idempotency
@@ -1275,6 +1341,56 @@ begin
   return result;
 end;
 $clock$;
+
+create or replace function private.ezstay_run_scheduled_work(
+  target_batch_size integer default 5
+)
+returns jsonb
+language plpgsql
+security definer
+set search_path = ''
+as $scheduled$
+declare
+  ezstay_app_id uuid;
+  session_row platform.demo_sessions;
+  bounded_batch integer := greatest(1, least(coalesce(target_batch_size, 5), 10));
+  processed_sessions integer := 0;
+  escalated_tasks integer := 0;
+begin
+  select id into ezstay_app_id
+  from platform.applications
+  where key = 'ezstay'
+    and status = 'active';
+
+  if ezstay_app_id is null then
+    raise exception 'ezstay_application_not_registered';
+  end if;
+
+  for session_row in
+    select ds.*
+    from platform.demo_sessions ds
+    where ds.app_id = ezstay_app_id
+      and ds.status = 'active'
+      and ds.expires_at > now()
+    order by ds.last_activity_at, ds.id
+    limit bounded_batch
+    for update skip locked
+  loop
+    processed_sessions := processed_sessions + 1;
+    escalated_tasks := escalated_tasks + private.ezstay_evaluate_overdue_tasks(
+      session_row.tenant_id,
+      session_row.demo_now
+    );
+  end loop;
+
+  return jsonb_build_object(
+    'processed_sessions', processed_sessions,
+    'escalated_tasks', escalated_tasks,
+    'batch_size', bounded_batch
+  );
+end;
+$scheduled$;
+
 revoke execute on function private.ezstay_claim_inbound_events(text, integer) from public, anon, authenticated;
 revoke execute on function private.ezstay_finish_inbound_event(uuid, text, text, integer) from public, anon, authenticated;
 revoke execute on function private.ezstay_record_command(uuid, text, text, text, uuid, jsonb) from public, anon, authenticated;
@@ -1286,3 +1402,4 @@ revoke execute on function private.ezstay_resolve_approval(uuid, text, uuid, tex
 revoke execute on function private.ezstay_retry_delivery(uuid, uuid, text) from public, anon, authenticated;
 revoke execute on function private.ezstay_evaluate_overdue_tasks(uuid, timestamptz) from public, anon, authenticated;
 revoke execute on function private.ezstay_advance_demo_clock_command(uuid, text, integer) from public, anon, authenticated;
+revoke execute on function private.ezstay_run_scheduled_work(integer) from public, anon, authenticated;

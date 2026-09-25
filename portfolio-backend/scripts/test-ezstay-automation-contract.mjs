@@ -97,3 +97,12 @@ test("overdue escalation writes once-only automation runs and evidence", () => {
   assert.match(overdue, /insert\s+into\s+ezstay\.automation_runs/);
   assert.match(overdue, /ezstay_materialize_run_evidence/);
 });
+
+test("durable evidence materializer supports demo-clock audit evidence", () => {
+  const start = sql.indexOf("create or replace function private.ezstay_materialize_run_evidence");
+  const next = sql.indexOf("create or replace function private.ezstay_apply_guest_request", start);
+  const fn = sql.slice(start, next);
+  assert.match(fn, /when\s+'demo-clock'/);
+  assert.match(fn, /demo clock advanced/);
+  assert.match(fn, /automation_run_links|ezstay_record_run_link/);
+});

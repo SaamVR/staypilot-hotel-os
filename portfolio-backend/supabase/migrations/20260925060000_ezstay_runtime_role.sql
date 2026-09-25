@@ -398,6 +398,7 @@ grant execute on function private.ezstay_resolve_approval(uuid, text, uuid, text
 grant execute on function private.ezstay_retry_delivery(uuid, uuid, text) to ezstay_runtime;
 grant execute on function private.ezstay_evaluate_overdue_tasks(uuid, timestamptz) to ezstay_runtime;
 grant execute on function private.ezstay_advance_demo_clock_command(uuid, text, integer) to ezstay_runtime;
+grant execute on function private.ezstay_run_scheduled_work(integer) to ezstay_runtime;
 grant execute on function private.ezstay_snapshot(uuid) to ezstay_runtime;
 grant execute on function private.ezstay_get_run(uuid, uuid) to ezstay_runtime;
 

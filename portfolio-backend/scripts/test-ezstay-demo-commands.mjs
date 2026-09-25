@@ -42,3 +42,24 @@ test("restricted runtime role can execute command wrappers but has no platform t
   assert.match(runtimeRole, /grant\s+execute\s+on\s+function\s+private\.ezstay_advance_demo_clock_command/);
   assert.doesNotMatch(runtimeRole, /grant\s+(?:select|insert|update|delete|all)[^;]*platform\.demo_command_idempotency/);
 });
+
+test("clock command creates an inspectable demo-clock run", () => {
+  const start = automation.indexOf("create or replace function private.ezstay_advance_demo_clock_command");
+  const next = automation.indexOf("create or replace function private.ezstay_run_scheduled_work", start);
+  const fn = automation.slice(start, next);
+  assert.match(fn, /demo-clock/);
+  assert.match(fn, /insert\s+into\s+ezstay\.automation_runs/);
+  assert.match(fn, /ezstay_materialize_run_evidence/);
+  assert.match(fn, /run_id/);
+});
+
+test("scheduled work is bounded and concurrency-safe", () => {
+  const start = automation.indexOf("create or replace function private.ezstay_run_scheduled_work");
+  const next = automation.indexOf("revoke execute", start);
+  const fn = automation.slice(start, next >= 0 ? next : automation.length);
+  assert.match(fn, /greatest\s*\(1/);
+  assert.match(fn, /least\s*\(/);
+  assert.match(fn, /for\s+update\s+skip\s+locked/);
+  assert.match(fn, /ezstay_evaluate_overdue_tasks/);
+  assert.match(runtimeRole, /grant\s+execute\s+on\s+function\s+private\.ezstay_run_scheduled_work/);
+});
