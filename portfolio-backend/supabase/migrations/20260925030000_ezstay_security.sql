@@ -47,6 +47,13 @@ revoke execute on function private.ezstay_has_role(uuid, text[]) from public;
 revoke execute on function private.ezstay_has_role(uuid, text[]) from anon;
 revoke execute on function private.ezstay_has_role(uuid, text[]) from authenticated;
 
+-- RLS policies reference these helpers explicitly. Keep the private schema
+-- unexposed while allowing authenticated policy evaluation to resolve and
+-- execute only these two membership helpers.
+grant usage on schema private to authenticated;
+grant execute on function private.ezstay_is_member(uuid) to authenticated;
+grant execute on function private.ezstay_has_role(uuid, text[]) to authenticated;
+
 alter table ezstay.hotels enable row level security;
 alter table ezstay.hotel_members enable row level security;
 alter table ezstay.rooms enable row level security;
