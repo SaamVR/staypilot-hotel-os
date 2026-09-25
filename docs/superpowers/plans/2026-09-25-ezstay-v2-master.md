@@ -81,16 +81,16 @@ export const ezstayRuntime = {
 ### HTTP contract for backend mode
 
 ```text
-GET  /api/demo/session
-POST /api/demo/start
-POST /api/demo/reset
-GET  /api/snapshot
-POST /api/scenarios/guest-request
-POST /api/scenarios/checkout
-POST /api/scenarios/low-stock
-POST /api/deliveries/retry
-POST /api/demo/clock/advance
-GET  /api/automation-runs/:runId
+GET  /api/ezstay/demo/session
+POST /api/ezstay/demo/start
+POST /api/ezstay/demo/reset
+GET  /api/ezstay/snapshot
+POST /api/ezstay/scenarios/guest-request
+POST /api/ezstay/scenarios/checkout
+POST /api/ezstay/scenarios/low-stock
+POST /api/ezstay/deliveries/retry
+POST /api/ezstay/demo/clock/advance
+GET  /api/ezstay/automation-runs/:runId
 ```
 
 All mutation routes require `Idempotency-Key`. Every response includes `x-request-id`.
@@ -181,7 +181,7 @@ Requires Lane C + mocked Lane B adapter.
 
 Acceptance:
 ```bash
-npm run verify:runtime
+npm run verify:ezstay
 ```
 
 Must prove:
