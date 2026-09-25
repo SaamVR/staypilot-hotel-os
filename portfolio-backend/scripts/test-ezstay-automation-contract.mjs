@@ -14,6 +14,7 @@ test("automation runtime exposes the four showcase business operations", () => {
   for (const fn of [
     "ezstay_apply_guest_request",
     "ezstay_apply_checkout",
+    "ezstay_complete_housekeeping",
     "ezstay_apply_low_stock",
     "ezstay_resolve_approval",
     "ezstay_retry_delivery",
@@ -21,6 +22,14 @@ test("automation runtime exposes the four showcase business operations", () => {
   ]) {
     assert.match(sql, new RegExp(`function\\s+private\\.${fn}`));
   }
+});
+
+test("room-ready completion marks housekeeping clean without clearing maintenance", () => {
+  const fn = sql.match(/create\s+or\s+replace\s+function\s+private\.ezstay_complete_housekeeping[\s\S]*?\$\$;/)?.[0] || "";
+  assert.match(fn, /set\s+status\s*=\s*'Done'/i);
+  assert.match(fn, /housekeeping\s*=\s*'Clean'/i);
+  assert.doesNotMatch(fn, /maintenance\s*=\s*'Clear'/i);
+  assert.match(fn, /room-ready-release/);
 });
 
 test("business effects use source-event or command idempotency guards", () => {
