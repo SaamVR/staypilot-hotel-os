@@ -55,9 +55,17 @@ set search_path = ''
 as $$
 declare
   room_103_id uuid;
+  room_105_id uuid;
   room_108_id uuid;
+  room_110_id uuid;
+  room_202_id uuid;
   room_204_id uuid;
   room_207_id uuid;
+  room_211_id uuid;
+  res_1043_id uuid;
+  res_1044_id uuid;
+  res_1045_id uuid;
+  res_1046_id uuid;
   res_1047_id uuid;
   res_1048_id uuid;
   sheets_id uuid;
@@ -76,8 +84,8 @@ begin
     target_hotel_id,
     room_number,
     case
-      when room_number in ('106','112','206','212') then 'Sky Suite'
-      when room_number::integer % 2 = 0 then 'Deluxe King'
+      when room_number in ('101','107','201','211') then 'Sky Suite'
+      when room_number in ('109','111','202','203','204','205','207','209') then 'Deluxe King'
       else 'City Queen'
     end,
     case
@@ -95,9 +103,13 @@ begin
   ) rooms;
 
   select id into room_103_id from ezstay.rooms where hotel_id = target_hotel_id and number = '103';
+  select id into room_105_id from ezstay.rooms where hotel_id = target_hotel_id and number = '105';
   select id into room_108_id from ezstay.rooms where hotel_id = target_hotel_id and number = '108';
+  select id into room_110_id from ezstay.rooms where hotel_id = target_hotel_id and number = '110';
+  select id into room_202_id from ezstay.rooms where hotel_id = target_hotel_id and number = '202';
   select id into room_204_id from ezstay.rooms where hotel_id = target_hotel_id and number = '204';
   select id into room_207_id from ezstay.rooms where hotel_id = target_hotel_id and number = '207';
+  select id into room_211_id from ezstay.rooms where hotel_id = target_hotel_id and number = '211';
 
   -- Preserve the validated V2 relationship: Olivia Martin is Deluxe King room 204.
   update ezstay.rooms
@@ -108,6 +120,10 @@ begin
   set room_type = 'City Queen'
   where id = room_108_id;
 
+  res_1043_id := gen_random_uuid();
+  res_1044_id := gen_random_uuid();
+  res_1045_id := gen_random_uuid();
+  res_1046_id := gen_random_uuid();
   res_1047_id := gen_random_uuid();
   res_1048_id := gen_random_uuid();
 
@@ -130,6 +146,38 @@ begin
       (target_demo_now at time zone 'Asia/Dhaka')::date + 2,
       2, 684, 684, 'Confirmed',
       '{"fixture_key":"res_1048"}'::jsonb
+    ),
+    (
+      res_1046_id, target_hotel_id, 'EZ-1046', 'Ava Garcia', 'Direct',
+      room_211_id, 'Sky Suite',
+      (target_demo_now at time zone 'Asia/Dhaka')::date,
+      (target_demo_now at time zone 'Asia/Dhaka')::date + 3,
+      3, 1180, 1180, 'Confirmed',
+      '{"fixture_key":"res_1046"}'::jsonb
+    ),
+    (
+      res_1045_id, target_hotel_id, 'EZ-1045', 'Liam Chen', 'Expedia',
+      room_105_id, 'City Queen',
+      (target_demo_now at time zone 'Asia/Dhaka')::date - 1,
+      (target_demo_now at time zone 'Asia/Dhaka')::date + 2,
+      2, 527, 260, 'Confirmed',
+      '{"fixture_key":"res_1045"}'::jsonb
+    ),
+    (
+      res_1044_id, target_hotel_id, 'EZ-1044', 'Sophia Brown', 'Agoda',
+      room_202_id, 'Deluxe King',
+      (target_demo_now at time zone 'Asia/Dhaka')::date - 1,
+      (target_demo_now at time zone 'Asia/Dhaka')::date + 1,
+      2, 456, 456, 'Confirmed',
+      '{"fixture_key":"res_1044"}'::jsonb
+    ),
+    (
+      res_1043_id, target_hotel_id, 'EZ-1043', 'Ethan Lee', 'Direct',
+      room_110_id, 'City Queen',
+      (target_demo_now at time zone 'Asia/Dhaka')::date,
+      (target_demo_now at time zone 'Asia/Dhaka')::date + 4,
+      1, 612, 122, 'Confirmed',
+      '{"fixture_key":"res_1043"}'::jsonb
     );
 
   insert into ezstay.guest_requests (
@@ -158,11 +206,17 @@ begin
   insert into ezstay.tasks (
     hotel_id, reservation_id, room_id, title, team, status, due_at,
     automated, source_event_id, metadata
-  ) values (
-    target_hotel_id, res_1047_id, room_108_id, 'Extra towels requested',
-    'Housekeeping', 'New', target_demo_now + interval '5 minutes',
-    true, 'evt_seed_task_108', '{"fixture_key":"task_108_towels"}'::jsonb
-  );
+  ) values
+    (
+      target_hotel_id, res_1047_id, room_108_id, 'Extra towels requested',
+      'Housekeeping', 'New', target_demo_now + interval '5 minutes',
+      true, 'evt_seed_task_108', '{"fixture_key":"task_108_towels"}'::jsonb
+    ),
+    (
+      target_hotel_id, res_1046_id, null, 'VIP welcome setup',
+      'Front desk', 'Queued', target_demo_now + interval '5 hours',
+      false, null, '{"fixture_key":"task_vip_lobby","place":"Lobby"}'::jsonb
+    );
 
   sheets_id := gen_random_uuid();
 
@@ -179,12 +233,19 @@ begin
   insert into ezstay.approvals (
     hotel_id, inventory_item_id, type, title, detail, amount, quantity,
     status, requested_by_actor, payload, created_at
-  ) values (
-    target_hotel_id, sheets_id, 'Purchase order', 'Queen bed sheet restock',
-    '20 sets · Coastal Textile', 360, 20, 'Pending', 'EZStay automation',
-    '{"fixture_key":"apr_103","inventory_fixture_key":"inv_queen_sheets"}'::jsonb,
-    target_demo_now - interval '34 minutes'
-  );
+  ) values
+    (
+      target_hotel_id, null, 'Maintenance', 'Room 207 HVAC invoice',
+      'CoolTech · diagnostic + service', 165, null, 'Pending', 'Sam Rahman',
+      '{"fixture_key":"apr_104","room_fixture_key":"room_207"}'::jsonb,
+      target_demo_now - interval '11 minutes'
+    ),
+    (
+      target_hotel_id, sheets_id, 'Purchase order', 'Queen bed sheet restock',
+      '20 sets · Coastal Textile', 360, 20, 'Pending', 'Sam Rahman',
+      '{"fixture_key":"apr_103","inventory_fixture_key":"inv_queen_sheets"}'::jsonb,
+      target_demo_now - interval '34 minutes'
+    );
 
   insert into ezstay.automation_rules (
     hotel_id, rule_key, name, event_type, status, autonomy, config
