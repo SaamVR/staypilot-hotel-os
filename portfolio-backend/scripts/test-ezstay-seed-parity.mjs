@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
 const sql = readFileSync("supabase/migrations/20260925040000_ezstay_demo_lifecycle.sql", "utf8");
+const snapshotSql = readFileSync("supabase/migrations/20260925060000_ezstay_runtime_role.sql", "utf8");
 
 test("durable Northstar fixture carries all six presentation reservations", () => {
   for (const ref of ["EZ-1048","EZ-1047","EZ-1046","EZ-1045","EZ-1044","EZ-1043"]) {
@@ -35,4 +36,8 @@ test("durable room types match the visible local-preview fixture", () => {
     const reservationBlock = sql.match(/insert into ezstay\.reservations[\s\S]*?;\n/)?.[0] || "";
     if (room === "211") assert.match(reservationBlock, /room_211_id, 'Sky Suite'/);
   }
+});
+
+test("backend snapshot preserves non-room task place metadata", () => {
+  assert.match(snapshotSql, /coalesce\(x\.metadata\s*->>\s*'place',\s*'Property'\)/);
 });
